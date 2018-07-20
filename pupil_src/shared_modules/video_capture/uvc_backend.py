@@ -97,7 +97,11 @@ class UVC_Source(Base_Source):
             self.frame_size_backup = frame_size
             self.frame_rate_backup = frame_rate
             controls_dict = dict([(c.display_name, c) for c in self.uvc_capture.controls])
-            self.exposure_time_backup = controls_dict['Absolute Exposure Time'].value
+            try:
+                self.exposure_time_backup = controls_dict['Absolute Exposure Time'].value
+            except KeyError:
+                self.exposure_time_backup = None
+
         self.backup_uvc_controls = {}
 
     def verify_drivers(self):
@@ -367,8 +371,11 @@ class UVC_Source(Base_Source):
     @property
     def exposure_time(self):
         if self.uvc_capture:
-            controls_dict = dict([(c.display_name, c) for c in self.uvc_capture.controls])
-            return controls_dict['Absolute Exposure Time'].value
+            try:
+                controls_dict = dict([(c.display_name, c) for c in self.uvc_capture.controls])
+                return controls_dict['Absolute Exposure Time'].value
+            except KeyError:
+                return 20
         else:
             return self.exposure_time_backup
 

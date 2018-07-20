@@ -43,22 +43,22 @@ class Fingertip_Calibration(calibration_plugin_base.Calibration_Plugin):
             'confidence_thresh': 0.9,
             'max_num_detection': 1,
             'nms_thresh': 0.45,
-            'weights_path': os.path.join(os.path.split(__file__)[0], "weights", 'hand_detector_model.pkl'),
+            'weights_path': os.path.join(os.path.split(__file__)[0], "weights", 'hand_detector_model_float16.pkl'),
         }
         self.hand_transform = BaseTransform(self.hand_detector_cfg['input_size'], (117.77, 115.42, 107.29), (72.03, 69.83, 71.43))
         self.hand_detector = ssd_lite.build_ssd_lite(self.hand_detector_cfg)
         self.hand_detector.load_state_dict(torch.load(self.hand_detector_cfg['weights_path'], map_location=lambda storage, loc: storage))
-        self.hand_detector.eval().to(self.device)
+        self.hand_detector.eval().to(self.device).half()
 
         # Fingertip Detector
         self.fingertip_detector_cfg = {
             'confidence_thresh': 0.6,
-            'weights_path': os.path.join(os.path.split(__file__)[0], "weights", "fingertip_detector_model.pkl"),
+            'weights_path': os.path.join(os.path.split(__file__)[0], "weights", "fingertip_detector_model_upsample_float16.pkl"),
         }
         self.fingertip_transform = BaseTransform(64, (121.97, 119.65, 111.42), (67.58, 65.17, 67.72))
-        self.fingertip_detector = unet.UNet(num_classes=10, in_channels=3, depth=4, start_filts=32, up_mode='transpose')
+        self.fingertip_detector = unet.UNet(num_classes=10, in_channels=3, depth=4, start_filts=32, up_mode='upsample')
         self.fingertip_detector.load_state_dict(torch.load(self.fingertip_detector_cfg['weights_path'], map_location=lambda storage, loc: storage))
-        self.fingertip_detector.eval().to(self.device)
+        self.fingertip_detector.eval().to(self.device).half()
 
         self.collect_tips = False
         self.visualize = True
@@ -141,9 +141,12 @@ class Fingertip_Calibration(calibration_plugin_base.Calibration_Plugin):
                 crop_br = (crop_tl + crop_len).astype(np.int)
 
                 # Fingertip detection
-                y = orig_img[crop_tl[1]:crop_br[1], crop_tl[0]:crop_br[0]].copy()
-                y = self.fingertip_transform(y)
-                y = y.to(self.device)
+                crop_tl_2 = (crop_tl.astype(np.float) / (img_width, img_height) * (x.size(-1), x.size(-2))).astype(np.int)
+                crop_br_2 = (crop_br.astype(np.float) / (img_width, img_height) * (x.size(-1), x.size(-2))).astype(np.int)
+                y = x[:, :, crop_tl_2[1]:crop_br_2[1], crop_tl_2[0]:crop_br_2[0]]
+                m = torch.nn.Upsample(size=(64, 64), mode='bilinear', align_corners=False)
+                y = m(y)
+
                 fingertip_detections = self.fingertip_detector(y).cpu().detach().numpy()[0][:5]
 
                 self.finger_viz.append([])
@@ -238,4 +241,5 @@ class BaseTransform:
             x /= self.std
         x = torch.from_numpy(x).permute(2, 0, 1)
         x = x.unsqueeze(0)
+        x = x.half()
         return x

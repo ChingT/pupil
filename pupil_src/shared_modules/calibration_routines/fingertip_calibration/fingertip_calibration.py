@@ -25,9 +25,10 @@ from calibration_routines import calibration_plugin_base, finish_calibration
 from calibration_routines.fingertip_calibration.models import ssd_lite, unet
 
 if getattr(sys, 'frozen', False):
-    weights_path =  os.path.join(sys._MEIPASS, "weights")
+    weights_root = os.path.join(sys._MEIPASS, "weights")
 else:
-    weights_path =  os.path.join(os.path.split(__file__)[0], "weights")
+    weights_root = os.path.join(os.path.split(__file__)[0], "weights")
+
 
 class Fingertip_Calibration(calibration_plugin_base.Calibration_Plugin):
     """Calibrate gaze parameters using your fingertip.
@@ -41,29 +42,23 @@ class Fingertip_Calibration(calibration_plugin_base.Calibration_Plugin):
         # Initialize CNN pipeline
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
-        # Hand Detector
-        self.hand_detector_cfg = {
+        # Hand Detector cfg
+        hand_detector_cfg = {
             'input_size': 225,
             'confidence_thresh': 0.9,
             'max_num_detection': 1,
             'nms_thresh': 0.45,
-            'weights_path': os.path.join(weights_path,'hand_detector_model.pkl'),
         }
-        self.hand_transform = BaseTransform(self.hand_detector_cfg['input_size'], (117.77, 115.42, 107.29), (72.03, 69.83, 71.43))
-        self.hand_detector = ssd_lite.build_ssd_lite(self.hand_detector_cfg)
-        self.hand_detector.load_state_dict(torch.load(self.hand_detector_cfg['weights_path'], map_location=lambda storage, loc: storage))
-        self.hand_detector.eval().to(self.device)
-
-        # Fingertip Detector
-        self.fingertip_detector_cfg = {
+        # Fingertip Detector cfg
+        fingertip_detector_cfg = {
             'confidence_thresh': 0.6,
-            'weights_path': os.path.join(weights_path, "fingertip_detector_model.pkl"),
         }
-        self.fingertip_transform = BaseTransform(64, (121.97, 119.65, 111.42), (67.58, 65.17, 67.72))
-        self.fingertip_detector = unet.UNet(num_classes=10, in_channels=3, depth=4, start_filts=32, up_mode='transpose')
-        self.fingertip_detector.load_state_dict(torch.load(self.fingertip_detector_cfg['weights_path'], map_location=lambda storage, loc: storage))
-        self.fingertip_detector.eval().to(self.device)
+        self.hand_fingertip_detector = HandFingertipDetector(hand_detector_cfg, fingertip_detector_cfg)
+        weights_path = os.path.join(weights_root, "hand_fingertip_detector_model.pkl")
+        self.hand_fingertip_detector.load_state_dict(torch.load(weights_path, map_location=lambda storage, loc: storage))
+        self.hand_fingertip_detector.eval().to(self.device)
+        self.transform = BaseTransform(self.device, size=hand_detector_cfg['input_size'],
+                                       mean=(117.77, 115.42, 107.29), std=(72.03, 69.83, 71.43))
 
         self.collect_tips = False
         self.visualize = visualize
@@ -71,7 +66,7 @@ class Fingertip_Calibration(calibration_plugin_base.Calibration_Plugin):
         self.finger_viz = []
 
     def get_init_dict(self):
-        return {"visualize":self.visualize}
+        return {"visualize": self.visualize}
 
     def init_ui(self):
         super().init_ui()
@@ -116,75 +111,38 @@ class Fingertip_Calibration(calibration_plugin_base.Calibration_Plugin):
     def recent_events(self, events):
         frame = events.get('frame')
         if (self.visualize or self.active) and frame:
-            orig_img = frame.img
             img_width, img_height = frame.width, frame.height
-            orig_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2RGB)
+            img = frame.img.copy()
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = self.transform(img)
 
-            # Hand Detection
-            x = orig_img.copy()
-            x = self.hand_transform(x)
-            x = x.to(self.device)
-            hand_detections = self.hand_detector(x).detach().numpy()[0][1]
-
+            # Hand Detection and Fingertip detection
+            hands, fingertips = self.hand_fingertip_detector(img, img_height, img_width)
             self.hand_viz = []
             self.finger_viz = []
-            for hand_detection in hand_detections:
-                confidence, x1, y1, x2, y2 = hand_detection
-                if confidence == 0:
-                    break
+            for hand, fingertip in zip(hands, fingertips):
+                detected_fingertips = [p for p in fingertip if p is not None]
 
-                x1 *= img_width
-                x2 *= img_width
-                y1 *= img_height
-                y2 *= img_height
-                self.hand_viz.append((x1, y1, x2, y2))
+                if len(detected_fingertips) > 0:
+                    # Hand detections without fingertips are false positives,
+                    # so only the hands with detected fingers are visualized
+                    self.hand_viz.append(hand)
+                    self.finger_viz.append(fingertip)
 
-                tl = np.array((x1, y1))
-                br = np.array((x2, y2))
-                W, H = br - tl
-                crop_len = np.clip(max(W, H) * 1.25, 1, min(img_width, img_height))
-                crop_center = (br + tl) / 2
-                crop_center = np.clip(crop_center, crop_len / 2, (img_width, img_height) - crop_len / 2)
-                crop_tl = (crop_center - crop_len / 2).astype(np.int)
-                crop_br = (crop_tl + crop_len).astype(np.int)
-
-                # Fingertip detection
-                y = orig_img[crop_tl[1]:crop_br[1], crop_tl[0]:crop_br[0]].copy()
-                y = self.fingertip_transform(y)
-                y = y.to(self.device)
-                fingertip_detections = self.fingertip_detector(y).cpu().detach().numpy()[0][:5]
-
-                self.finger_viz.append([])
-                detected_fingers = 0
-                ref = None
-                for fingertip_detection in fingertip_detections:
-                    p = np.unravel_index(fingertip_detection.argmax(), fingertip_detection.shape)
-                    if fingertip_detection[p] >= self.fingertip_detector_cfg['confidence_thresh']:
-                        p = np.array(p) / (fingertip_detection.shape) * (crop_br[1] - crop_tl[1], crop_br[0] - crop_tl[0]) + (crop_tl[1], crop_tl[0])
-                        self.finger_viz[-1].append(p)
-                        detected_fingers += 1
-                        ref = p
-                    else:
-                        self.finger_viz[-1].append(None)
-
-                if detected_fingers == 1 and self.active:
-                    y, x = ref
-                    ref = {
-                        'screen_pos': (x, y),
-                        'norm_pos': (x / img_width, 1 - (y / img_height)),
-                        'timestamp': frame.timestamp,
-                    }
-                    self.ref_list.append(ref)
-                elif detected_fingers == 5 and self.active:
-                    if self.collect_tips and len(self.ref_list) > 5:
-                        self.collect_tips = False
-                        self.stop()
-                    elif not self.collect_tips:
-                        self.collect_tips = True
-                elif detected_fingers == 0:
-                    # hand detections without fingertips are false positives
-                    del self.hand_viz[-1]
-                    del self.finger_viz[-1]
+                    if len(detected_fingertips) == 1 and self.active:
+                        x, y = detected_fingertips[0]
+                        ref = {
+                            'screen_pos': (x, y),
+                            'norm_pos': (x / img_width, 1 - (y / img_height)),
+                            'timestamp': frame.timestamp,
+                        }
+                        self.ref_list.append(ref)
+                    elif len(detected_fingertips) == 5 and self.active:
+                        if self.collect_tips and len(self.ref_list) > 5:
+                            self.collect_tips = False
+                            self.stop()
+                        elif not self.collect_tips:
+                            self.collect_tips = True
 
             if self.active:
                 # always save pupil positions
@@ -205,7 +163,7 @@ class Fingertip_Calibration(calibration_plugin_base.Calibration_Plugin):
                 cygl_utils.draw_polyline(pts, thickness=3 * self.g_pool.gui_user_scale, color=cygl_utils.RGBA(0., 1., 0., 1.))
                 for tip in fingertips:
                     if tip is not None:
-                        y, x = tip
+                        x, y = tip
                         cygl_utils.draw_progress((x, y), 0., 1.,
                                       inner_radius=25 * self.g_pool.gui_user_scale,
                                       outer_radius=35 * self.g_pool.gui_user_scale,
@@ -227,21 +185,100 @@ class Fingertip_Calibration(calibration_plugin_base.Calibration_Plugin):
         super().deinit_ui()
 
 
-
-class BaseTransform:
-    def __init__(self, size=None, mean=None, std=None):
+class BaseTransform(object):
+    def __init__(self, device, size, mean=None, std=None):
+        self.device = device
         self.size = size
-        self.mean = mean
-        self.std = std
+        self.resize = torch.nn.Upsample(size=(self.size, self.size), mode='bilinear', align_corners=False)
+        self.mean = torch.tensor(mean, dtype=torch.float32, device=device) if mean is not None else None
+        self.std = torch.tensor(std, dtype=torch.float32, device=device) if std is not None else None
 
     def __call__(self, image):
-        x = image.astype(np.float32)
-        if self.size is not None:
-            x = cv2.resize(x, dsize=(self.size, self.size))
-        if self.mean is not None:
-            x -= self.mean
-        if self.std is not None:
-            x /= self.std
-        x = torch.from_numpy(x).permute(2, 0, 1)
-        x = x.unsqueeze(0)
-        return x
+        if self.device == torch.device('cpu'):
+            image = cv2.resize(image, dsize=(self.size, self.size))
+            image = image.astype(np.float32)
+            image = torch.from_numpy(image)
+            if self.mean is not None:
+                image -= self.mean
+            if self.std is not None:
+                image /= self.std
+            image = image.permute(2, 0, 1)
+            image = image.unsqueeze(0)
+        else:
+            image = torch.from_numpy(image)
+            image = image.to(self.device)
+            image = image.float()
+            if self.mean is not None:
+                image -= self.mean
+            if self.std is not None:
+                image /= self.std
+            image = image.permute(2, 0, 1)
+            image = image.unsqueeze(0)
+            image = self.resize(image)
+        return image
+
+
+class HandFingertipDetector(torch.nn.Module):
+    def __init__(self, hand_detector_cfg, fingertip_detector_cfg):
+        super().__init__()
+        self.hand_detector = ssd_lite.build_ssd_lite(hand_detector_cfg)
+        self.fingertip_detector = unet.UNet(num_classes=10, in_channels=3, depth=4, start_filts=32, up_mode='upsample')
+        self.resample = torch.nn.Upsample(size=(64, 64), mode='bilinear', align_corners=False)
+        self.fingertip_conf_thresh = fingertip_detector_cfg['confidence_thresh']
+
+    def forward(self, image, img_height, img_width):
+        resize_ratio = torch.tensor([image.size(-1)/img_width, image.size(-2)/img_height], dtype=torch.float32, device=image.device)
+        hands = []
+        fingertips = []
+
+        # Hand Detection
+        hand_detections = self.hand_detector(image)[0][1].detach()
+        for hand_detection in hand_detections:
+            confidence, x1, y1, x2, y2 = hand_detection
+            if confidence == 0:
+                break
+
+            x1 *= img_width
+            x2 *= img_width
+            y1 *= img_height
+            y2 *= img_height
+
+            tl = torch.tensor([x1, y1], device=image.device)
+            br = torch.tensor([x2, y2], device=image.device)
+            W, H = br - tl
+            crop_len = torch.clamp(max(W, H) * 1.25, 1, min(img_width, img_height))
+            crop_center = (br + tl) / 2
+            crop_center[0] = torch.clamp(crop_center[0], crop_len / 2, img_width - crop_len / 2)
+            crop_center[1] = torch.clamp(crop_center[1], crop_len / 2, img_height - crop_len / 2)
+            crop_tl_ori = (crop_center - crop_len / 2)
+            crop_br_ori = (crop_tl_ori + crop_len)
+
+            # Fingertip detection
+            crop_tl_225 = (crop_tl_ori * resize_ratio).int()
+            crop_br_225 = (crop_br_ori * resize_ratio).int()
+
+            image_cropped = image[:, :, crop_tl_225[1]:crop_br_225[1], crop_tl_225[0]:crop_br_225[0]]
+            image_cropped = self.resample(image_cropped)
+
+            fingertip_detections = self.fingertip_detector(image_cropped)[0][:5].detach()
+
+            crop_tl_ori = crop_tl_225.type_as(image) / resize_ratio
+            crop_br_ori = crop_br_225.type_as(image) / resize_ratio
+
+            fingertip = []
+            for i, fingertip_detection in enumerate(fingertip_detections):
+                max_index = fingertip_detection.argmax()
+                p = max_index / fingertip_detection.shape[1], max_index % fingertip_detection.shape[1]
+                if fingertip_detection[p] >= self.fingertip_conf_thresh:
+                    py = p[0].type_as(image)
+                    px = p[1].type_as(image)
+                    ref_y = py / image_cropped.size(-2) * (crop_br_ori[1] - crop_tl_ori[1]) + crop_tl_ori[1]
+                    ref_x = px / image_cropped.size(-1) * (crop_br_ori[0] - crop_tl_ori[0]) + crop_tl_ori[0]
+                    ref = ref_x.cpu().numpy(), ref_y.cpu().numpy()
+                    fingertip.append(ref)
+                else:
+                    fingertip.append(None)
+            hands.append((x1.cpu().numpy(), y1.cpu().numpy(), x2.cpu().numpy(), y2.cpu().numpy()))
+            fingertips.append(fingertip)
+
+        return hands, fingertips

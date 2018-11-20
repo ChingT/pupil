@@ -24,7 +24,7 @@ class MarkerDetector:
         self.storage.markers = markers_dict
 
     def _filter_markers(self, markers):
-        markers = [m for m in markers if m["id_confidence"] > 0.2]
+        markers = [m for m in markers if m["id_confidence"] > 0.9]
 
         markers_id_all = set([m["id"] for m in markers])
         for marker_id in markers_id_all:
@@ -52,7 +52,7 @@ class MarkerDetector:
             - np.array(markers_with_same_id[1]["centroid"])
         )
         # If two markers are very close, pick the bigger one. It may due to double detection
-        if dist < 3:
+        if dist < 5:
             marker_small = min(markers_with_same_id, key=lambda x: x["perimeter"])
             markers = [
                 m

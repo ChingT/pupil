@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class VisibilityGraphs(CameraModel):
     def __init__(
         self,
-        first_node_id=None,
+        origin_marker_id=None,
         min_number_of_markers_per_frame_for_opt=3,
         min_number_of_frames_per_marker=2,
         min_camera_angle_diff=0.1,
@@ -49,8 +49,7 @@ class VisibilityGraphs(CameraModel):
         self.localization = None
 
         self.keyframes = dict()
-        self.first_node_id = first_node_id
-        self.first_node = None
+        self.origin_marker_id = origin_marker_id
         self.visibility_graph_of_all_markers = nx.MultiGraph()
         self.visibility_graph_of_ready_markers = nx.MultiGraph()
         logger.debug("create MultiGraph")
@@ -80,7 +79,7 @@ class VisibilityGraphs(CameraModel):
             if len(self.markers) == 0:
                 return
 
-            if not self._find_first_node():
+            if not self._set_coordinate_system():
                 return
 
             if camera_extrinsics is None:
@@ -94,20 +93,20 @@ class VisibilityGraphs(CameraModel):
                 self.count_opt += 1
             self.frame_id += 1
 
-    def _find_first_node(self):
-        if self.first_node is not None:
+    def _set_coordinate_system(self):
+        if self.marker_keys:
             return True
 
-        if self.first_node_id is not None:
-            if self.first_node_id in self.markers:
-                self.first_node = self.first_node_id
+        if self.origin_marker_id is not None:
+            if self.origin_marker_id in self.markers:
+                origin_marker_id = self.origin_marker_id
             else:
                 return False
         else:
-            self.first_node = list(self.markers.keys())[0]
+            origin_marker_id = list(self.markers.keys())[0]
 
-        self.marker_extrinsics_opt = {self.first_node: self.marker_extrinsics_origin}
-        self.marker_keys = [self.first_node]
+        self.marker_extrinsics_opt = {origin_marker_id: self.marker_extrinsics_origin}
+        self.marker_keys = [origin_marker_id]
         self.localization = CameraLocalizer(self.marker_extrinsics_opt)
         return True
 
@@ -146,6 +145,7 @@ class VisibilityGraphs(CameraModel):
         decide if markers can be a keyframe
         add "previous_camera_extrinsics" as a key in the self.keyframes[self.frame_id] dicts
          """
+        # TODO: come up a way to pick up keyframes without camera_params_loc
 
         if len(candidate_markers) < self.min_number_of_markers_per_frame:
             return False
@@ -193,7 +193,7 @@ class VisibilityGraphs(CameraModel):
         find out ready markers for optimization
         """
 
-        if self.first_node is not None:
+        if self.marker_keys:
             self.visibility_graph_of_ready_markers = (
                 self.visibility_graph_of_all_markers.copy()
             )
@@ -209,7 +209,7 @@ class VisibilityGraphs(CameraModel):
 
                 if (
                     len(self.visibility_graph_of_ready_markers) == 0
-                    or self.first_node not in self.visibility_graph_of_ready_markers
+                    or self.marker_keys[0] not in self.visibility_graph_of_ready_markers
                 ):
                     return
 
@@ -218,7 +218,7 @@ class VisibilityGraphs(CameraModel):
                     set(self.visibility_graph_of_ready_markers.nodes)
                     - set(
                         nx.node_connected_component(
-                            self.visibility_graph_of_ready_markers, self.first_node
+                            self.visibility_graph_of_ready_markers, self.marker_keys[0]
                         )
                     )
                 )
@@ -251,7 +251,7 @@ class VisibilityGraphs(CameraModel):
     def _update_camera_and_marker_keys(self):
         """ add new ids to self.marker_keys """
 
-        if self.first_node is not None:
+        if self.marker_keys:
             self.camera_keys = list(
                 sorted(
                     set(
@@ -264,21 +264,19 @@ class VisibilityGraphs(CameraModel):
             )
             logger.debug("self.camera_keys updated {}".format(self.camera_keys))
 
-            self.marker_keys = [self.first_node] + [
+            self.marker_keys = [self.marker_keys[0]] + [
                 n
                 for n in self.visibility_graph_of_ready_markers.nodes
-                if n != self.first_node
+                if n != self.marker_keys[0]
             ]
             logger.debug("self.marker_keys updated {}".format(self.marker_keys))
 
     def _prepare_data_for_optimization(self):
         """ prepare data for optimization """
 
-        camera_indices, marker_indices, markers_points_2d_detected = (
-            list(),
-            list(),
-            list(),
-        )
+        camera_indices = list()
+        marker_indices = list()
+        markers_points_2d_detected = list()
         for f_id in self.camera_keys:
             for n_id in self.keyframes[f_id].keys() & set(self.marker_keys):
                 camera_indices.append(self.camera_keys.index(f_id))
@@ -361,6 +359,8 @@ class VisibilityGraphs(CameraModel):
     def _discard_keyframes(self, camera_index_failed):
         """ if the optimization failed, update keyframes, the graph """
 
+        # TODO: check the image
+
         if len(camera_index_failed) == 0:
             return
         failed_keyframes = set(self.camera_keys[i] for i in camera_index_failed)
@@ -401,7 +401,7 @@ class VisibilityGraphs(CameraModel):
     def vis_graph(self, save_path):
         import matplotlib.pyplot as plt
 
-        if len(self.visibility_graph_of_all_markers) and self.first_node is not None:
+        if len(self.visibility_graph_of_all_markers) and self.marker_keys:
             graph_vis = self.visibility_graph_of_all_markers.copy()
             all_nodes = list(graph_vis.nodes)
 
@@ -411,9 +411,9 @@ class VisibilityGraphs(CameraModel):
             nx.draw_networkx_nodes(
                 graph_vis, pos, nodelist=all_nodes, node_color="g", node_size=100
             )
-            if self.first_node in self.visibility_graph_of_ready_markers:
+            if self.marker_keys[0] in self.visibility_graph_of_ready_markers:
                 connected_component = nx.node_connected_component(
-                    self.visibility_graph_of_ready_markers, self.first_node
+                    self.visibility_graph_of_ready_markers, self.marker_keys[0]
                 )
                 nx.draw_networkx_nodes(
                     graph_vis,

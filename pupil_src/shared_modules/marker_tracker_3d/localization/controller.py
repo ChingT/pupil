@@ -4,6 +4,8 @@ from marker_tracker_3d.localization.camera_localizer import CameraLocalizer
 
 
 class Controller:
+    # TODO merge to CameraLocalizer
+
     def __init__(self, storage):
         self.storage = storage
         self.camera_localizer = CameraLocalizer()

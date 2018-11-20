@@ -14,7 +14,7 @@ class Storage:
         self.camera_trace_all = []
 
         self.camera_extrinsics = None
-        self.previous_camera_extrinsics = None
+        self.camera_extrinsics_previous = None
 
         # for experiments
         now = datetime.datetime.now()
@@ -40,6 +40,6 @@ class Storage:
         self.camera_trace_all = []
 
         self.camera_extrinsics = None
-        self.previous_camera_extrinsics = None
+        self.camera_extrinsics_previous = None
 
         self.reprojection_errors = []

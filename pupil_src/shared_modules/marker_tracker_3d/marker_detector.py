@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+
 import square_marker_detect
 
 logger = logging.getLogger(__name__)

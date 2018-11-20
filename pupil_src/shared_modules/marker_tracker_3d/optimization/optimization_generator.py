@@ -28,7 +28,7 @@ def visibility_graphs_generator(recv_pipe):
             elif msg == "save":
                 dicts = {
                     "marker_extrinsics_opt": visibility_graphs.marker_extrinsics_opt,
-                    "camera_params_opt": visibility_graphs.camera_params_opt,
+                    "camera_extrinsics_opt": visibility_graphs.camera_extrinsics_opt,
                 }
                 save_path = data_recv
                 save_params_dicts(save_path=save_path, dicts=dicts)

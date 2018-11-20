@@ -38,8 +38,8 @@ def get_transform_mat(param):
     return mat_extrinsic
 
 
-def get_camera_pose_mat(camera_params):
-    camera_pose_inv = get_transform_mat(camera_params.copy())
+def get_camera_pose_mat(camera_extrinsics):
+    camera_pose_inv = get_transform_mat(camera_extrinsics.copy())
     camera_pose = np.linalg.inv(camera_pose_inv)
     return camera_pose
 

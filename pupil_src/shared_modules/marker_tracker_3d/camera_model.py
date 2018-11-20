@@ -43,17 +43,17 @@ class CameraModel:
         )
         self.marker_df_h = cv2.convertPointsToHomogeneous(self.marker_df).reshape(4, 4)
         self.n_camera_params = 6
-        self.n_marker_extrinsics = 6
+        self.n_marker_params = 6
         self.marker_extrinsics_origin = self.point_3d_to_param(self.marker_df)
 
-    def project_markers(self, camera_params, markers_points_3d):
-        camera_params = camera_params.reshape(-1, self.n_camera_params).copy()
+    def project_markers(self, camera_extrinsics, markers_points_3d):
+        camera_extrinsics = camera_extrinsics.reshape(-1, self.n_camera_params).copy()
         markers_points_3d = markers_points_3d.reshape(-1, 4, 3).copy()
         markers_points_2d_projected = [
             cv2.projectPoints(
                 points, cam[0:3], cam[3:6], self.cameraMatrix, self.distCoeffs
             )[0]
-            for cam, points in zip(camera_params, markers_points_3d)
+            for cam, points in zip(camera_extrinsics, markers_points_3d)
         ]
         markers_points_2d_projected = np.array(
             markers_points_2d_projected, dtype=np.float32
@@ -61,7 +61,7 @@ class CameraModel:
         return markers_points_2d_projected
 
     def params_to_points_3d(self, params):
-        params = np.asarray(params).reshape(-1, self.n_marker_extrinsics)
+        params = np.asarray(params).reshape(-1, self.n_marker_params)
         marker_points_3d = list()
         for param in params:
             rvec, tvec = split_param(param)
@@ -86,14 +86,14 @@ class CameraModel:
 
     def cal_cost(
         self,
-        camera_params,
+        camera_extrinsics,
         marker_extrinsics,
         camera_indices,
         marker_indices,
         markers_points_2d_detected,
     ):
         residuals = self.cal_proj_error(
-            camera_params,
+            camera_extrinsics,
             marker_extrinsics,
             camera_indices,
             marker_indices,
@@ -104,7 +104,7 @@ class CameraModel:
 
     def cal_proj_error(
         self,
-        camera_params,
+        camera_extrinsics,
         marker_extrinsics,
         camera_indices,
         marker_indices,
@@ -112,20 +112,22 @@ class CameraModel:
     ):
         markers_points_3d = self.params_to_points_3d(marker_extrinsics.reshape(-1, 6))
         markers_points_2d_projected = self.project_markers(
-            camera_params[camera_indices], markers_points_3d[marker_indices]
+            camera_extrinsics[camera_indices], markers_points_3d[marker_indices]
         )
         diff = markers_points_2d_projected - markers_points_2d_detected
         return diff.ravel()
 
-    def run_solvePnP(self, marker_points_3d, marker_points_2d, camera_params_prv=None):
+    def run_solvePnP(
+        self, marker_points_3d, marker_points_2d, camera_extrinsics_prv=None
+    ):
         if len(marker_points_3d) == 0 or len(marker_points_2d) == 0:
             return False, None, None
 
         if marker_points_3d.shape[1] != marker_points_2d.shape[1]:
             return False, None, None
 
-        if camera_params_prv is not None:
-            rvec, tvec = split_param(camera_params_prv)
+        if camera_extrinsics_prv is not None:
+            rvec, tvec = split_param(camera_extrinsics_prv)
             retval, rvec, tvec = cv2.solvePnP(
                 marker_points_3d,
                 marker_points_2d,

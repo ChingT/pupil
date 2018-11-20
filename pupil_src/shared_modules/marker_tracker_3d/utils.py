@@ -33,7 +33,7 @@ def to_camera_coordinate(pts_3d_world, rvec, tvec):
     return pts_3d_cam
 
 
-def check_camera_param(pts_3d_world, rvec, tvec):
+def check_camera_extrinsics(pts_3d_world, rvec, tvec):
     if (np.abs(rvec) > np.pi * 2).any():
         return False
 

@@ -3,14 +3,15 @@ from platform import system
 
 import OpenGL.GL as gl
 import cv2
-import gl_utils
-import glfw
 import numpy as np
 import pyglui.cygl.utils as pyglui_utils
+from pyglui import ui
+
+import gl_utils
+import glfw
 import square_marker_detect
 from marker_tracker_3d import math
 from marker_tracker_3d import utils
-from pyglui import ui
 
 logger = logging.getLogger(__name__)
 

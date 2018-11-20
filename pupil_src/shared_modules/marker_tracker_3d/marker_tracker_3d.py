@@ -11,8 +11,8 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
-from marker_tracker_3d import localization
 from marker_tracker_3d import optimization
+from marker_tracker_3d.camera_localizer import CameraLocalizer
 from marker_tracker_3d.camera_model import CameraModel
 from marker_tracker_3d.marker_detector import MarkerDetector
 from marker_tracker_3d.storage import Storage
@@ -42,7 +42,7 @@ class Marker_Tracker_3D(Plugin):
         self.optimization_controller = optimization.Controller(
             self.storage, self.ui.update_menu
         )
-        self.localization_controller = localization.Controller(self.storage)
+        self.camera_localizer = CameraLocalizer(self.storage)
 
         # for tracking
         self.min_number_of_markers_per_frame_for_loc = 2
@@ -94,8 +94,8 @@ class Marker_Tracker_3D(Plugin):
             self.early_exit()
             return
 
-        self.localization_controller.update_marker_extrinsics()
-        self.localization_controller.update_camera_extrinsics()
+        self.camera_localizer.update_marker_extrinsics()
+        self.camera_localizer.update_camera_extrinsics()
 
         self.optimization_controller.send_marker_data()
 

@@ -297,7 +297,7 @@ class Optimization(CameraModel):
         camera_params_opt, marker_extrinsics_opt = self._reshape_params(res.x)
         return camera_params_opt, marker_extrinsics_opt
 
-    def run(self, event):
+    def run(self):
         """ run reconstruction and then bundle adjustment """
 
         # Reconstruction
@@ -305,7 +305,6 @@ class Optimization(CameraModel):
         if len(camera_params_init) == 0 or len(marker_extrinsics_init) == 0:
             self.result_opt_run = None
             logger.debug("reconstruction failed")
-            event.set()
             return
         logger.debug("reconstruction done")
 
@@ -329,7 +328,6 @@ class Optimization(CameraModel):
             "marker_index_failed": marker_index_failed,
         }
         logger.debug("bundle adjustment done")
-        event.set()
         return
 
     def _success_check(

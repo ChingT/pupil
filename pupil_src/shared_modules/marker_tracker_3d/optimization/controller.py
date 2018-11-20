@@ -22,7 +22,7 @@ class Controller:
         generator_args = (recv_pipe,)
         self.bg_task = background_helper.IPC_Logging_Task_Proxy(
             name="generator_optimization",
-            generator=optimization.optimization_generator,
+            generator=optimization.visibility_graphs_generator,
             args=generator_args,
         )
 

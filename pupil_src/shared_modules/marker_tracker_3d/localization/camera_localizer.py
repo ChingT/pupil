@@ -1,4 +1,5 @@
 import numpy as np
+
 from marker_tracker_3d.camera_model import CameraModel
 from marker_tracker_3d.utils import merge_param, check_camera_param
 

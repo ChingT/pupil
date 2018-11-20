@@ -91,11 +91,7 @@ class UserInterface:
             self.menu.append(
                 ui.Info_Text(
                     "The marker with id {} is defined as the origin of the coordinate system".format(
-                        list(
-                            self.marker_tracker_3d.marker_model_3d.marker_extrinsics.keys()
-                        )[
-                            0
-                        ]  #
+                        list(self.storage.marker_extrinsics.keys())[0]  #
                         # TODO external ref
                     )
                 )

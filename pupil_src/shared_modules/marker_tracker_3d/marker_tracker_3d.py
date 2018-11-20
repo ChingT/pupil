@@ -11,10 +11,8 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
-import marker_tracker_3d.math
-import marker_tracker_3d.utils
+from marker_tracker_3d import localization
 from marker_tracker_3d import optimization
-from marker_tracker_3d.camera_localizer import CameraLocalizer
 from marker_tracker_3d.camera_model import CameraModel
 from marker_tracker_3d.marker_detector import MarkerDetector
 from marker_tracker_3d.storage import Storage
@@ -44,10 +42,10 @@ class Marker_Tracker_3D(Plugin):
         self.optimization_controller = optimization.Controller(
             self.storage, self.ui.update_menu
         )
+        self.localization_controller = localization.Controller(self.storage)
 
         # for tracking
         self.min_number_of_markers_per_frame_for_loc = 2
-        self.marker_model_3d = CameraLocalizer()
 
         # for experiments
         self.robustness = list()
@@ -96,8 +94,8 @@ class Marker_Tracker_3D(Plugin):
             self.early_exit()
             return
 
-        if self.marker_model_3d is not None:
-            self.update_camera_extrinsics()  # TODO: move to controller
+        self.localization_controller.update_marker_extrinsics()
+        self.localization_controller.update_camera_extrinsics()
 
         self.optimization_controller.send_marker_data()
 
@@ -106,24 +104,6 @@ class Marker_Tracker_3D(Plugin):
     def early_exit(self):
         if len(self.storage.camera_trace):
             self.storage.camera_trace.popleft()
-
-    def update_camera_extrinsics(self):
-        self.storage.camera_extrinsics = self.marker_model_3d.current_camera(
-            self.storage.markers, self.storage.previous_camera_extrinsics
-        )
-        if self.storage.camera_extrinsics is None:
-            # Do not set previous_camera_extrinsics to None to ensure a decent initial
-            # guess for the next solve_pnp call
-            self.storage.camera_trace.append(None)
-            self.storage.camera_trace_all.append(None)
-        else:
-            self.storage.previous_camera_extrinsics = self.storage.camera_extrinsics
-
-            camera_pose_matrix = marker_tracker_3d.math.get_camera_pose_mat(
-                self.storage.camera_extrinsics
-            )
-            self.storage.camera_trace.append(camera_pose_matrix[0:3, 3])
-            self.storage.camera_trace_all.append(camera_pose_matrix[0:3, 3])
 
     def gl_display(self):
         self.ui.gl_display(

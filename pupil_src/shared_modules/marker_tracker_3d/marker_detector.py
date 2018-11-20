@@ -1,16 +1,15 @@
 import logging
 
 import numpy as np
-
 import square_marker_detect
 
 logger = logging.getLogger(__name__)
 
 
 class MarkerDetector:
-    def __init__(self, storage):
+    def __init__(self, storage, min_marker_perimeter):
         self.storage = storage
-        self.min_marker_perimeter = 100
+        self.min_marker_perimeter = min_marker_perimeter
 
     def detect(self, frame):
         # not use detect_markers_robust to avoid cv2.calcOpticalFlowPyrLK for
@@ -25,6 +24,8 @@ class MarkerDetector:
         self.storage.markers = markers_dict
 
     def _filter_markers(self, markers):
+        markers = [m for m in markers if m["id_confidence"] > 0.2]
+
         markers_id_all = set([m["id"] for m in markers])
         for marker_id in markers_id_all:
             markers_with_same_id = [m for m in markers if m["id"] == marker_id]
@@ -44,7 +45,8 @@ class MarkerDetector:
 
         return marker_dict
 
-    def _remove_duplicate(self, marker_id, markers, markers_with_same_id):
+    @staticmethod
+    def _remove_duplicate(marker_id, markers, markers_with_same_id):
         dist = np.linalg.norm(
             np.array(markers_with_same_id[0]["centroid"])
             - np.array(markers_with_same_id[1]["centroid"])

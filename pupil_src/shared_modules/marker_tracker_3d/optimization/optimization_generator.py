@@ -1,7 +1,7 @@
 import threading
 
-from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 from marker_tracker_3d.optimization.optimization import Optimization
+from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 from marker_tracker_3d.utils import save_params_dicts
 
 

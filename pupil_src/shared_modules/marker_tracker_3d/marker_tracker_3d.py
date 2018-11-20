@@ -9,22 +9,16 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import collections
-import datetime
 import logging
-import multiprocessing as mp
-import os
-
-import numpy as np
 
 import marker_tracker_3d.math
 import marker_tracker_3d.utils
-from marker_tracker_3d.marker_detector import MarkerDetector
-from marker_tracker_3d.camera_localizer import CameraLocalizer
-from marker_tracker_3d.user_interface import UserInterface
-from marker_tracker_3d.camera_model import CameraModel
 from marker_tracker_3d import optimization
+from marker_tracker_3d.camera_localizer import CameraLocalizer
+from marker_tracker_3d.camera_model import CameraModel
+from marker_tracker_3d.marker_detector import MarkerDetector
 from marker_tracker_3d.storage import Storage
+from marker_tracker_3d.user_interface import UserInterface
 from plugin import Plugin
 
 logger = logging.getLogger(__name__)
@@ -39,13 +33,13 @@ class Marker_Tracker_3D(Plugin):
     icon_chr = chr(0xEC07)
     icon_font = "pupil_icons"
 
-    def __init__(self, g_pool, open_3d_window=True):
+    def __init__(self, g_pool, min_marker_perimeter=100):
         super().__init__(g_pool)
 
         self.storage = Storage()
 
-        self.marker_detector = MarkerDetector(self.storage)
-        self.ui = UserInterface(self, open_3d_window, self.storage)
+        self.marker_detector = MarkerDetector(self.storage, min_marker_perimeter)
+        self.ui = UserInterface(self, self.storage)
         self.camera_model = CameraModel()
         self.optimization_controller = optimization.Controller(
             self.storage, self.ui.update_menu
@@ -56,17 +50,6 @@ class Marker_Tracker_3D(Plugin):
         self.marker_model_3d = CameraLocalizer()
 
         # for experiments
-        now = datetime.datetime.now()
-        now_str = "%02d%02d%02d-%02d%02d" % (
-            now.year,
-            now.month,
-            now.day,
-            now.hour,
-            now.minute,
-        )
-        self.save_path = os.path.join(
-            "/cluster/users/Ching/experiments/marker_tracker_3d", now_str
-        )
         self.robustness = list()
         self.all_frames = list()
         self.reprojection_errors = list()
@@ -83,58 +66,21 @@ class Marker_Tracker_3D(Plugin):
         if you have a GUI or glfw window destroy it here.
         """
 
-        self.close_window()
-        if self.bg_task:
-            self.bg_task.cancel()
-            self.bg_task = None
+        self.ui.close_window()
+        self.optimization_controller.cleanup()
 
     def restart(self):
-        logger.warning("Restart!")
-        self.reset_parameters()
+        self.storage.reset()
         self.ui.update_menu()
-        self.send_pipe.send(("restart", None))
+        self.optimization_controller.restart()
 
     def save_data(self):
-        if not os.path.exists(self.save_path):
-            os.makedirs(self.save_path)
-
-        dist = [
-            np.linalg.norm(self.camera_trace_all[i + 1] - self.camera_trace_all[i])
-            if self.camera_trace_all[i + 1] is not None
-            and self.camera_trace_all[i] is not None
-            else np.nan
-            for i in range(len(self.camera_trace_all) - 1)
-        ]
-
-        dicts = {
-            "dist": dist,
-            "all_frames": self.all_frames,
-            "reprojection_errors": self.reprojection_errors,
-        }
-        marker_tracker_3d.utils.save_params_dicts(save_path=self.save_path, dicts=dicts)
-
-        self.send_pipe.send(("save", self.save_path))
-        logger.info("save_data at {}".format(self.save_path))
-
-    def reset_parameters(self):
-        # for tracking
-        self.register_new_markers = True
-        self.markers = list()
-        self.marker_model_3d = None
-        self.camera_trace = collections.deque(maxlen=100)
-        self.previous_camera_extrinsics = None
-        self.frame_count = 0
-        self.frame_count_last_send_data = 0
-
-        # for experiments
-        self.robustness = list()
-        self.camera_trace_all = list()
-        self.all_frames = list()
-        self.reprojection_errors = list()
+        self.optimization_controller.save_data()
 
     def get_init_dict(self):
         d = super().get_init_dict()
-        d["open_3d_window"] = self.open_3d_window
+        d["min_marker_perimeter"] = self.marker_detector.min_marker_perimeter
+
         return d
 
     def recent_events(self, events):
@@ -151,7 +97,7 @@ class Marker_Tracker_3D(Plugin):
             return
 
         if self.marker_model_3d is not None:
-            self.update_camera_extrinsics()
+            self.update_camera_extrinsics()  # TODO: move to controller
 
         self.optimization_controller.send_marker_data()
 

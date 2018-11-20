@@ -1,13 +1,12 @@
+import collections
 import itertools as it
 import logging
 import os
-import collections
 
 import networkx as nx
 import numpy as np
-
-from marker_tracker_3d.camera_model import CameraModel
 from marker_tracker_3d.camera_localizer import CameraLocalizer
+from marker_tracker_3d.camera_model import CameraModel
 from marker_tracker_3d.math import closest_angle_diff
 from marker_tracker_3d.utils import split_param
 

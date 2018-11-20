@@ -4,7 +4,6 @@ import time
 import cv2
 import numpy as np
 import scipy
-
 from marker_tracker_3d.camera_model import CameraModel
 from marker_tracker_3d.math import get_transform_mat
 from marker_tracker_3d.utils import check_camera_param, merge_param

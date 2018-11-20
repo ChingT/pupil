@@ -3,25 +3,23 @@ from platform import system
 
 import OpenGL.GL as gl
 import cv2
-import numpy as np
-import pyglui.cygl.utils as pyglui_utils
-from pyglui import ui
-
 import gl_utils
 import glfw
+import numpy as np
+import pyglui.cygl.utils as pyglui_utils
 import square_marker_detect
-
-from marker_tracker_3d import utils
 from marker_tracker_3d import math
+from marker_tracker_3d import utils
+from pyglui import ui
 
 logger = logging.getLogger(__name__)
 
 
 class UserInterface:
-    def __init__(self, marker_tracker_3d, open_3d_window, storage):
+    def __init__(self, marker_tracker_3d, storage):
         self.storage = storage
         self.marker_tracker_3d = marker_tracker_3d
-        self.open_3d_window = open_3d_window
+        self.open_3d_window = True
 
         self.name = "Marker Tracker 3D"
 

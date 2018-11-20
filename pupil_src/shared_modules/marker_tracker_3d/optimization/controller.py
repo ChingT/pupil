@@ -1,8 +1,11 @@
-import multiprocessing as mp
-import background_helper
 import logging
+import multiprocessing as mp
+import os
 
+import background_helper
+import numpy as np
 from marker_tracker_3d import optimization
+from marker_tracker_3d import utils
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +45,42 @@ class Controller:
         if self.frame_count > self.send_data_interval:
             self.frame_count = 0
             if self.storage.register_new_markers:
-                # TODO I need to use camera_extrinsics or marker_extrinsics here?
                 self.send_pipe.send(
                     ("frame", (self.storage.markers, self.storage.camera_extrinsics))
                 )
+
+    def save_data(self):
+        if not os.path.exists(self.storage.save_path):
+            os.makedirs(self.storage.save_path)
+
+        dist = [
+            np.linalg.norm(
+                self.storage.camera_trace_all[i + 1] - self.storage.camera_trace_all[i]
+            )
+            if self.storage.camera_trace_all[i + 1] is not None
+            and self.storage.camera_trace_all[i] is not None
+            else np.nan
+            for i in range(len(self.storage.camera_trace_all) - 1)
+        ]
+
+        dicts = {
+            "dist": dist,
+            # "all_frames": self.storage.all_frames,
+            "reprojection_errors": self.storage.reprojection_errors,
+        }
+        utils.save_params_dicts(save_path=self.storage.save_path, dicts=dicts)
+
+        self.send_pipe.send(("save", self.storage.save_path))
+        logger.info("save_data at {}".format(self.storage.save_path))
+
+    def restart(self):
+        self.first_yield_done = False
+        self.frame_count = 0
+
+        logger.warning("Restart!")
+        self.send_pipe.send(("restart", None))
+
+    def cleanup(self):
+        if self.bg_task:
+            self.bg_task.cancel()
+            self.bg_task = None

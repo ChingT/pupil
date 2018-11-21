@@ -6,7 +6,7 @@ import os
 import networkx as nx
 import numpy as np
 
-from marker_tracker_3d.camera_localizer import Localization
+from marker_tracker_3d.camera_localization import CameraLocalization
 from marker_tracker_3d.camera_model import CameraModel
 from marker_tracker_3d.math import closest_angle_diff
 from marker_tracker_3d.utils import split_param
@@ -47,7 +47,7 @@ class VisibilityGraphs(CameraModel):
         self.marker_extrinsics_opt = collections.OrderedDict()
 
         self.data_for_optimization = None
-        self.localization = None
+        self.localization = CameraLocalization()
 
         self.keyframes = dict()
         self.origin_marker_id = origin_marker_id
@@ -85,7 +85,7 @@ class VisibilityGraphs(CameraModel):
 
             if camera_extrinsics is None:
                 camera_extrinsics = self.localization.get_camera_extrinsics(
-                    self.markers
+                    self.markers, self.marker_extrinsics_opt
                 )
                 if camera_extrinsics is None:
                     return
@@ -100,7 +100,7 @@ class VisibilityGraphs(CameraModel):
         if self.marker_keys:
             return True
 
-        if self.origin_marker_id is not None:
+        if self.origin_marker_id:
             if self.origin_marker_id in self.markers:
                 origin_marker_id = self.origin_marker_id
             else:
@@ -110,7 +110,6 @@ class VisibilityGraphs(CameraModel):
 
         self.marker_keys = [origin_marker_id]
         self.marker_extrinsics_opt = {origin_marker_id: self.marker_extrinsics_origin}
-        self.localization = Localization(self.marker_extrinsics_opt)
 
         return True
 

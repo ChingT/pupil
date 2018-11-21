@@ -50,14 +50,14 @@ class Optimization(CameraModel):
 
     def prepare_data_for_reconstruct_camera(self, marker_extrinsics_init, camera_idx):
         """ prepare data for reconstruction using in cv2.solvePnP() """
-
-        marker_index_available = (
+        # TODO: merge with _prepare_data()
+        marker_keys_available = (
             set(self.marker_indices[self.camera_indices == camera_idx])
             & marker_extrinsics_init.keys()
         )
-        if len(marker_index_available) == 0:
+        if len(marker_keys_available) == 0:
             return [], []
-        marker_key = min(marker_index_available)
+        marker_key = min(marker_keys_available)
 
         marker_points_3d_for_rec = self.params_to_points_3d(
             marker_extrinsics_init[marker_key]

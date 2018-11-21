@@ -2,8 +2,9 @@ import logging
 import multiprocessing as mp
 import os
 
-import background_helper
 import numpy as np
+
+import background_helper
 from marker_tracker_3d import optimization
 from marker_tracker_3d import utils
 
@@ -22,7 +23,7 @@ class Controller:
         generator_args = (recv_pipe,)
         self.bg_task = background_helper.IPC_Logging_Task_Proxy(
             name="generator_optimization",
-            generator=optimization.visibility_graphs_generator,
+            generator=optimization.optimization_generator,
             args=generator_args,
         )
 

@@ -6,6 +6,7 @@ from marker_tracker_3d.utils import split_param, merge_param
 
 
 class CameraModel:
+    # TODO: load cameraMatrix and distCoeffs from camera_models.load_intrinsics
     def __init__(self, cameraMatrix=None, distCoeffs=None):
 
         if cameraMatrix is None:
@@ -120,6 +121,7 @@ class CameraModel:
     def run_solvePnP(
         self, marker_points_3d, marker_points_2d, camera_extrinsics_prv=None
     ):
+        # TODO: remove run_solvePnP from CameraModel
         if len(marker_points_3d) == 0 or len(marker_points_2d) == 0:
             return False, None, None
 

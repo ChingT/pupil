@@ -5,7 +5,7 @@ from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 from marker_tracker_3d.utils import save_params_dicts
 
 
-def visibility_graphs_generator(recv_pipe):
+def optimization_generator(recv_pipe):
     # TODO: background Process only do opt_run
 
     origin_marker_id = None

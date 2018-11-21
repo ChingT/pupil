@@ -11,8 +11,9 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
+import marker_tracker_3d.math
 from marker_tracker_3d import optimization
-from marker_tracker_3d.camera_localizer import CameraLocalizer
+from marker_tracker_3d.camera_localization import CameraLocalization
 from marker_tracker_3d.camera_model import CameraModel
 from marker_tracker_3d.marker_detector import MarkerDetector
 from marker_tracker_3d.storage import Storage
@@ -42,7 +43,7 @@ class Marker_Tracker_3D(Plugin):
         self.optimization_controller = optimization.Controller(
             self.storage, self.ui.update_menu
         )
-        self.camera_localizer = CameraLocalizer(self.storage)
+        self.camera_localization = CameraLocalization()
 
         # for tracking
         self.min_number_of_markers_per_frame_for_loc = 2
@@ -83,6 +84,7 @@ class Marker_Tracker_3D(Plugin):
 
     def recent_events(self, events):
         frame = events.get("frame")
+        # TODO: move all below to controller
         if not frame:
             self.early_exit()
             return
@@ -94,8 +96,24 @@ class Marker_Tracker_3D(Plugin):
             self.early_exit()
             return
 
-        self.camera_localizer.update_marker_extrinsics()
-        self.camera_localizer.update_camera_extrinsics()
+        self.storage.camera_extrinsics = self.camera_localization.get_camera_extrinsics(
+            self.storage.markers,
+            self.storage.marker_extrinsics,
+            self.storage.camera_extrinsics_previous,
+        )
+
+        if self.storage.camera_extrinsics is None:
+            # Do not set camera_extrinsics_previous to None to ensure a decent initial guess for the next solve_pnp call
+            self.storage.camera_trace.append(None)
+            self.storage.camera_trace_all.append(None)
+        else:
+            self.storage.camera_extrinsics_previous = self.storage.camera_extrinsics
+
+            camera_pose_matrix = marker_tracker_3d.math.get_camera_pose_mat(
+                self.storage.camera_extrinsics
+            )
+            self.storage.camera_trace.append(camera_pose_matrix[0:3, 3])
+            self.storage.camera_trace_all.append(camera_pose_matrix[0:3, 3])
 
         self.optimization_controller.send_marker_data()
 

@@ -11,11 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
-import marker_tracker_3d.math
-from marker_tracker_3d import optimization
-from marker_tracker_3d.camera_localization import CameraLocalization
-from marker_tracker_3d.camera_model import CameraModel
-from marker_tracker_3d.marker_detector import MarkerDetector
+from marker_tracker_3d.controller import Controller
 from marker_tracker_3d.storage import Storage
 from marker_tracker_3d.user_interface import UserInterface
 from plugin import Plugin
@@ -36,17 +32,10 @@ class Marker_Tracker_3D(Plugin):
         super().__init__(g_pool)
 
         self.storage = Storage()
+        self.storage.min_marker_perimeter = min_marker_perimeter
 
-        self.marker_detector = MarkerDetector(self.storage, min_marker_perimeter)
         self.ui = UserInterface(self, self.storage)
-        self.camera_model = CameraModel()
-        self.optimization_controller = optimization.Controller(
-            self.storage, self.ui.update_menu
-        )
-        self.camera_localization = CameraLocalization()
-
-        # for tracking
-        self.min_number_of_markers_per_frame_for_loc = 2
+        self.controller = Controller(self.storage, self.ui.update_menu)
 
         # for experiments
         self.robustness = list()
@@ -66,62 +55,24 @@ class Marker_Tracker_3D(Plugin):
         """
 
         self.ui.close_window()
-        self.optimization_controller.cleanup()
+        self.controller.optimization_controller.cleanup()
 
     def restart(self):
         self.storage.reset()
         self.ui.update_menu()
-        self.optimization_controller.restart()
+        self.controller.optimization_controller.restart()
 
     def save_data(self):
-        self.optimization_controller.save_data()
+        self.controller.optimization_controller.save_data()
 
     def get_init_dict(self):
         d = super().get_init_dict()
-        d["min_marker_perimeter"] = self.marker_detector.min_marker_perimeter
-
+        d["min_marker_perimeter"] = self.storage.min_marker_perimeter
         return d
 
     def recent_events(self, events):
         frame = events.get("frame")
-        # TODO: move all below to controller
-        if not frame:
-            self.early_exit()
-            return
-
-        self.marker_detector.detect(frame)
-        self.optimization_controller.fetch_extrinsics()
-
-        if len(self.storage.markers) < self.min_number_of_markers_per_frame_for_loc:
-            self.early_exit()
-            return
-
-        self.storage.camera_extrinsics = self.camera_localization.get_camera_extrinsics(
-            self.storage.markers,
-            self.storage.marker_extrinsics,
-            self.storage.camera_extrinsics_previous,
-        )
-
-        if self.storage.camera_extrinsics is None:
-            # Do not set camera_extrinsics_previous to None to ensure a decent initial guess for the next solve_pnp call
-            self.storage.camera_trace.append(None)
-            self.storage.camera_trace_all.append(None)
-        else:
-            self.storage.camera_extrinsics_previous = self.storage.camera_extrinsics
-
-            camera_pose_matrix = marker_tracker_3d.math.get_camera_pose_mat(
-                self.storage.camera_extrinsics
-            )
-            self.storage.camera_trace.append(camera_pose_matrix[0:3, 3])
-            self.storage.camera_trace_all.append(camera_pose_matrix[0:3, 3])
-
-        self.optimization_controller.send_marker_data()
-
-    # TODO by now this is doing so little, maybe we should rename it to
-    # pop_camera_trace or something similar
-    def early_exit(self):
-        if len(self.storage.camera_trace):
-            self.storage.camera_trace.popleft()
+        self.controller.recent_events(frame)
 
     def gl_display(self):
         self.ui.gl_display(

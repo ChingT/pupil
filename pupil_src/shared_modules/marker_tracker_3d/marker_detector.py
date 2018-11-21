@@ -8,21 +8,22 @@ logger = logging.getLogger(__name__)
 
 
 class MarkerDetector:
-    def __init__(self, storage, min_marker_perimeter):
+    def __init__(self, storage):
         self.storage = storage
-        self.min_marker_perimeter = min_marker_perimeter
 
     def detect(self, frame):
         # not use detect_markers_robust to avoid cv2.calcOpticalFlowPyrLK for
         # performance reasons
-        markers = square_marker_detect.detect_markers(
-            frame.gray,
-            grid_size=5,
-            aperture=13,
-            min_marker_perimeter=self.min_marker_perimeter,
-        )
-        markers_dict = self._filter_markers(markers)
-        self.storage.markers = markers_dict
+        try:
+            markers = square_marker_detect.detect_markers(
+                frame.gray,
+                grid_size=5,
+                aperture=13,
+                min_marker_perimeter=self.storage.min_marker_perimeter,
+            )
+            self.storage.markers = self._filter_markers(markers)
+        except AttributeError:
+            self.storage.markers = dict()
 
     def _filter_markers(self, markers):
         markers = [m for m in markers if m["id_confidence"] > 0.9]

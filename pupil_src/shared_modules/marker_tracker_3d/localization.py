@@ -1,13 +1,12 @@
 import numpy as np
 
-from marker_tracker_3d.camera_model import CameraModel
-from marker_tracker_3d.utils import merge_param, check_camera_extrinsics
+from marker_tracker_3d import utils
 
 
-class CameraLocalization:
-    def __init__(self):
-        super().__init__()
-        self.camera_model = CameraModel()
+class Localization:
+    def __init__(self, camera_model, marker_model):
+        self.camera_model = camera_model
+        self.marker_model = marker_model
 
     def get_camera_extrinsics(
         self, markers, marker_extrinsics, camera_extrinsics_previous=None
@@ -21,14 +20,14 @@ class CameraLocalization:
         )
 
         if retval:
-            if check_camera_extrinsics(marker_points_3d, rvec, tvec):
-                camera_extrinsics = merge_param(rvec, tvec)
+            if utils.check_camera_extrinsics(marker_points_3d, rvec, tvec):
+                camera_extrinsics = utils.merge_param(rvec, tvec)
                 return camera_extrinsics
 
     def _prepare_data(self, current_frame, marker_extrinsics):
         marker_keys_available = current_frame.keys() & set(marker_extrinsics.keys())
 
-        marker_points_3d = self.camera_model.params_to_points_3d(
+        marker_points_3d = self.marker_model.params_to_points_3d(
             [marker_extrinsics[i] for i in marker_keys_available]
         )
         marker_points_2d = np.array(

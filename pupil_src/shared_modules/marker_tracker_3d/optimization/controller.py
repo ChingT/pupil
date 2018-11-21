@@ -5,8 +5,8 @@ import os
 import numpy as np
 
 import background_helper
-from marker_tracker_3d import optimization
 from marker_tracker_3d import utils
+from marker_tracker_3d.optimization.optimization_generator import optimization_generator
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +22,10 @@ class Controller:
         recv_pipe, self.send_pipe = mp.Pipe(False)
         generator_args = (recv_pipe,)
         self.bg_task = background_helper.IPC_Logging_Task_Proxy(
-            name="generator_optimization",
-            generator=optimization.optimization_generator,
-            args=generator_args,
+            name="generator", generator=optimization_generator, args=generator_args
+        )
+        self.send_pipe.send(
+            ("basic_models", (self.storage.camera_model, self.storage.marker_model))
         )
 
     def fetch_extrinsics(self):
@@ -34,6 +35,10 @@ class Controller:
                 self.first_yield_done = True
 
             self.storage.marker_extrinsics = marker_extrinsics
+            self.storage.marker_points_3d = {
+                k: self.storage.marker_model.params_to_points_3d(v)[0]
+                for k, v in self.storage.marker_extrinsics.items()
+            }
 
             logger.info(
                 "{} markers have been registered and updated".format(
@@ -56,19 +61,15 @@ class Controller:
 
         dist = [
             np.linalg.norm(
-                self.storage.camera_trace_all[i + 1] - self.storage.camera_trace_all[i]
+                self.storage.camera_trace[i + 1] - self.storage.camera_trace[i]
             )
-            if self.storage.camera_trace_all[i + 1] is not None
-            and self.storage.camera_trace_all[i] is not None
+            if self.storage.camera_trace[i + 1] is not None
+            and self.storage.camera_trace[i] is not None
             else np.nan
-            for i in range(len(self.storage.camera_trace_all) - 1)
+            for i in range(len(self.storage.camera_trace) - 1)
         ]
 
-        dicts = {
-            "dist": dist,
-            # "all_frames": self.storage.all_frames,
-            "reprojection_errors": self.storage.reprojection_errors,
-        }
+        dicts = {"dist": dist, "reprojection_errors": self.storage.reprojection_errors}
         utils.save_params_dicts(save_path=self.storage.save_path, dicts=dicts)
 
         self.send_pipe.send(("save", self.storage.save_path))

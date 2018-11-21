@@ -10,8 +10,6 @@ from pyglui import ui
 import gl_utils
 import glfw
 import square_marker_detect
-from marker_tracker_3d import math
-from marker_tracker_3d import utils
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +31,7 @@ class UserInterface:
             self.window_position_default = (8, 31)
         else:
             self.window_position_default = (0, 0)
+        self.input = {}
 
         self._window = None
         self.trackball = gl_utils.trackball.Trackball()
@@ -41,7 +40,9 @@ class UserInterface:
             self.open_window()
         else:
             self.close_window()
+
         self.scale = 1.0
+        self.len_camera_trace_shown = 150
 
     def init_ui(self):
         self.marker_tracker_3d.add_menu()
@@ -64,7 +65,7 @@ class UserInterface:
         self.menu.append(
             ui.Slider(
                 "min_marker_perimeter",
-                self.marker_tracker_3d.marker_detector,
+                self.storage,
                 step=1,
                 min=30,
                 max=100,
@@ -141,10 +142,7 @@ class UserInterface:
             self.draw_coordinate_system(l=1)
 
             # Draw registered markers
-            for (idx, extrinsics) in self.storage.marker_extrinsics.items():
-                verts = utils.get_marker_vertex_coord(
-                    extrinsics, self.marker_tracker_3d.camera_model
-                )
+            for (idx, verts) in self.storage.marker_points_3d.items():
                 if idx in self.storage.markers.keys():
                     color = (1, 0, 0, 0.8)
                 else:
@@ -154,16 +152,15 @@ class UserInterface:
                 gl.glPopMatrix()
 
             # Draw camera trace
-            if len(self.storage.camera_trace):
-                self.draw_camera_trace(self.storage.camera_trace)
+            if len(self.storage.camera_trace[-self.len_camera_trace_shown :]):
+                self.draw_camera_trace(
+                    self.storage.camera_trace[-self.len_camera_trace_shown :]
+                )
 
             # Draw the camera frustum and origin
-            if self.storage.camera_extrinsics is not None:
-                camera_pose_matrix = math.get_camera_pose_mat(
-                    self.storage.camera_extrinsics
-                )
+            if self.storage.camera_pose_matrix is not None:
                 gl.glPushMatrix()
-                gl.glMultMatrixf(camera_pose_matrix.T.flatten())
+                gl.glMultMatrixf(self.storage.camera_pose_matrix.T.flatten())
                 self.draw_frustum(img_size, K, 500)
                 gl.glLineWidth(1)
                 self.draw_coordinate_system(l=1)

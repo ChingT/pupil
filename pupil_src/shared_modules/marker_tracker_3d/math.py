@@ -29,8 +29,6 @@ def unit_vector(vector):
 
 
 def get_transform_mat(param):
-    if param is None:
-        return None
     rvec, tvec = split_param(param)
     mat_extrinsic = np.eye(4)
     mat_extrinsic[:3, :3] = cv2.Rodrigues(rvec)[0]
@@ -39,9 +37,17 @@ def get_transform_mat(param):
 
 
 def get_camera_pose_mat(camera_extrinsics):
+    if camera_extrinsics is None:
+        return None
     camera_pose_inv = get_transform_mat(camera_extrinsics.copy())
     camera_pose = np.linalg.inv(camera_pose_inv)
     return camera_pose
+
+
+def get_camera_trace(camera_pose_matrix):
+    if camera_pose_matrix is None:
+        return None
+    return camera_pose_matrix[0:3, 3]
 
 
 def svdt(A, B, order="row"):

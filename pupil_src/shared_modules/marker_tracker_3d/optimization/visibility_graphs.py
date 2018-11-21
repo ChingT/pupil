@@ -6,28 +6,30 @@ import os
 import networkx as nx
 import numpy as np
 
-from marker_tracker_3d.camera_localization import CameraLocalization
-from marker_tracker_3d.camera_model import CameraModel
-from marker_tracker_3d.math import closest_angle_diff
-from marker_tracker_3d.utils import split_param
+from marker_tracker_3d import math
+from marker_tracker_3d import utils
+from marker_tracker_3d.localization import Localization
 
 logger = logging.getLogger(__name__)
 
 
-class VisibilityGraphs(CameraModel):
+class VisibilityGraphs:
     def __init__(
         self,
+        camera_model,
+        marker_model,
         origin_marker_id=None,
         min_number_of_markers_per_frame_for_opt=3,
         min_number_of_frames_per_marker=2,
         min_camera_angle_diff=0.1,
         optimization_interval=1,
     ):
-        super().__init__()
         assert min_number_of_markers_per_frame_for_opt >= 2
         assert min_number_of_frames_per_marker >= 2
         assert min_camera_angle_diff > 0
         assert optimization_interval >= 1
+
+        self.marker_model = marker_model
 
         self.min_number_of_markers_per_frame = min_number_of_markers_per_frame_for_opt
         self.min_number_of_frames_per_marker = min_number_of_frames_per_marker
@@ -47,7 +49,7 @@ class VisibilityGraphs(CameraModel):
         self.marker_extrinsics_opt = collections.OrderedDict()
 
         self.data_for_optimization = None
-        self.localization = CameraLocalization()
+        self.localization = Localization(camera_model, marker_model)
 
         self.keyframes = dict()
         self.origin_marker_id = origin_marker_id
@@ -109,7 +111,9 @@ class VisibilityGraphs(CameraModel):
             origin_marker_id = list(self.markers.keys())[0]
 
         self.marker_keys = [origin_marker_id]
-        self.marker_extrinsics_opt = {origin_marker_id: self.marker_extrinsics_origin}
+        self.marker_extrinsics_opt = {
+            origin_marker_id: self.marker_model.marker_extrinsics_origin
+        }
 
         return True
 
@@ -118,14 +122,14 @@ class VisibilityGraphs(CameraModel):
         get those markers in markers, to which the rotation vector of the current camera pose is diverse enough
         """
 
-        rvec, _ = split_param(marker_extrinsics)
+        rvec, _ = utils.split_param(marker_extrinsics)
 
         candidate_markers = list()
         for n_id in self.markers:
             if n_id in self.visibility_graph_of_all_markers.nodes and len(
                 self.visibility_graph_of_all_markers.nodes[n_id]
             ):
-                diff = closest_angle_diff(
+                diff = math.closest_angle_diff(
                     rvec,
                     list(self.visibility_graph_of_all_markers.nodes[n_id].values()),
                 )
@@ -167,7 +171,7 @@ class VisibilityGraphs(CameraModel):
             self.visibility_graph_of_all_markers.add_edge(u, v, key=self.frame_id)
 
         # add frame_id as an attribute of the node
-        rvec, _ = split_param(camera_extrinsics)
+        rvec, _ = utils.split_param(camera_extrinsics)
         for n_id in unique_marker_id:
             self.visibility_graph_of_all_markers.nodes[n_id][self.frame_id] = rvec
 

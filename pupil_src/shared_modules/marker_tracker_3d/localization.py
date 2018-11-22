@@ -4,9 +4,8 @@ from marker_tracker_3d import utils
 
 
 class Localization:
-    def __init__(self, camera_model, marker_model):
-        self.camera_model = camera_model
-        self.marker_model = marker_model
+    def __init__(self, storage):
+        self.storage = storage
 
     def get_camera_extrinsics(
         self, markers, marker_extrinsics, camera_extrinsics_previous=None
@@ -14,10 +13,20 @@ class Localization:
         marker_points_3d, marker_points_2d = self._prepare_data(
             markers, marker_extrinsics
         )
+        if camera_extrinsics_previous is not None:
+            rvec, tvec = utils.split_param(camera_extrinsics_previous)
 
-        retval, rvec, tvec = self.camera_model.run_solvePnP(
-            marker_points_3d, marker_points_2d, camera_extrinsics_previous
-        )
+            retval, rvec, tvec = self.storage.camera_model.solvePnP(
+                marker_points_3d,
+                marker_points_2d,
+                useExtrinsicGuess=True,
+                rvec=rvec.copy(),
+                tvec=tvec.copy(),
+            )
+        else:
+            retval, rvec, tvec = self.storage.camera_model.solvePnP(
+                marker_points_3d, marker_points_2d
+            )
 
         if retval:
             if utils.check_camera_extrinsics(marker_points_3d, rvec, tvec):
@@ -27,7 +36,7 @@ class Localization:
     def _prepare_data(self, current_frame, marker_extrinsics):
         marker_keys_available = current_frame.keys() & set(marker_extrinsics.keys())
 
-        marker_points_3d = self.marker_model.params_to_points_3d(
+        marker_points_3d = self.storage.marker_model.params_to_points_3d(
             [marker_extrinsics[i] for i in marker_keys_available]
         )
         marker_points_2d = np.array(

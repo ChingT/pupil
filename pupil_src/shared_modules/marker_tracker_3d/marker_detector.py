@@ -21,9 +21,12 @@ class MarkerDetector:
                 aperture=13,
                 min_marker_perimeter=self.storage.min_marker_perimeter,
             )
-            self.storage.markers = self._filter_markers(markers)
         except AttributeError:
-            self.storage.markers = dict()
+            markers = dict()
+        else:
+            markers = self._filter_markers(markers)
+
+        return markers
 
     def _filter_markers(self, markers):
         markers = [m for m in markers if m["id_confidence"] > 0.9]

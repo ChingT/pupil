@@ -12,6 +12,7 @@ See COPYING and COPYING.LESSER for license details.
 import logging
 
 from marker_tracker_3d.controller import Controller
+from marker_tracker_3d.marker_model import MarkerModel
 from marker_tracker_3d.storage import Storage
 from marker_tracker_3d.user_interface import UserInterface
 from plugin import Plugin
@@ -32,9 +33,12 @@ class Marker_Tracker_3D(Plugin):
         super().__init__(g_pool)
 
         self.storage = Storage()
+        self.storage.camera_model = self.g_pool.capture.intrinsics
+        self.storage.marker_model = MarkerModel()
         self.storage.min_marker_perimeter = min_marker_perimeter
 
         self.ui = UserInterface(self, self.storage)
+
         self.controller = Controller(self.storage, self.ui.update_menu)
 
         # for experiments
@@ -55,15 +59,15 @@ class Marker_Tracker_3D(Plugin):
         """
 
         self.ui.close_window()
-        self.controller.optimization_controller.cleanup()
+        self.controller.cleanup()
 
     def restart(self):
         self.storage.reset()
         self.ui.update_menu()
-        self.controller.optimization_controller.restart()
+        self.controller.restart()
 
     def save_data(self):
-        self.controller.optimization_controller.save_data()
+        self.controller.save_data()
 
     def get_init_dict(self):
         d = super().get_init_dict()

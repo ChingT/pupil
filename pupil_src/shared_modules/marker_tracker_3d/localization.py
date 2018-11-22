@@ -33,14 +33,14 @@ class Localization:
                 camera_extrinsics = utils.merge_param(rvec, tvec)
                 return camera_extrinsics
 
-    def _prepare_data(self, current_frame, marker_extrinsics):
-        marker_keys_available = current_frame.keys() & set(marker_extrinsics.keys())
+    def _prepare_data(self, markers, marker_extrinsics):
+        marker_keys_available = markers.keys() & set(marker_extrinsics.keys())
 
         marker_points_3d = self.storage.marker_model.params_to_points_3d(
             [marker_extrinsics[i] for i in marker_keys_available]
         )
         marker_points_2d = np.array(
-            [current_frame[i]["verts"] for i in marker_keys_available]
+            [markers[i]["verts"] for i in marker_keys_available]
         )
 
         if len(marker_points_3d) and len(marker_points_2d):

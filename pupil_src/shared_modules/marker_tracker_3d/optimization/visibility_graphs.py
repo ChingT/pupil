@@ -58,17 +58,15 @@ class VisibilityGraphs:
 
     @property
     def markers(self):
-        return self.__current_frame
+        return self.__markers
 
     @markers.setter
-    def markers(self, current_frame_new):
-        assert isinstance(current_frame_new, dict), TypeError(
-            "current_frame_new should be a dict"
-        )
-        if len(current_frame_new) >= self.min_number_of_markers_per_frame:
-            self.__current_frame = current_frame_new
+    def markers(self, markers_new):
+        assert isinstance(markers_new, dict), TypeError("markers_new should be a dict")
+        if len(markers_new) >= self.min_number_of_markers_per_frame:
+            self.__markers = markers_new
         else:
-            self.__current_frame = dict()
+            self.__markers = dict()
 
     def update_visibility_graph_of_keyframes(self, lock, data):
         """ pick up keyframe and update visibility graph of keyframes """

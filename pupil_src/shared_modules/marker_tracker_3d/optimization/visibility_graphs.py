@@ -108,12 +108,12 @@ class VisibilityGraphs:
             )
         return camera_extrinsics
 
-    def _get_candidate_markers(self, markers, marker_extrinsics):
+    def _get_candidate_marker_keys(self, markers, camera_extrinsics):
         """
         get those markers in markers, to which the rotation vector of the current camera pose is diverse enough
         """
 
-        rvec, _ = utils.split_param(marker_extrinsics)
+        rvec, _ = utils.split_param(camera_extrinsics)
 
         candidate_markers = list()
         for n_id in markers:

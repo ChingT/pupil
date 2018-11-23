@@ -1,6 +1,7 @@
 import multiprocessing as mp
 
 import background_helper
+from marker_tracker_3d import utils
 from marker_tracker_3d.optimization.optimization_generator import optimization_generator
 from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 
@@ -73,11 +74,25 @@ class Controller:
             return marker_points_3d
 
     def save_data(self, save_path):
-        self.send_pipe.send(("save", save_path))
+        dicts = {
+            "marker_extrinsics_opt": self.visibility_graphs.marker_extrinsics_opt,
+            "camera_extrinsics_opt": self.visibility_graphs.camera_extrinsics_opt,
+        }
+        utils.save_params_dicts(save_path=save_path, dicts=dicts)
+        self.visibility_graphs.vis_graph(save_path)
 
     def restart(self):
         self.first_yield_done = False
-        self.send_pipe.send(("restart", None))
+        self.visibility_graphs = VisibilityGraphs(self.storage, self.origin_marker_id)
+        self.opt_is_running = False
+
+        self.bg_task.cancel()
+        recv_pipe, self.send_pipe = mp.Pipe(False)
+        generator_args = (recv_pipe,)
+        self.bg_task = background_helper.IPC_Logging_Task_Proxy(
+            name="generator", generator=optimization_generator, args=generator_args
+        )
+        self.send_pipe.send(("storage", self.storage))
 
     def cleanup(self):
         if self.bg_task:

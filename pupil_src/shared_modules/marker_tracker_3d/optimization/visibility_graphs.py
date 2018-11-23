@@ -18,13 +18,13 @@ class VisibilityGraphs:
         self,
         storage,
         origin_marker_id=None,
-        min_number_of_markers_per_frame_for_opt=3,
+        min_number_of_markers_per_frame=3,
         min_number_of_frames_per_marker=2,
         min_camera_angle_diff=0.1,
-        optimization_interval=1,
+        optimization_interval=2,
         select_keyframe_interval=6,
     ):
-        assert min_number_of_markers_per_frame_for_opt >= 2
+        assert min_number_of_markers_per_frame >= 2
         assert min_number_of_frames_per_marker >= 2
         assert min_camera_angle_diff > 0
         assert optimization_interval >= 1
@@ -32,7 +32,7 @@ class VisibilityGraphs:
 
         self.storage = storage
 
-        self.min_number_of_markers_per_frame = min_number_of_markers_per_frame_for_opt
+        self.min_number_of_markers_per_frame = min_number_of_markers_per_frame
         self.min_number_of_frames_per_marker = min_number_of_frames_per_marker
         self.min_angle_diff = min_camera_angle_diff
         self.optimization_interval = optimization_interval
@@ -294,14 +294,14 @@ class VisibilityGraphs:
 
         return data_for_optimization
 
-    def get_updated_marker_extrinsics(self, result_opt_run):
+    def get_updated_marker_extrinsics(self, optimization_result):
         """ process the results of optimization """
 
-        if isinstance(result_opt_run, dict) and len(result_opt_run) == 4:
-            camera_extrinsics_opt = result_opt_run["camera_extrinsics_opt"]
-            marker_extrinsics_opt = result_opt_run["marker_extrinsics_opt"]
-            camera_index_failed = result_opt_run["camera_index_failed"]
-            marker_index_failed = result_opt_run["marker_index_failed"]
+        if isinstance(optimization_result, dict) and len(optimization_result) == 4:
+            camera_extrinsics_opt = optimization_result["camera_extrinsics_opt"]
+            marker_extrinsics_opt = optimization_result["marker_extrinsics_opt"]
+            camera_index_failed = optimization_result["camera_index_failed"]
+            marker_index_failed = optimization_result["marker_index_failed"]
 
             self._update_extrinsics(
                 camera_extrinsics_opt,
@@ -310,11 +310,7 @@ class VisibilityGraphs:
                 marker_index_failed,
             )
 
-            # remove those frame_id, which make optimization fail from self.keyframes
             self._discard_keyframes(camera_index_failed)
-
-            self.camera_keys_prv = self.camera_keys.copy()
-
             return self.marker_extrinsics_opt
 
     def _update_extrinsics(
@@ -330,15 +326,20 @@ class VisibilityGraphs:
         for i, p in enumerate(marker_extrinsics):
             if i not in marker_index_failed:
                 self.marker_extrinsics_opt[self.marker_keys[i]] = p
-        logger.debug("update {}".format(self.marker_extrinsics_opt.keys()))
 
         for k in self.marker_keys:
             if k not in self.marker_keys_optimized and k in self.marker_extrinsics_opt:
                 self.marker_keys_optimized.append(k)
-        logger.debug("self.marker_keys_optimized {}".format(self.marker_keys_optimized))
+
+        logger.info(
+            "{} markers have been registered and updated".format(
+                len(self.marker_extrinsics_opt)
+            )
+        )
 
     def _discard_keyframes(self, camera_index_failed):
-        """ if the optimization failed, update keyframes, the graph """
+        """ if the optimization failed, remove those frame_id, which make optimization fail from self.keyframes
+        update keyframes, the graph """
 
         # TODO: check the image
 

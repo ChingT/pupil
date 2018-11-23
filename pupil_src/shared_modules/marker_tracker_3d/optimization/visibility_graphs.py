@@ -38,7 +38,6 @@ class VisibilityGraphs:
         self.optimization_interval = optimization_interval
         self.select_keyframe_interval = select_keyframe_interval
 
-        self.markers = dict()
         self.frame_id = 0
         self.count_opt = 0
         self.count_frame = 0
@@ -60,18 +59,6 @@ class VisibilityGraphs:
         self.visibility_graph_of_ready_markers = nx.MultiGraph()
         logger.debug("create MultiGraph")
 
-    @property
-    def markers(self):
-        return self.__markers
-
-    @markers.setter
-    def markers(self, markers_new):
-        assert isinstance(markers_new, dict), TypeError("markers_new should be a dict")
-        if len(markers_new) >= self.min_number_of_markers_per_frame:
-            self.__markers = markers_new
-        else:
-            self.__markers = dict()
-
     def add_markers(self, markers, camera_extrinsics):
         """ pick up keyframe and update visibility graph of keyframes """
 
@@ -79,38 +66,36 @@ class VisibilityGraphs:
         if self.count_frame >= self.select_keyframe_interval:
             self.count_frame = 0
 
-        self.markers = markers
-
-        if len(self.markers) == 0:
+        if len(markers) == 0:
             return
 
-        if not self._set_coordinate_system():
+        if not self._set_coordinate_system(markers):
             return
 
         if camera_extrinsics is None:
             camera_extrinsics = self.localization.get_camera_extrinsics(
-                self.markers, self.marker_extrinsics_opt
+                markers, self.marker_extrinsics_opt
             )
             if camera_extrinsics is None:
                 return
 
-        candidate_markers = self._get_candidate_markers(camera_extrinsics)
-        if self._decide_keyframe(candidate_markers, camera_extrinsics):
+        candidate_markers = self._get_candidate_markers(markers, camera_extrinsics)
+        if self._decide_keyframe(markers, candidate_markers, camera_extrinsics):
             self._add_to_graph(candidate_markers, camera_extrinsics)
             self.count_opt += 1
         self.frame_id += 1
 
-    def _set_coordinate_system(self):
+    def _set_coordinate_system(self, markers):
         if self.marker_keys:
             return True
 
         if self.origin_marker_id:
-            if self.origin_marker_id in self.markers:
+            if self.origin_marker_id in markers:
                 origin_marker_id = self.origin_marker_id
             else:
                 return False
         else:
-            origin_marker_id = list(self.markers.keys())[0]
+            origin_marker_id = list(markers.keys())[0]
 
         self.marker_keys = [origin_marker_id]
         self.marker_extrinsics_opt = {
@@ -119,7 +104,7 @@ class VisibilityGraphs:
 
         return True
 
-    def _get_candidate_markers(self, marker_extrinsics):
+    def _get_candidate_markers(self, markers, marker_extrinsics):
         """
         get those markers in markers, to which the rotation vector of the current camera pose is diverse enough
         """
@@ -127,7 +112,7 @@ class VisibilityGraphs:
         rvec, _ = utils.split_param(marker_extrinsics)
 
         candidate_markers = list()
-        for n_id in self.markers:
+        for n_id in markers:
             if n_id in self.visibility_graph_of_all_markers.nodes and len(
                 self.visibility_graph_of_all_markers.nodes[n_id]
             ):
@@ -142,7 +127,7 @@ class VisibilityGraphs:
 
         return candidate_markers
 
-    def _decide_keyframe(self, candidate_markers, marker_extrinsics):
+    def _decide_keyframe(self, markers, candidate_markers, marker_extrinsics):
         """
         decide if markers can be a keyframe
         add "previous_camera_extrinsics" as a key in the self.keyframes[self.frame_id] dicts
@@ -153,7 +138,7 @@ class VisibilityGraphs:
             return False
 
         self.keyframes[self.frame_id] = {
-            k: v for k, v in self.markers.items() if k in candidate_markers
+            k: v for k, v in markers.items() if k in candidate_markers
         }
         self.keyframes[self.frame_id]["previous_camera_extrinsics"] = marker_extrinsics
         logger.debug(

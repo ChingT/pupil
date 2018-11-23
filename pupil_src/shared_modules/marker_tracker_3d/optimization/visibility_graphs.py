@@ -64,9 +64,9 @@ class VisibilityGraphs:
         if self.count_frame >= self.select_keyframe_interval:
             self.count_frame = 0
 
-        self._add_markers_to_visibility_graph_of_keyframes(
-            markers, camera_extrinsics
-        )
+            self._add_markers_to_visibility_graph_of_keyframes(
+                markers, camera_extrinsics
+            )
 
     def _add_markers_to_visibility_graph_of_keyframes(self, markers, camera_extrinsics):
         """ pick up keyframe and update visibility graph of keyframes """
@@ -75,11 +75,14 @@ class VisibilityGraphs:
         if camera_extrinsics is None:
             return
 
-        candidate_marker_keys = self._get_candidate_marker_keys(markers, camera_extrinsics)
-        if self._decide_keyframe(markers, candidate_marker_keys, camera_extrinsics):
+        candidate_marker_keys = self._get_candidate_marker_keys(
+            markers, camera_extrinsics
+        )
+        if self._decide_keyframe(candidate_marker_keys):
+            self._add_keyframe(markers, candidate_marker_keys, camera_extrinsics)
             self._add_to_graph(candidate_marker_keys, camera_extrinsics)
             self.count_opt += 1
-        self.frame_id += 1
+            self.frame_id += 1
 
     def _set_coordinate_system(self, markers):
         if not markers:
@@ -133,25 +136,21 @@ class VisibilityGraphs:
 
         return candidate_marker_keys
 
-    def _decide_keyframe(self, markers, candidate_marker_keys, marker_extrinsics):
-        """
-        decide if markers can be a keyframe
-        add "previous_camera_extrinsics" as a key in the self.keyframes[self.frame_id] dicts
-         """
+    def _decide_keyframe(self, candidate_marker_keys):
+        """ decide if markers can be a keyframe """
         # TODO: come up a way to pick up keyframes without camera extrinsics
 
         if len(candidate_marker_keys) < self.min_number_of_markers_per_frame:
             return False
 
-        self.keyframes[self.frame_id] = {
-            k: v for k, v in markers.items() if k in candidate_marker_keys
-        }
-        self.keyframes[self.frame_id]["previous_camera_extrinsics"] = marker_extrinsics
         logger.debug(
             "--> keyframe {0}; markers {1}".format(self.frame_id, candidate_marker_keys)
         )
-
         return True
+
+    def _add_keyframe(self, markers, candidate_marker_keys, camera_extrinsics):
+        self.keyframes[self.frame_id] = {k: markers[k] for k in candidate_marker_keys}
+        self.keyframes[self.frame_id]["previous_camera_extrinsics"] = camera_extrinsics
 
     def _add_to_graph(self, candidate_marker_keys, camera_extrinsics):
         """

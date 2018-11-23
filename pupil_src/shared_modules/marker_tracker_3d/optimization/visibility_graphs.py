@@ -68,32 +68,29 @@ class VisibilityGraphs:
         else:
             self.__markers = dict()
 
-    def update_visibility_graph_of_keyframes(self, lock, data):
+    def update_visibility_graph_of_keyframes(self, markers, camera_extrinsics):
         """ pick up keyframe and update visibility graph of keyframes """
 
-        with lock:
-            assert isinstance(data, tuple) and len(data) == 2
-            markers, camera_extrinsics = data
-            self.markers = markers
+        self.markers = markers
 
-            if len(self.markers) == 0:
-                return
+        if len(self.markers) == 0:
+            return
 
-            if not self._set_coordinate_system():
-                return
+        if not self._set_coordinate_system():
+            return
 
+        if camera_extrinsics is None:
+            camera_extrinsics = self.localization.get_camera_extrinsics(
+                self.markers, self.marker_extrinsics_opt
+            )
             if camera_extrinsics is None:
-                camera_extrinsics = self.localization.get_camera_extrinsics(
-                    self.markers, self.marker_extrinsics_opt
-                )
-                if camera_extrinsics is None:
-                    return
+                return
 
-            candidate_markers = self._get_candidate_markers(camera_extrinsics)
-            if self._decide_keyframe(candidate_markers, camera_extrinsics):
-                self._add_to_graph(candidate_markers, camera_extrinsics)
-                self.count_opt += 1
-            self.frame_id += 1
+        candidate_markers = self._get_candidate_markers(camera_extrinsics)
+        if self._decide_keyframe(candidate_markers, camera_extrinsics):
+            self._add_to_graph(candidate_markers, camera_extrinsics)
+            self.count_opt += 1
+        self.frame_id += 1
 
     def _set_coordinate_system(self):
         if self.marker_keys:
@@ -172,18 +169,17 @@ class VisibilityGraphs:
         for n_id in unique_marker_id:
             self.visibility_graph_of_all_markers.nodes[n_id][self.frame_id] = rvec
 
-    def optimization_pre_process(self, lock):
-        with lock:
-            # Do optimization when there are some new keyframes selected
-            if self.count_opt >= self.optimization_interval:
-                self.count_opt = 0
+    def optimization_pre_process(self):
+        # Do optimization when there are some new keyframes selected
+        if self.count_opt >= self.optimization_interval:
+            self.count_opt = 0
 
-                self._update_visibility_graph_of_ready_markers()
-                self._update_camera_and_marker_keys()
+            self._update_visibility_graph_of_ready_markers()
+            self._update_camera_and_marker_keys()
 
-                # prepare data for optimization
-                data_for_optimization = self._prepare_data_for_optimization()
-                return data_for_optimization
+            # prepare data for optimization
+            data_for_optimization = self._prepare_data_for_optimization()
+            return data_for_optimization
 
     def _update_visibility_graph_of_ready_markers(self):
         """
@@ -313,29 +309,28 @@ class VisibilityGraphs:
 
         return data_for_optimization
 
-    def optimization_post_process(self, lock, result_opt_run):
+    def optimization_post_process(self, result_opt_run):
         """ process the results of optimization """
 
-        with lock:
-            if isinstance(result_opt_run, dict) and len(result_opt_run) == 4:
-                camera_extrinsics_opt = result_opt_run["camera_extrinsics_opt"]
-                marker_extrinsics_opt = result_opt_run["marker_extrinsics_opt"]
-                camera_index_failed = result_opt_run["camera_index_failed"]
-                marker_index_failed = result_opt_run["marker_index_failed"]
+        if isinstance(result_opt_run, dict) and len(result_opt_run) == 4:
+            camera_extrinsics_opt = result_opt_run["camera_extrinsics_opt"]
+            marker_extrinsics_opt = result_opt_run["marker_extrinsics_opt"]
+            camera_index_failed = result_opt_run["camera_index_failed"]
+            marker_index_failed = result_opt_run["marker_index_failed"]
 
-                self._update_extrinsics(
-                    camera_extrinsics_opt,
-                    marker_extrinsics_opt,
-                    camera_index_failed,
-                    marker_index_failed,
-                )
+            self._update_extrinsics(
+                camera_extrinsics_opt,
+                marker_extrinsics_opt,
+                camera_index_failed,
+                marker_index_failed,
+            )
 
-                # remove those frame_id, which make optimization fail from self.keyframes
-                self._discard_keyframes(camera_index_failed)
+            # remove those frame_id, which make optimization fail from self.keyframes
+            self._discard_keyframes(camera_index_failed)
 
-                self.camera_keys_prv = self.camera_keys.copy()
+            self.camera_keys_prv = self.camera_keys.copy()
 
-                return self.marker_extrinsics_opt
+            return self.marker_extrinsics_opt
 
     def _update_extrinsics(
         self,

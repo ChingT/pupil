@@ -1,5 +1,4 @@
 import multiprocessing as mp
-import threading
 
 import background_helper
 from marker_tracker_3d.optimization.optimization_generator import optimization_generator
@@ -27,17 +26,13 @@ class Controller:
         )
         self.send_pipe.send(("storage", self.storage))
 
-        self.lock = threading.RLock()
-
     def update(self, markers, camera_extrinsics):
         self._add_marker_data(markers, camera_extrinsics)
 
         if not self.opt_is_running:
             self.opt_is_running = True
 
-            data_for_optimization = self.visibility_graphs.optimization_pre_process(
-                self.lock
-            )
+            data_for_optimization = self.visibility_graphs.optimization_pre_process()
             if data_for_optimization:
                 self._run_optimization(data_for_optimization)
             else:
@@ -57,7 +52,7 @@ class Controller:
         self.frame_count += 1
         if self.frame_count > self.send_data_interval:
             self.visibility_graphs.update_visibility_graph_of_keyframes(
-                self.lock, (markers, camera_extrinsics)
+                markers, camera_extrinsics
             )
             self.frame_count = 0
 
@@ -74,7 +69,7 @@ class Controller:
 
     def _get_updated_3d_marker_model(self, optimization_result):
         marker_extrinsics = self.visibility_graphs.optimization_post_process(
-            self.lock, optimization_result
+            optimization_result
         )
         marker_points_3d = self._get_marker_points_3d(marker_extrinsics)
         return marker_extrinsics, marker_points_3d

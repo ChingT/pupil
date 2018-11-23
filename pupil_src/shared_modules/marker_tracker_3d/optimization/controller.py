@@ -1,10 +1,9 @@
-import logging
 import multiprocessing as mp
+import threading
 
 import background_helper
 from marker_tracker_3d.optimization.optimization_generator import optimization_generator
-
-logger = logging.getLogger(__name__)
+from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 
 
 class Controller:
@@ -15,39 +14,70 @@ class Controller:
         self.first_yield_done = False
         self.frame_count = 0
         self.send_data_interval = 6
+        self.origin_marker_id = None
+
+        self.opt_is_running = False
+
+        self.visibility_graphs = VisibilityGraphs(self.storage, self.origin_marker_id)
 
         recv_pipe, self.send_pipe = mp.Pipe(False)
         generator_args = (recv_pipe,)
         self.bg_task = background_helper.IPC_Logging_Task_Proxy(
             name="generator", generator=optimization_generator, args=generator_args
         )
-        self.send_pipe.send(("basic_models", self.storage))
+        self.send_pipe.send(("storage", self.storage))
+
+        self.lock = threading.RLock()
 
     def update(self, markers, camera_extrinsics):
         self._add_marker_data(markers, camera_extrinsics)
-        marker_extrinsics = self._get_marker_extrinsics()
-        marker_points_3d = self._get_marker_points_3d(marker_extrinsics)
 
-        return marker_extrinsics, marker_points_3d
+        if not self.opt_is_running:
+            self.opt_is_running = True
+
+            data_for_optimization = self.visibility_graphs.optimization_pre_process(
+                self.lock
+            )
+            if data_for_optimization:
+                self._run_optimization(data_for_optimization)
+            else:
+                self.opt_is_running = False
+
+        optimization_result = self._fetch_optimization_result()
+
+        if optimization_result:
+            marker_extrinsics, marker_points_3d = self._get_updated_3d_marker_model(
+                optimization_result
+            )
+            self.opt_is_running = False
+
+            return marker_extrinsics, marker_points_3d
 
     def _add_marker_data(self, markers, camera_extrinsics):
         self.frame_count += 1
         if self.frame_count > self.send_data_interval:
-            self.send_pipe.send(("frame", (markers, camera_extrinsics)))
+            self.visibility_graphs.update_visibility_graph_of_keyframes(
+                self.lock, (markers, camera_extrinsics)
+            )
             self.frame_count = 0
 
-    def _get_marker_extrinsics(self):
-        for marker_extrinsics in self.bg_task.fetch():
+    def _run_optimization(self, data_for_optimization):
+        self.send_pipe.send(("opt", data_for_optimization))
+
+    def _fetch_optimization_result(self):
+        for optimization_result in self.bg_task.fetch():
             if not self.first_yield_done:
                 self.on_first_yield()
                 self.first_yield_done = True
 
-            logger.info(
-                "{} markers have been registered and updated".format(
-                    len(marker_extrinsics)
-                )
-            )
-            return marker_extrinsics
+            return optimization_result
+
+    def _get_updated_3d_marker_model(self, optimization_result):
+        marker_extrinsics = self.visibility_graphs.optimization_post_process(
+            self.lock, optimization_result
+        )
+        marker_points_3d = self._get_marker_points_3d(marker_extrinsics)
+        return marker_extrinsics, marker_points_3d
 
     def _get_marker_points_3d(self, marker_extrinsics):
         if marker_extrinsics is not None:

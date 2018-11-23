@@ -17,7 +17,6 @@ class Optimization:
 
         self.tol = 1e-3
         self.diff_step = 1e-3
-        self.result_opt_run = None
 
         self.n_camera_params = 6
         self.n_marker_params = 6
@@ -347,9 +346,10 @@ class Optimization:
         # Reconstruction
         camera_extrinsics_init, marker_extrinsics_init = self._reconstruction()
         if len(camera_extrinsics_init) == 0 or len(marker_extrinsics_init) == 0:
-            self.result_opt_run = None
             logger.debug("reconstruction failed")
-            return
+            optimization_result = "failed"
+            return optimization_result
+
         logger.debug("reconstruction done")
 
         # bundle adjustment
@@ -365,14 +365,14 @@ class Optimization:
             12,
         )
 
-        self.result_opt_run = {
+        logger.debug("bundle adjustment done")
+        optimization_result = {
             "camera_extrinsics_opt": camera_extrinsics_opt,
             "marker_extrinsics_opt": marker_extrinsics_opt,
             "camera_index_failed": camera_index_failed,
             "marker_index_failed": marker_index_failed,
         }
-        logger.debug("bundle adjustment done")
-        return
+        return optimization_result
 
     def _success_check(
         self,

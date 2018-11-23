@@ -25,12 +25,12 @@ class Controller:
         self.send_pipe.send(("storage", self.storage))
 
     def update(self, markers, camera_extrinsics):
-        self.visibility_graphs.update_visibility_graph_of_keyframes(markers, camera_extrinsics)
+        self.visibility_graphs.add_markers(markers, camera_extrinsics)
 
         if not self.opt_is_running:
             self.opt_is_running = True
 
-            data_for_optimization = self.visibility_graphs.optimization_pre_process()
+            data_for_optimization = self.visibility_graphs.get_data_for_optimization()
             if data_for_optimization:
                 self._run_optimization(data_for_optimization)
             else:
@@ -58,7 +58,7 @@ class Controller:
             return optimization_result
 
     def _get_updated_3d_marker_model(self, optimization_result):
-        marker_extrinsics = self.visibility_graphs.optimization_post_process(
+        marker_extrinsics = self.visibility_graphs.get_updated_marker_extrinsics(
             optimization_result
         )
         marker_points_3d = self._get_marker_points_3d(marker_extrinsics)

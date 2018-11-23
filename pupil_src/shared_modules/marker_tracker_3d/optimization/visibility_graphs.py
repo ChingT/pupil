@@ -72,7 +72,7 @@ class VisibilityGraphs:
         else:
             self.__markers = dict()
 
-    def update_visibility_graph_of_keyframes(self, markers, camera_extrinsics):
+    def add_markers(self, markers, camera_extrinsics):
         """ pick up keyframe and update visibility graph of keyframes """
 
         self.count_frame += 1
@@ -177,7 +177,7 @@ class VisibilityGraphs:
         for n_id in unique_marker_id:
             self.visibility_graph_of_all_markers.nodes[n_id][self.frame_id] = rvec
 
-    def optimization_pre_process(self):
+    def get_data_for_optimization(self):
         # Do optimization when there are some new keyframes selected
         if self.count_opt >= self.optimization_interval:
             self.count_opt = 0
@@ -317,7 +317,7 @@ class VisibilityGraphs:
 
         return data_for_optimization
 
-    def optimization_post_process(self, result_opt_run):
+    def get_updated_marker_extrinsics(self, result_opt_run):
         """ process the results of optimization """
 
         if isinstance(result_opt_run, dict) and len(result_opt_run) == 4:

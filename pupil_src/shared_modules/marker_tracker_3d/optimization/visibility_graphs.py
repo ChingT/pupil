@@ -224,20 +224,7 @@ class VisibilityGraphs:
     def _remove_nodes(self, nodes):
         """ remove nodes in the graph """
 
-        # remove the attribute of the node if the corresponding edges should be removed
-        removed_edges = set(
-            f
-            for n1, n2, f in self.visibility_graph_of_ready_markers.edges(keys=True)
-            if n1 in nodes or n2 in nodes
-        )
-
-        # remove the nodes
         self.visibility_graph_of_ready_markers.remove_nodes_from(nodes)
-
-        for n_id in self.visibility_graph_of_ready_markers.nodes:
-            for f_id in removed_edges:
-                if f_id in self.visibility_graph_of_ready_markers.nodes[n_id]:
-                    del self.visibility_graph_of_ready_markers.nodes[n_id][f_id]
 
     def _update_camera_and_marker_keys(self):
         """ add new ids to self.marker_keys """

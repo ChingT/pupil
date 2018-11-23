@@ -30,11 +30,12 @@ class Controller:
             self.storage.camera_extrinsics_previous,
         )
 
-        result = self.optimization_controller.update(
-            self.storage.markers, self.storage.camera_extrinsics
-        )
-        if result:
-            self.storage.marker_extrinsics, self.storage.marker_points_3d = result
+        if self.storage.register_new_markers:
+            result = self.optimization_controller.update(
+                self.storage.markers, self.storage.camera_extrinsics
+            )
+            if result:
+                self.storage.marker_extrinsics, self.storage.marker_points_3d = result
 
     def save_data(self):
         # For experiments

@@ -60,20 +60,22 @@ class VisibilityGraphs:
         logger.debug("create MultiGraph")
 
     def add_markers(self, markers, camera_extrinsics):
-        """ pick up keyframe and update visibility graph of keyframes """
-
         self.count_frame += 1
         if self.count_frame >= self.select_keyframe_interval:
             self.count_frame = 0
 
-        if len(markers) == 0:
-            return
+        self._add_markers_to_visibility_graph_of_keyframes(
+            markers, camera_extrinsics
+        )
+
+    def _add_markers_to_visibility_graph_of_keyframes(self, markers, camera_extrinsics):
+        """ pick up keyframe and update visibility graph of keyframes """
 
         camera_extrinsics = self._get_camera_extrinsics(markers, camera_extrinsics)
         if camera_extrinsics is None:
             return
 
-        candidate_markers = self._get_candidate_markers(markers, camera_extrinsics)
+        candidate_markers = self._get_candidate_marker_keys(markers, camera_extrinsics)
         if self._decide_keyframe(markers, candidate_markers, camera_extrinsics):
             self._add_to_graph(candidate_markers, camera_extrinsics)
             self.count_opt += 1

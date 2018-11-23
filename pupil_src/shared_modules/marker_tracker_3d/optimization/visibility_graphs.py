@@ -75,9 +75,9 @@ class VisibilityGraphs:
         if camera_extrinsics is None:
             return
 
-        candidate_markers = self._get_candidate_marker_keys(markers, camera_extrinsics)
-        if self._decide_keyframe(markers, candidate_markers, camera_extrinsics):
-            self._add_to_graph(candidate_markers, camera_extrinsics)
+        candidate_marker_keys = self._get_candidate_marker_keys(markers, camera_extrinsics)
+        if self._decide_keyframe(markers, candidate_marker_keys, camera_extrinsics):
+            self._add_to_graph(candidate_marker_keys, camera_extrinsics)
             self.count_opt += 1
         self.frame_id += 1
 
@@ -117,8 +117,8 @@ class VisibilityGraphs:
 
         rvec, _ = utils.split_param(camera_extrinsics)
 
-        candidate_markers = list()
-        for n_id in markers:
+        candidate_marker_keys = list()
+        for n_id in markers.keys():
             if n_id in self.visibility_graph_of_all_markers.nodes and len(
                 self.visibility_graph_of_all_markers.nodes[n_id]
             ):
@@ -127,45 +127,45 @@ class VisibilityGraphs:
                     list(self.visibility_graph_of_all_markers.nodes[n_id].values()),
                 )
                 if diff > self.min_angle_diff:
-                    candidate_markers.append(n_id)
+                    candidate_marker_keys.append(n_id)
             else:
-                candidate_markers.append(n_id)
+                candidate_marker_keys.append(n_id)
 
-        return candidate_markers
+        return candidate_marker_keys
 
-    def _decide_keyframe(self, markers, candidate_markers, marker_extrinsics):
+    def _decide_keyframe(self, markers, candidate_marker_keys, marker_extrinsics):
         """
         decide if markers can be a keyframe
         add "previous_camera_extrinsics" as a key in the self.keyframes[self.frame_id] dicts
          """
         # TODO: come up a way to pick up keyframes without camera extrinsics
 
-        if len(candidate_markers) < self.min_number_of_markers_per_frame:
+        if len(candidate_marker_keys) < self.min_number_of_markers_per_frame:
             return False
 
         self.keyframes[self.frame_id] = {
-            k: v for k, v in markers.items() if k in candidate_markers
+            k: v for k, v in markers.items() if k in candidate_marker_keys
         }
         self.keyframes[self.frame_id]["previous_camera_extrinsics"] = marker_extrinsics
         logger.debug(
-            "--> keyframe {0}; markers {1}".format(self.frame_id, candidate_markers)
+            "--> keyframe {0}; markers {1}".format(self.frame_id, candidate_marker_keys)
         )
 
         return True
 
-    def _add_to_graph(self, unique_marker_id, camera_extrinsics):
+    def _add_to_graph(self, candidate_marker_keys, camera_extrinsics):
         """
         graph"s node: marker id; attributes: the keyframe id
         graph"s edge: keyframe id, where two markers shown in the same frame
         """
 
         # add frame_id as edges in the graph
-        for u, v in list(it.combinations(unique_marker_id, 2)):
+        for u, v in list(it.combinations(candidate_marker_keys, 2)):
             self.visibility_graph_of_all_markers.add_edge(u, v, key=self.frame_id)
 
         # add frame_id as an attribute of the node
         rvec, _ = utils.split_param(camera_extrinsics)
-        for n_id in unique_marker_id:
+        for n_id in candidate_marker_keys:
             self.visibility_graph_of_all_markers.nodes[n_id][self.frame_id] = rvec
 
     def get_data_for_optimization(self):

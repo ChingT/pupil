@@ -22,11 +22,13 @@ class VisibilityGraphs:
         min_number_of_frames_per_marker=2,
         min_camera_angle_diff=0.1,
         optimization_interval=1,
+        select_keyframe_interval=6,
     ):
         assert min_number_of_markers_per_frame_for_opt >= 2
         assert min_number_of_frames_per_marker >= 2
         assert min_camera_angle_diff > 0
         assert optimization_interval >= 1
+        assert select_keyframe_interval >= 1
 
         self.storage = storage
 
@@ -34,10 +36,12 @@ class VisibilityGraphs:
         self.min_number_of_frames_per_marker = min_number_of_frames_per_marker
         self.min_angle_diff = min_camera_angle_diff
         self.optimization_interval = optimization_interval
+        self.select_keyframe_interval = select_keyframe_interval
 
         self.markers = dict()
         self.frame_id = 0
         self.count_opt = 0
+        self.count_frame = 0
 
         self.marker_keys = list()
         self.marker_keys_optimized = list()
@@ -70,6 +74,10 @@ class VisibilityGraphs:
 
     def update_visibility_graph_of_keyframes(self, markers, camera_extrinsics):
         """ pick up keyframe and update visibility graph of keyframes """
+
+        self.count_frame += 1
+        if self.count_frame >= self.select_keyframe_interval:
+            self.count_frame = 0
 
         self.markers = markers
 

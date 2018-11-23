@@ -11,8 +11,6 @@ class Controller:
 
         self.on_first_yield = on_first_yield
         self.first_yield_done = False
-        self.frame_count = 0
-        self.send_data_interval = 6
         self.origin_marker_id = None
 
         self.opt_is_running = False
@@ -27,7 +25,7 @@ class Controller:
         self.send_pipe.send(("storage", self.storage))
 
     def update(self, markers, camera_extrinsics):
-        self._add_marker_data(markers, camera_extrinsics)
+        self.visibility_graphs.update_visibility_graph_of_keyframes(markers, camera_extrinsics)
 
         if not self.opt_is_running:
             self.opt_is_running = True
@@ -47,14 +45,6 @@ class Controller:
             self.opt_is_running = False
 
             return marker_extrinsics, marker_points_3d
-
-    def _add_marker_data(self, markers, camera_extrinsics):
-        self.frame_count += 1
-        if self.frame_count > self.send_data_interval:
-            self.visibility_graphs.update_visibility_graph_of_keyframes(
-                markers, camera_extrinsics
-            )
-            self.frame_count = 0
 
     def _run_optimization(self, data_for_optimization):
         self.send_pipe.send(("opt", data_for_optimization))
@@ -87,7 +77,6 @@ class Controller:
 
     def restart(self):
         self.first_yield_done = False
-        self.frame_count = 0
         self.send_pipe.send(("restart", None))
 
     def cleanup(self):

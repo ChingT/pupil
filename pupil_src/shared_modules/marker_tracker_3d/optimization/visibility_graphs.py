@@ -69,9 +69,6 @@ class VisibilityGraphs:
         if len(markers) == 0:
             return
 
-        if not self._set_coordinate_system(markers):
-            return
-
         camera_extrinsics = self._get_camera_extrinsics(markers, camera_extrinsics)
         if camera_extrinsics is None:
             return
@@ -83,14 +80,14 @@ class VisibilityGraphs:
         self.frame_id += 1
 
     def _set_coordinate_system(self, markers):
-        if self.marker_keys:
-            return True
+        if not markers:
+            return
 
         if self.origin_marker_id:
             if self.origin_marker_id in markers:
                 origin_marker_id = self.origin_marker_id
             else:
-                return False
+                return
         else:
             origin_marker_id = list(markers.keys())[0]
 
@@ -99,10 +96,13 @@ class VisibilityGraphs:
             origin_marker_id: self.storage.marker_model.marker_extrinsics_origin
         }
 
-        return True
-
     def _get_camera_extrinsics(self, markers, camera_extrinsics):
         if camera_extrinsics is None:
+            try:
+                assert self.marker_extrinsics_opt
+            except AssertionError:
+                self._set_coordinate_system(markers)
+
             camera_extrinsics = self.localization.get_camera_extrinsics(
                 markers, self.marker_extrinsics_opt
             )

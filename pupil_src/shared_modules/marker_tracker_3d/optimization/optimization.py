@@ -6,7 +6,6 @@ import numpy as np
 import scipy
 
 from marker_tracker_3d import math
-from marker_tracker_3d import utils
 
 logger = logging.getLogger(__name__)
 
@@ -56,33 +55,6 @@ class Optimization:
             set(self.marker_extrinsics_prv.keys()) | set(self.marker_indices)
         )
 
-    def prepare_data_for_reconstruct_camera(self, marker_extrinsics_init, camera_idx):
-        """ prepare data for reconstruction using in cv2.solvePnP() """
-
-        # TODO: merge with _prepare_data()
-        marker_keys_available = (
-            set(self.marker_indices[self.camera_indices == camera_idx])
-            & marker_extrinsics_init.keys()
-        )
-        if not marker_keys_available:
-            return [], []
-        marker_key = min(marker_keys_available)
-
-        marker_points_3d_for_rec = self.storage.marker_model.params_to_points_3d(
-            marker_extrinsics_init[marker_key]
-        )
-        marker_points_2d_for_rec = self.markers_points_2d_detected[
-            np.bitwise_and(
-                self.camera_indices == camera_idx, self.marker_indices == marker_key
-            )
-        ]
-
-        if len(marker_points_3d_for_rec) and len(marker_points_2d_for_rec):
-            marker_points_3d_for_rec.shape = 1, -1, 3
-            marker_points_2d_for_rec.shape = 1, -1, 2
-
-        return marker_points_3d_for_rec, marker_points_2d_for_rec
-
     def _reconstruction(self):
         """ reconstruct camera extrinsics and markers extrinsics iteratively
         the results are used as the initial guess for bundle adjustment
@@ -90,67 +62,60 @@ class Optimization:
 
         camera_extrinsics_init = self.camera_extrinsics_prv.copy()
         marker_extrinsics_init = self.marker_extrinsics_prv.copy()
-        camera_index_not_computed = set(self.camera_indices) - set(
-            camera_extrinsics_init.keys()
-        )
+
+        # no need to reconstruct cameras since we have got initial guess when picking the keyframe
+
         marker_index_not_computed = set(self.marker_indices) - set(
             marker_extrinsics_init.keys()
         )
 
-        for ii in range(3):
-            # reconstruct cameras
-            for camera_idx in camera_index_not_computed:
-                marker_points_3d_for_rec, marker_points_2d_for_rec = self.prepare_data_for_reconstruct_camera(
-                    marker_extrinsics_init, camera_idx
-                )
-
-                retval, rvec, tvec = self.storage.camera_model.solvePnP(
-                    marker_points_3d_for_rec, marker_points_2d_for_rec
-                )
-
-                if retval:
-                    if utils.check_camera_extrinsics(
-                        marker_points_3d_for_rec, rvec, tvec
-                    ):
-                        camera_extrinsics_init[camera_idx] = utils.merge_param(
-                            rvec, tvec
-                        )
-
-            # reconstruct markers
-            for marker_idx in marker_index_not_computed:
-                camera_index_available = list(
-                    set(camera_extrinsics_init.keys())
-                    & set(self.camera_indices[self.marker_indices == marker_idx])
-                )
-                if len(camera_index_available) < 2:
-                    continue
-                camera_idx0, camera_idx1 = np.random.choice(
-                    camera_index_available, 2, replace=False
-                )
-
-                # triangulate points
-                marker_extrinsics_init[marker_idx] = self.run_triangulation(
-                    camera_extrinsics_init, camera_idx0, camera_idx1, marker_idx
-                )
-
-            camera_index_not_computed = set(self.camera_indices) - set(
-                camera_extrinsics_init.keys()
-            )
-            marker_index_not_computed = set(self.marker_indices) - set(
-                marker_extrinsics_init.keys()
-            )
-            if (
-                len(camera_index_not_computed) == 0
-                and len(marker_index_not_computed) == 0
-            ):
-                break
-
-        if len(camera_index_not_computed) > 0 or len(marker_index_not_computed) > 0:
-            return [], []
+        # reconstruct markers
+        marker_extrinsics_init = self._reconstruct_markers(
+            camera_extrinsics_init, marker_extrinsics_init, marker_index_not_computed
+        )
 
         return camera_extrinsics_init, marker_extrinsics_init
 
-    def run_triangulation(
+    def _reconstruct_markers(
+        self, camera_extrinsics_init, marker_extrinsics_init, marker_index_not_computed
+    ):
+        for marker_idx in marker_index_not_computed:
+            camera_index_available = list(
+                set(camera_extrinsics_init.keys())
+                & set(self.camera_indices[self.marker_indices == marker_idx])
+            )
+            try:
+                camera_idx0, camera_idx1 = np.random.choice(
+                    camera_index_available, 2, replace=False
+                )
+            except ValueError:
+                return marker_extrinsics_init
+            else:
+                points4D = self._run_triangulation(
+                    camera_extrinsics_init, camera_idx0, camera_idx1, marker_idx
+                )
+                marker_extrinsics_init[marker_idx] = self._convert_to_marker_extrinsics(
+                    points4D
+                )
+
+        return marker_extrinsics_init
+
+    def _run_triangulation(
+        self, camera_extrinsics, camera_idx0, camera_idx1, marker_idx
+    ):
+        """ triangulate points """
+
+        proj_mat1, proj_mat2, undistort_points1, undistort_points2 = self._prepare_data_for_triangulation(
+            camera_extrinsics, camera_idx0, camera_idx1, marker_idx
+        )
+
+        points4D = cv2.triangulatePoints(
+            proj_mat1, proj_mat2, undistort_points1, undistort_points2
+        )
+
+        return points4D
+
+    def _prepare_data_for_triangulation(
         self, camera_extrinsics, camera_idx0, camera_idx1, marker_idx
     ):
         proj_mat1 = math.get_transform_mat(camera_extrinsics[camera_idx0])[:3, :4]
@@ -161,23 +126,22 @@ class Optimization:
                 self.camera_indices == camera_idx0, self.marker_indices == marker_idx
             )
         ]
-        undistort_points1 = self.storage.camera_model.undistortPoints(points1)
 
         points2 = self.markers_points_2d_detected[
             np.bitwise_and(
                 self.camera_indices == camera_idx1, self.marker_indices == marker_idx
             )
         ]
+        undistort_points1 = self.storage.camera_model.undistortPoints(points1)
         undistort_points2 = self.storage.camera_model.undistortPoints(points2)
 
-        points4D = cv2.triangulatePoints(
-            proj_mat1, proj_mat2, undistort_points1, undistort_points2
-        )
+        return proj_mat1, proj_mat2, undistort_points1, undistort_points2
+
+    def _convert_to_marker_extrinsics(self, points4D):
         marker_points_3d = cv2.convertPointsFromHomogeneous(points4D.T).reshape(4, 3)
         marker_extrinsics = self.storage.marker_model.point_3d_to_param(
             marker_points_3d
         )
-
         return marker_extrinsics
 
     def _find_sparsity(self):
@@ -345,7 +309,7 @@ class Optimization:
 
         # Reconstruction
         camera_extrinsics_init, marker_extrinsics_init = self._reconstruction()
-        if len(camera_extrinsics_init) == 0 or len(marker_extrinsics_init) == 0:
+        if len(marker_extrinsics_init) != self.n_markers:
             logger.debug("reconstruction failed")
             optimization_result = "failed"
             return optimization_result

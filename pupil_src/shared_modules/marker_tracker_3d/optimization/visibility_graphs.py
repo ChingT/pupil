@@ -68,10 +68,14 @@ class VisibilityGraphs:
                 marker_detections, camera_extrinsics
             )
 
-    def _add_markers_to_visibility_graph_of_keyframes(self, marker_detections, camera_extrinsics):
+    def _add_markers_to_visibility_graph_of_keyframes(
+        self, marker_detections, camera_extrinsics
+    ):
         """ pick up keyframe and update visibility graph of keyframes """
 
-        camera_extrinsics = self._get_camera_extrinsics(marker_detections, camera_extrinsics)
+        camera_extrinsics = self._get_camera_extrinsics(
+            marker_detections, camera_extrinsics
+        )
         if camera_extrinsics is None:
             return
 
@@ -79,7 +83,9 @@ class VisibilityGraphs:
             marker_detections, camera_extrinsics
         )
         if self._decide_keyframe(candidate_marker_keys):
-            self._add_keyframe(marker_detections, candidate_marker_keys, camera_extrinsics)
+            self._add_keyframe(
+                marker_detections, candidate_marker_keys, camera_extrinsics
+            )
             self._add_to_graph(candidate_marker_keys, camera_extrinsics)
             self.count_opt += 1
             self.frame_id += 1
@@ -148,8 +154,12 @@ class VisibilityGraphs:
         )
         return True
 
-    def _add_keyframe(self, marker_detections, candidate_marker_keys, camera_extrinsics):
-        self.keyframes[self.frame_id] = {k: marker_detections[k] for k in candidate_marker_keys}
+    def _add_keyframe(
+        self, marker_detections, candidate_marker_keys, camera_extrinsics
+    ):
+        self.keyframes[self.frame_id] = {
+            k: marker_detections[k] for k in candidate_marker_keys
+        }
         self.keyframes[self.frame_id]["previous_camera_extrinsics"] = camera_extrinsics
 
     def _add_to_graph(self, candidate_marker_keys, camera_extrinsics):
@@ -274,10 +284,13 @@ class VisibilityGraphs:
         for i, k in enumerate(self.camera_keys):
             if k in self.camera_extrinsics_opt:
                 camera_extrinsics_prv[i] = self.camera_extrinsics_opt[k]
-            elif "previous_camera_extrinsics" in self.keyframes[k].keys():
-                camera_extrinsics_prv[i] = self.keyframes[k][
-                    "previous_camera_extrinsics"
-                ].ravel()
+            else:
+                try:
+                    camera_extrinsics_prv[i] = self.keyframes[k][
+                        "previous_camera_extrinsics"
+                    ].ravel()
+                except KeyError:
+                    raise KeyError("previous_camera_extrinsics should be in keyframes")
 
         marker_extrinsics_prv = {}
         for i, k in enumerate(self.marker_keys):

@@ -7,8 +7,8 @@ from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 
 
 class Controller:
-    def __init__(self, storage, on_first_yield=None):
-        self.storage = storage
+    def __init__(self, camera_model, on_first_yield=None):
+        self.camera_model = camera_model
 
         self.on_first_yield = on_first_yield
         self.first_yield_done = False
@@ -16,17 +16,21 @@ class Controller:
 
         self.opt_is_running = False
 
-        self.visibility_graphs = VisibilityGraphs(self.storage, self.origin_marker_id)
+        self.visibility_graphs = VisibilityGraphs(
+            self.camera_model, self.origin_marker_id
+        )
 
         recv_pipe, self.send_pipe = mp.Pipe(False)
         generator_args = (recv_pipe,)
         self.bg_task = background_helper.IPC_Logging_Task_Proxy(
             name="generator", generator=optimization_generator, args=generator_args
         )
-        self.send_pipe.send(("storage", self.storage))
+        self.send_pipe.send(("camera_model", camera_model))
 
     def update(self, marker_detections, camera_extrinsics):
-        self.visibility_graphs.add_marker_detections(marker_detections, camera_extrinsics)
+        self.visibility_graphs.add_marker_detections(
+            marker_detections, camera_extrinsics
+        )
 
         if not self.opt_is_running:
             self.opt_is_running = True
@@ -65,11 +69,11 @@ class Controller:
         marker_points_3d = self._get_marker_points_3d(marker_extrinsics)
         return marker_extrinsics, marker_points_3d
 
-    def _get_marker_points_3d(self, marker_extrinsics):
+    @staticmethod
+    def _get_marker_points_3d(marker_extrinsics):
         if marker_extrinsics is not None:
             marker_points_3d = {
-                k: self.storage.marker_model.params_to_points_3d(v)[0]
-                for k, v in marker_extrinsics.items()
+                k: utils.params_to_points_3d(v)[0] for k, v in marker_extrinsics.items()
             }
             return marker_points_3d
 
@@ -92,7 +96,7 @@ class Controller:
         self.bg_task = background_helper.IPC_Logging_Task_Proxy(
             name="generator", generator=optimization_generator, args=generator_args
         )
-        self.send_pipe.send(("storage", self.storage))
+        self.send_pipe.send(("basic_models", self.camera_model))
 
     def cleanup(self):
         if self.bg_task:

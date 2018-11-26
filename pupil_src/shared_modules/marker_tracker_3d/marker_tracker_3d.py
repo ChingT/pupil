@@ -12,7 +12,6 @@ See COPYING and COPYING.LESSER for license details.
 import logging
 
 from marker_tracker_3d.controller import Controller
-from marker_tracker_3d.marker_model import MarkerModel
 from marker_tracker_3d.storage import Storage
 from marker_tracker_3d.user_interface import UserInterface
 from plugin import Plugin
@@ -33,13 +32,15 @@ class Marker_Tracker_3D(Plugin):
         super().__init__(g_pool)
 
         self.storage = Storage()
-        self.storage.camera_model = self.g_pool.capture.intrinsics
-        self.storage.marker_model = MarkerModel()
-        self.storage.min_marker_perimeter = min_marker_perimeter
 
         self.ui = UserInterface(self, self.storage)
 
-        self.controller = Controller(self.storage, self.ui.update_menu)
+        self.controller = Controller(
+            self.storage,
+            self.g_pool.capture.intrinsics,
+            self.ui.update_menu,
+            min_marker_perimeter,
+        )
 
         # for experiments
         self.robustness = list()
@@ -71,7 +72,7 @@ class Marker_Tracker_3D(Plugin):
 
     def get_init_dict(self):
         d = super().get_init_dict()
-        d["min_marker_perimeter"] = self.storage.min_marker_perimeter
+        d["min_marker_perimeter"] = self.controller.marker_detector.min_marker_perimeter
         return d
 
     def recent_events(self, events):

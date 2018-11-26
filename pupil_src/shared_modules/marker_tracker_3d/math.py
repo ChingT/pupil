@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from marker_tracker_3d.utils import split_param
+from marker_tracker_3d import utils
 
 
 def closest_angle_diff(vec_1, vec_2):
@@ -29,7 +29,7 @@ def unit_vector(vector):
 
 
 def get_transform_mat(param):
-    rvec, tvec = split_param(param)
+    rvec, tvec = utils.split_param(param)
     mat_extrinsic = np.eye(4)
     mat_extrinsic[:3, :3] = cv2.Rodrigues(rvec)[0]
     mat_extrinsic[:3, 3] = tvec

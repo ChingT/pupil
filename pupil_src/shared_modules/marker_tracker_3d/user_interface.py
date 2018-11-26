@@ -65,7 +65,7 @@ class UserInterface:
         self.menu.append(
             ui.Slider(
                 "min_marker_perimeter",
-                self.storage,
+                self.marker_tracker_3d.controller.marker_detector,
                 step=1,
                 min=30,
                 max=100,
@@ -82,7 +82,9 @@ class UserInterface:
         )
         self.menu.append(
             ui.Switch(
-                "register_new_markers", self.storage, label="Registering new markers"
+                "register_new_markers",
+                self.marker_tracker_3d.controller,
+                label="Registering new markers",
             )
         )
         self.menu.append(

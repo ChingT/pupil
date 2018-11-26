@@ -8,7 +8,7 @@ import numpy as np
 
 from marker_tracker_3d import math
 from marker_tracker_3d import utils
-from marker_tracker_3d.localization import Localization
+from marker_tracker_3d.camera_localizer import CameraLocalizer
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class VisibilityGraphs:
     def __init__(
         self,
-        storage,
+        camera_model,
         origin_marker_id=None,
         min_number_of_markers_per_frame=3,
         min_number_of_frames_per_marker=2,
@@ -29,8 +29,6 @@ class VisibilityGraphs:
         assert min_camera_angle_diff > 0
         assert optimization_interval >= 1
         assert select_keyframe_interval >= 1
-
-        self.storage = storage
 
         self.min_number_of_markers_per_frame = min_number_of_markers_per_frame
         self.min_number_of_frames_per_marker = min_number_of_frames_per_marker
@@ -51,7 +49,7 @@ class VisibilityGraphs:
         self.marker_extrinsics_opt = collections.OrderedDict()
 
         self.data_for_optimization = None
-        self.localization = Localization(self.storage)
+        self.camera_localizer = CameraLocalizer(camera_model)
 
         self.keyframes = dict()
         self.origin_marker_id = origin_marker_id
@@ -103,9 +101,7 @@ class VisibilityGraphs:
             origin_marker_id = list(marker_detections.keys())[0]
 
         self.marker_keys = [origin_marker_id]
-        self.marker_extrinsics_opt = {
-            origin_marker_id: self.storage.marker_model.marker_extrinsics_origin
-        }
+        self.marker_extrinsics_opt = {origin_marker_id: utils.marker_extrinsics_origin}
 
     def _get_camera_extrinsics(self, marker_detections, camera_extrinsics):
         if camera_extrinsics is None:
@@ -114,7 +110,7 @@ class VisibilityGraphs:
             except AssertionError:
                 self._set_coordinate_system(marker_detections)
 
-            camera_extrinsics = self.localization.get_camera_extrinsics(
+            camera_extrinsics = self.camera_localizer.get_camera_extrinsics(
                 marker_detections, self.marker_extrinsics_opt
             )
         return camera_extrinsics

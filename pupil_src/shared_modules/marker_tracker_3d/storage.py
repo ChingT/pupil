@@ -6,12 +6,6 @@ from marker_tracker_3d import math
 
 class Storage:
     def __init__(self):
-        self.min_marker_perimeter = 100
-        self.register_new_markers = True
-
-        self.camera_model = None
-        self.marker_model = None
-
         self.marker_detections = {}
         self.marker_extrinsics = {}
         self.marker_points_3d = {}

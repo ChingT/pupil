@@ -7,9 +7,9 @@ def optimization_generator(recv_pipe):
     while True:
         if recv_pipe.poll(0.001):
             msg, data_recv = recv_pipe.recv()
-            if msg == "storage":
-                storage = data_recv
-                opt = Optimization(storage)
+            if msg == "camera_model":
+                camera_model = data_recv
+                opt = Optimization(camera_model)
 
             elif msg == "opt":
                 data_for_optimization = data_recv

@@ -356,19 +356,23 @@ class VisibilityGraphs:
 
         # TODO: check the image
 
-        if len(camera_keys_failed) == 0:
+        if not camera_keys_failed:
             return
         failed_keyframes = set(self.camera_keys[i] for i in camera_keys_failed)
-        logger.debug("remove from keyframes: {}".format(failed_keyframes))
 
-        # remove the last keyframes
+        self._del_failed_keyframes(failed_keyframes)
+        self._remove_failed_frame_id_from_graph(failed_keyframes)
+        self._remove_failed_marker_keys()
+
+    def _del_failed_keyframes(self, failed_keyframes):
         for f_id in failed_keyframes:
             try:
                 del self.keyframes[f_id]
             except KeyError:
                 logger.debug("{} is not in keyframes".format(f_id))
+        logger.debug("remove from keyframes: {}".format(failed_keyframes))
 
-        # remove edges (failed frame_id) from graph
+    def _remove_failed_frame_id_from_graph(self, failed_keyframes):
         redundant_edges = [
             (n_id, neighbor, f_id)
             for n_id, neighbor, f_id in self.visibility_graph_of_keyframes.edges(
@@ -376,15 +380,16 @@ class VisibilityGraphs:
             )
             if f_id in failed_keyframes
         ]
+
         self.visibility_graph_of_keyframes.remove_edges_from(redundant_edges)
 
-        # remove the attribute "previous_camera_extrinsics" of the node
         for f_id in failed_keyframes:
             for n_id in set(n for n, _, f in redundant_edges if f == f_id) | set(
                 n for _, n, f in redundant_edges if f == f_id
             ):
                 del self.visibility_graph_of_keyframes.nodes[n_id][f_id]
 
+    def _remove_failed_marker_keys(self):
         fail_marker_keys = set(self.marker_keys) - set(
             self.marker_extrinsics_opt.keys()
         )

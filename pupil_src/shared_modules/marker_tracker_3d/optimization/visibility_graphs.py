@@ -30,6 +30,9 @@ class VisibilityGraphs:
         assert optimization_interval >= 1
         assert select_keyframe_interval >= 1
 
+        self.camera_localizer = CameraLocalizer(camera_model)
+        self.origin_marker_id = origin_marker_id
+
         self.min_number_of_markers_per_frame = min_number_of_markers_per_frame
         self.min_number_of_frames_per_marker = min_number_of_frames_per_marker
         self.min_angle_diff = min_camera_angle_diff
@@ -41,21 +44,29 @@ class VisibilityGraphs:
         self.count_frame = 0
 
         self.marker_keys = list()
-        self.marker_keys_optimized = list()
         self.camera_keys = list()
-        self.camera_keys_prv = list()
 
         self.camera_extrinsics_opt = dict()
         self.marker_extrinsics_opt = collections.OrderedDict()
 
-        self.data_for_optimization = None
-        self.camera_localizer = CameraLocalizer(camera_model)
-
         self.keyframes = dict()
-        self.origin_marker_id = origin_marker_id
         self.visibility_graph_of_all_markers = nx.MultiGraph()
         self.visibility_graph_of_ready_markers = nx.MultiGraph()
-        logger.debug("create MultiGraph")
+
+    def reset(self):
+        self.frame_id = 0
+        self.count_opt = 0
+        self.count_frame = 0
+
+        self.marker_keys = list()
+        self.camera_keys = list()
+
+        self.camera_extrinsics_opt = dict()
+        self.marker_extrinsics_opt = collections.OrderedDict()
+
+        self.keyframes = dict()
+        self.visibility_graph_of_all_markers = nx.MultiGraph()
+        self.visibility_graph_of_ready_markers = nx.MultiGraph()
 
     def add_marker_detections(self, marker_detections, camera_extrinsics):
         self.count_frame += 1
@@ -338,10 +349,6 @@ class VisibilityGraphs:
             if i not in marker_keys_failed:
                 self.marker_extrinsics_opt[self.marker_keys[i]] = p
 
-        for k in self.marker_keys:
-            if k not in self.marker_keys_optimized and k in self.marker_extrinsics_opt:
-                self.marker_keys_optimized.append(k)
-
         logger.info(
             "{} markers have been registered and updated".format(
                 len(self.marker_extrinsics_opt)
@@ -433,7 +440,7 @@ class VisibilityGraphs:
                     self.frame_id,
                     len(self.visibility_graph_of_all_markers),
                     len(self.visibility_graph_of_ready_markers),
-                    len(self.marker_keys_optimized),
+                    len(self.marker_extrinsics_opt),
                 ),
             )
             plt.savefig(save_name)

@@ -85,11 +85,7 @@ class ModelOptimizer:
         self.visibility_graphs.vis_graph(save_path)
 
     def restart(self):
-        self.first_yield_done = False
-        self.visibility_graphs = VisibilityGraphs(
-            self.camera_model, self.origin_marker_id
-        )
-        self.opt_is_running = False
+        self.visibility_graphs.reset()
 
         self.bg_task.cancel()
         recv_pipe, self.send_pipe = mp.Pipe(False)
@@ -97,7 +93,8 @@ class ModelOptimizer:
         self.bg_task = background_helper.IPC_Logging_Task_Proxy(
             name="generator", generator=optimization_generator, args=generator_args
         )
-        self.send_pipe.send(("basic_models", self.camera_model))
+        self.send_pipe.send(("camera_model", self.camera_model))
+        self.opt_is_running = False
 
     def cleanup(self):
         if self.bg_task:

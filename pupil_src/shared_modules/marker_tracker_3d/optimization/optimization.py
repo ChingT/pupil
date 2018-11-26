@@ -30,7 +30,43 @@ class Optimization:
         self.n_cameras = 0
         self.n_markers = 0
 
-    def update_params(
+    def run(self, data_for_optimization):
+        """ run reconstruction and then bundle adjustment """
+
+        self._update_params(*data_for_optimization)
+
+        # Reconstruction
+        camera_extrinsics_init, marker_extrinsics_init = self._reconstruction()
+        if len(marker_extrinsics_init) != self.n_markers:
+            logger.debug("reconstruction failed")
+            optimization_result = "failed"
+            return optimization_result
+
+        logger.debug("reconstruction done")
+
+        # bundle adjustment
+        camera_extrinsics_opt, marker_extrinsics_opt = self._bundle_adjustment(
+            camera_extrinsics_init, marker_extrinsics_init
+        )
+        camera_index_failed, marker_index_failed = self._success_check(
+            camera_extrinsics_opt,
+            marker_extrinsics_opt,
+            self.camera_indices,
+            self.marker_indices,
+            self.markers_points_2d_detected,
+            12,
+        )
+
+        logger.debug("bundle adjustment done")
+        optimization_result = {
+            "camera_extrinsics_opt": camera_extrinsics_opt,
+            "marker_extrinsics_opt": marker_extrinsics_opt,
+            "camera_index_failed": camera_index_failed,
+            "marker_index_failed": marker_index_failed,
+        }
+        return optimization_result
+
+    def _update_params(
         self,
         camera_indices,
         marker_indices,
@@ -55,7 +91,7 @@ class Optimization:
         self.n_markers = len(
             set(self.marker_extrinsics_prv.keys()) | set(self.marker_indices)
         )
-        
+
     def _reconstruction(self):
         """ reconstruct camera extrinsics and markers extrinsics iteratively
         the results are used as the initial guess for bundle adjustment
@@ -92,11 +128,11 @@ class Optimization:
             except ValueError:
                 return marker_extrinsics_init
             else:
-                points4D = self._run_triangulation(
+                points_4d = self._run_triangulation(
                     camera_extrinsics_init, camera_idx0, camera_idx1, marker_idx
                 )
                 marker_extrinsics_init[marker_idx] = self._convert_to_marker_extrinsics(
-                    points4D
+                    points_4d
                 )
 
         return marker_extrinsics_init
@@ -138,8 +174,9 @@ class Optimization:
 
         return proj_mat1, proj_mat2, undistort_points1, undistort_points2
 
-    def _convert_to_marker_extrinsics(self, points4D):
-        marker_points_3d = cv2.convertPointsFromHomogeneous(points4D.T).reshape(4, 3)
+    @staticmethod
+    def _convert_to_marker_extrinsics(points_4d):
+        marker_points_3d = cv2.convertPointsFromHomogeneous(points_4d.T).reshape(4, 3)
         marker_extrinsics = utils.point_3d_to_param(marker_points_3d)
 
         return marker_extrinsics
@@ -216,7 +253,7 @@ class Optimization:
         """
 
         camera_extrinsics, marker_extrinsics = self._reshape_params(params)
-        proj_error = self.cal_proj_error(
+        proj_error = self._cal_proj_error(
             camera_extrinsics,
             marker_extrinsics,
             self.camera_indices,
@@ -225,7 +262,7 @@ class Optimization:
         )
         return proj_error
 
-    def cal_proj_error(
+    def _cal_proj_error(
         self,
         camera_extrinsics,
         marker_extrinsics,
@@ -264,7 +301,7 @@ class Optimization:
         )
         return camera_extrinsics, marker_extrinsics
 
-    def bundle_adjustment(
+    def _bundle_adjustment(
         self, camera_extrinsics_init, marker_extrinsics_init, verbose=False
     ):
         """ run bundle adjustment given the result of reconstruction """
@@ -301,40 +338,6 @@ class Optimization:
 
         camera_extrinsics_opt, marker_extrinsics_opt = self._reshape_params(res.x)
         return camera_extrinsics_opt, marker_extrinsics_opt
-
-    def run(self):
-        """ run reconstruction and then bundle adjustment """
-
-        # Reconstruction
-        camera_extrinsics_init, marker_extrinsics_init = self._reconstruction()
-        if len(marker_extrinsics_init) != self.n_markers:
-            logger.debug("reconstruction failed")
-            optimization_result = "failed"
-            return optimization_result
-
-        logger.debug("reconstruction done")
-
-        # bundle adjustment
-        camera_extrinsics_opt, marker_extrinsics_opt = self.bundle_adjustment(
-            camera_extrinsics_init, marker_extrinsics_init
-        )
-        camera_index_failed, marker_index_failed = self._success_check(
-            camera_extrinsics_opt,
-            marker_extrinsics_opt,
-            self.camera_indices,
-            self.marker_indices,
-            self.markers_points_2d_detected,
-            12,
-        )
-
-        logger.debug("bundle adjustment done")
-        optimization_result = {
-            "camera_extrinsics_opt": camera_extrinsics_opt,
-            "marker_extrinsics_opt": marker_extrinsics_opt,
-            "camera_index_failed": camera_index_failed,
-            "marker_index_failed": marker_index_failed,
-        }
-        return optimization_result
 
     def _success_check(
         self,

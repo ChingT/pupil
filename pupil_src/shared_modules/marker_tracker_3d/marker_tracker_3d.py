@@ -77,7 +77,7 @@ class Marker_Tracker_3D(Plugin):
 
     def recent_events(self, events):
         frame = events.get("frame")
-        self.controller.recent_events(frame)
+        self.controller.update(frame)
 
     def gl_display(self):
         self.ui.gl_display(

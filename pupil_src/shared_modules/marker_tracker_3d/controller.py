@@ -22,7 +22,7 @@ class Controller:
         self.camera_localizer = CameraLocalizer(camera_model)
         self.register_new_markers = True
 
-    def recent_events(self, frame):
+    def update(self, frame):
         self.storage.marker_detections = self.marker_detector.detect(frame)
 
         self.storage.camera_extrinsics = self.camera_localizer.get_camera_extrinsics(

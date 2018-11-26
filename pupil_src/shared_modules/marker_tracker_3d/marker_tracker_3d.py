@@ -12,7 +12,6 @@ See COPYING and COPYING.LESSER for license details.
 import logging
 
 from marker_tracker_3d.controller import Controller
-from marker_tracker_3d.marker_model import MarkerModel
 from marker_tracker_3d.storage import Storage
 from marker_tracker_3d.user_interface import UserInterface
 from plugin import Plugin
@@ -39,7 +38,6 @@ class Marker_Tracker_3D(Plugin):
         self.controller = Controller(
             self.storage,
             self.g_pool.capture.intrinsics,
-            MarkerModel(),
             self.ui.update_menu,
             min_marker_perimeter,
         )

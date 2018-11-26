@@ -1,10 +1,9 @@
-import logging
 import os
 
 import cv2
 import numpy as np
 
-logger = logging.getLogger(__name__)
+from marker_tracker_3d import math
 
 
 def get_marker_vertex_coord(marker_extrinsics, camera_model):
@@ -44,17 +43,49 @@ def check_camera_extrinsics(pts_3d_world, rvec, tvec):
     return True
 
 
+def params_to_points_3d(params):
+    params = np.asarray(params).reshape(-1, 6)
+    marker_points_3d = list()
+    for param in params:
+        rvec, tvec = split_param(param)
+        mat = np.eye(4, dtype=np.float32)
+        mat[0:3, 0:3] = cv2.Rodrigues(rvec)[0]
+        mat[0:3, 3] = tvec
+        marker_transformed_h = mat @ marker_df_h.T
+        marker_transformed = cv2.convertPointsFromHomogeneous(
+            marker_transformed_h.T
+        ).reshape(4, 3)
+        marker_points_3d.append(marker_transformed)
+
+    marker_points_3d = np.array(marker_points_3d)
+    return marker_points_3d
+
+
+def point_3d_to_param(marker_points_3d):
+    R, L, RMSE = math.svdt(A=marker_df, B=marker_points_3d)
+    rvec = cv2.Rodrigues(R)[0]
+    tvec = L
+    marker_extrinsics = merge_param(rvec, tvec)
+    return marker_extrinsics
+
+
+marker_df = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float)
+marker_df_h = cv2.convertPointsToHomogeneous(marker_df).reshape(4, 4)
+marker_extrinsics_origin = point_3d_to_param(marker_df)
+
+
+# For experiments
 def save_params_dicts(save_path, dicts):
     if not os.path.exists(os.path.join(save_path)):
         os.makedirs(os.path.join(save_path))
     for k, v in dicts.items():
         if isinstance(v, dict):
-            save_dict_to_pkl(v, os.path.join(save_path, k))
+            _save_dict_to_pkl(v, os.path.join(save_path, k))
         elif isinstance(v, np.ndarray) or isinstance(v, list):
             np.save(os.path.join(save_path, k), v)
 
 
-def save_dict_to_pkl(d, dict_name):
+def _save_dict_to_pkl(d, dict_name):
     import pickle
 
     f = open(dict_name, "wb")

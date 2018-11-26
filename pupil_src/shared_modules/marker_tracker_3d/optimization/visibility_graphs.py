@@ -17,7 +17,6 @@ class VisibilityGraphs:
     def __init__(
         self,
         camera_model,
-        marker_model,
         origin_marker_id=None,
         min_number_of_markers_per_frame_for_opt=3,
         min_number_of_frames_per_marker=2,
@@ -28,8 +27,6 @@ class VisibilityGraphs:
         assert min_number_of_frames_per_marker >= 2
         assert min_camera_angle_diff > 0
         assert optimization_interval >= 1
-
-        self.marker_model = marker_model
 
         self.min_number_of_markers_per_frame = min_number_of_markers_per_frame_for_opt
         self.min_number_of_frames_per_marker = min_number_of_frames_per_marker
@@ -49,7 +46,7 @@ class VisibilityGraphs:
         self.marker_extrinsics_opt = collections.OrderedDict()
 
         self.data_for_optimization = None
-        self.camera_localizer = CameraLocalizer(camera_model, marker_model)
+        self.camera_localizer = CameraLocalizer(camera_model)
 
         self.keyframes = dict()
         self.origin_marker_id = origin_marker_id
@@ -109,9 +106,7 @@ class VisibilityGraphs:
             origin_marker_id = list(self.markers.keys())[0]
 
         self.marker_keys = [origin_marker_id]
-        self.marker_extrinsics_opt = {
-            origin_marker_id: self.marker_model.marker_extrinsics_origin
-        }
+        self.marker_extrinsics_opt = {origin_marker_id: utils.marker_extrinsics_origin}
 
         return True
 

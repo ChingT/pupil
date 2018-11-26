@@ -2,15 +2,14 @@ import logging
 import multiprocessing as mp
 
 import background_helper
+from marker_tracker_3d import utils
 from marker_tracker_3d.optimization.optimization_generator import optimization_generator
 
 logger = logging.getLogger(__name__)
 
 
 class Controller:
-    def __init__(self, camera_model, marker_model, on_first_yield=None):
-        self.marker_model = marker_model
-
+    def __init__(self, camera_model, on_first_yield=None):
         self.on_first_yield = on_first_yield
         self.first_yield_done = False
         self.frame_count = 0
@@ -21,7 +20,7 @@ class Controller:
         self.bg_task = background_helper.IPC_Logging_Task_Proxy(
             name="generator", generator=optimization_generator, args=generator_args
         )
-        self.send_pipe.send(("basic_models", (camera_model, marker_model)))
+        self.send_pipe.send(("basic_models", camera_model))
 
     def update(self, markers, camera_extrinsics):
         self._add_marker_data(markers, camera_extrinsics)
@@ -49,11 +48,11 @@ class Controller:
             )
             return marker_extrinsics
 
-    def _get_marker_points_3d(self, marker_extrinsics):
+    @staticmethod
+    def _get_marker_points_3d(marker_extrinsics):
         if marker_extrinsics is not None:
             marker_points_3d = {
-                k: self.marker_model.params_to_points_3d(v)[0]
-                for k, v in marker_extrinsics.items()
+                k: utils.params_to_points_3d(v)[0] for k, v in marker_extrinsics.items()
             }
             return marker_points_3d
 

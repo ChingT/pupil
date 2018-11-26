@@ -4,11 +4,8 @@ from marker_tracker_3d import utils
 
 
 class CameraLocalizer:
-    def __init__(
-        self, camera_model, marker_model, min_number_of_markers_per_frame_for_loc=2
-    ):
+    def __init__(self, camera_model, min_number_of_markers_per_frame_for_loc=2):
         self.camera_model = camera_model
-        self.marker_model = marker_model
         self.min_number_of_markers_per_frame_for_loc = (
             min_number_of_markers_per_frame_for_loc
         )
@@ -45,7 +42,7 @@ class CameraLocalizer:
     def _prepare_data(self, markers, marker_extrinsics):
         marker_keys_available = markers.keys() & set(marker_extrinsics.keys())
 
-        marker_points_3d = self.marker_model.params_to_points_3d(
+        marker_points_3d = utils.params_to_points_3d(
             [marker_extrinsics[i] for i in marker_keys_available]
         )
         marker_points_2d = np.array(

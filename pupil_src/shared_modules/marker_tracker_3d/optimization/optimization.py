@@ -12,9 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class Optimization:
-    def __init__(self, camera_model, marker_model):
+    def __init__(self, camera_model):
         self.camera_model = camera_model
-        self.marker_model = marker_model
 
         self.tol = 1e-3
         self.diff_step = 1e-3
@@ -70,7 +69,7 @@ class Optimization:
             return [], []
         marker_key = min(marker_keys_available)
 
-        marker_points_3d_for_rec = self.marker_model.params_to_points_3d(
+        marker_points_3d_for_rec = utils.params_to_points_3d(
             marker_extrinsics_init[marker_key]
         )
         marker_points_2d_for_rec = self.markers_points_2d_detected[
@@ -176,7 +175,7 @@ class Optimization:
             proj_mat1, proj_mat2, undistort_points1, undistort_points2
         )
         marker_points_3d = cv2.convertPointsFromHomogeneous(points4D.T).reshape(4, 3)
-        marker_extrinsics = self.marker_model.point_3d_to_param(marker_points_3d)
+        marker_extrinsics = utils.point_3d_to_param(marker_points_3d)
 
         return marker_extrinsics
 
@@ -225,11 +224,11 @@ class Optimization:
         camera_params_size = self.n_cameras * self.n_camera_params
         lower_bound = np.full_like(x, -np.inf)
         lower_bound[camera_params_size : camera_params_size + self.n_marker_params] = (
-            self.marker_model.marker_extrinsics_origin - epsilon
+            utils.marker_extrinsics_origin - epsilon
         )
         upper_bound = np.full_like(x, np.inf)
         upper_bound[camera_params_size : camera_params_size + self.n_marker_params] = (
-            self.marker_model.marker_extrinsics_origin + epsilon
+            utils.marker_extrinsics_origin + epsilon
         )
         assert (
             (x > lower_bound)[
@@ -269,9 +268,7 @@ class Optimization:
         marker_indices,
         markers_points_2d_detected,
     ):
-        markers_points_3d = self.marker_model.params_to_points_3d(
-            marker_extrinsics.reshape(-1, 6)
-        )
+        markers_points_3d = utils.params_to_points_3d(marker_extrinsics.reshape(-1, 6))
         markers_points_2d_projected = self._project_markers(
             camera_extrinsics[camera_indices], markers_points_3d[marker_indices]
         )
@@ -386,7 +383,7 @@ class Optimization:
 
         camera_extrinsics = camera_extrinsics.reshape(-1, self.n_camera_params)
         marker_extrinsics = marker_extrinsics.reshape(-1, self.n_marker_params)
-        markers_points_3d = self.marker_model.params_to_points_3d(marker_extrinsics)
+        markers_points_3d = utils.params_to_points_3d(marker_extrinsics)
         markers_points_2d_projected = self._project_markers(
             camera_extrinsics[camera_indices], markers_points_3d[marker_indices]
         )

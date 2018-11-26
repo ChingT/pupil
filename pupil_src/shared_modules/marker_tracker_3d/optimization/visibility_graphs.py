@@ -42,7 +42,6 @@ class VisibilityGraphs:
         self.select_keyframe_interval = select_keyframe_interval
 
         self.frame_id = 0
-        self.count_opt = 0
         self.count_frame = 0
 
         self.marker_keys = list()
@@ -52,12 +51,11 @@ class VisibilityGraphs:
         self.marker_extrinsics_opt = collections.OrderedDict()
 
         self.keyframes = dict()
-        self.visibility_graph_of_all_markers = nx.MultiGraph()
+        self.visibility_graph_of_keyframes = nx.MultiGraph()
         self.visibility_graph_of_ready_markers = nx.MultiGraph()
 
     def reset(self):
         self.frame_id = 0
-        self.count_opt = 0
         self.count_frame = 0
 
         self.marker_keys = list()
@@ -67,7 +65,7 @@ class VisibilityGraphs:
         self.marker_extrinsics_opt = collections.OrderedDict()
 
         self.keyframes = dict()
-        self.visibility_graph_of_all_markers = nx.MultiGraph()
+        self.visibility_graph_of_keyframes = nx.MultiGraph()
         self.visibility_graph_of_ready_markers = nx.MultiGraph()
 
     def add_marker_detections(self, marker_detections, camera_extrinsics):
@@ -98,7 +96,6 @@ class VisibilityGraphs:
                 marker_detections, candidate_marker_keys, camera_extrinsics
             )
             self._add_to_graph(candidate_marker_keys, camera_extrinsics)
-            self.count_opt += 1
             self.frame_id += 1
 
     def _set_coordinate_system(self, marker_detections):
@@ -138,12 +135,11 @@ class VisibilityGraphs:
 
         candidate_marker_keys = list()
         for n_id in marker_detections.keys():
-            if n_id in self.visibility_graph_of_all_markers.nodes and len(
-                self.visibility_graph_of_all_markers.nodes[n_id]
+            if n_id in self.visibility_graph_of_keyframes.nodes and len(
+                self.visibility_graph_of_keyframes.nodes[n_id]
             ):
                 diff = math.closest_angle_diff(
-                    rvec,
-                    list(self.visibility_graph_of_all_markers.nodes[n_id].values()),
+                    rvec, list(self.visibility_graph_of_keyframes.nodes[n_id].values())
                 )
                 if diff > self.min_angle_diff:
                     candidate_marker_keys.append(n_id)
@@ -180,18 +176,16 @@ class VisibilityGraphs:
 
         # add frame_id as edges in the graph
         for u, v in list(it.combinations(candidate_marker_keys, 2)):
-            self.visibility_graph_of_all_markers.add_edge(u, v, key=self.frame_id)
+            self.visibility_graph_of_keyframes.add_edge(u, v, key=self.frame_id)
 
         # add frame_id as an attribute of the node
         rvec, _ = utils.split_param(camera_extrinsics)
         for n_id in candidate_marker_keys:
-            self.visibility_graph_of_all_markers.nodes[n_id][self.frame_id] = rvec
+            self.visibility_graph_of_keyframes.nodes[n_id][self.frame_id] = rvec
 
     def get_data_for_optimization(self):
         # Do optimization when there are some new keyframes selected
-        if self.count_opt >= self.optimization_interval:
-            self.count_opt = 0
-
+        if self.frame_id % self.optimization_interval == 0:
             self._update_visibility_graph_of_ready_markers()
             self._update_camera_and_marker_keys()
 
@@ -206,7 +200,7 @@ class VisibilityGraphs:
 
         if self.marker_keys:
             self.visibility_graph_of_ready_markers = (
-                self.visibility_graph_of_all_markers.copy()
+                self.visibility_graph_of_keyframes.copy()
             )
             while True:
                 # remove the nodes which are not viewed more than self.min_number_of_frames_per_marker times
@@ -250,13 +244,11 @@ class VisibilityGraphs:
         """ add new ids to self.marker_keys """
 
         if self.marker_keys:
-            self.camera_keys = list(
-                sorted(
-                    set(
-                        f_id
-                        for _, _, f_id in self.visibility_graph_of_ready_markers.edges(
-                            keys=True
-                        )
+            self.camera_keys = sorted(
+                set(
+                    f_id
+                    for _, _, f_id in self.visibility_graph_of_ready_markers.edges(
+                        keys=True
                     )
                 )
             )
@@ -379,19 +371,19 @@ class VisibilityGraphs:
         # remove edges (failed frame_id) from graph
         redundant_edges = [
             (n_id, neighbor, f_id)
-            for n_id, neighbor, f_id in self.visibility_graph_of_all_markers.edges(
+            for n_id, neighbor, f_id in self.visibility_graph_of_keyframes.edges(
                 keys=True
             )
             if f_id in failed_keyframes
         ]
-        self.visibility_graph_of_all_markers.remove_edges_from(redundant_edges)
+        self.visibility_graph_of_keyframes.remove_edges_from(redundant_edges)
 
         # remove the attribute "previous_camera_extrinsics" of the node
         for f_id in failed_keyframes:
             for n_id in set(n for n, _, f in redundant_edges if f == f_id) | set(
                 n for _, n, f in redundant_edges if f == f_id
             ):
-                del self.visibility_graph_of_all_markers.nodes[n_id][f_id]
+                del self.visibility_graph_of_keyframes.nodes[n_id][f_id]
 
         fail_marker_keys = set(self.marker_keys) - set(
             self.marker_extrinsics_opt.keys()
@@ -404,8 +396,8 @@ class VisibilityGraphs:
     def vis_graph(self, save_path):
         import matplotlib.pyplot as plt
 
-        if len(self.visibility_graph_of_all_markers) and self.marker_keys:
-            graph_vis = self.visibility_graph_of_all_markers.copy()
+        if len(self.visibility_graph_of_keyframes) and self.marker_keys:
+            graph_vis = self.visibility_graph_of_keyframes.copy()
             all_nodes = list(graph_vis.nodes)
 
             pos = nx.spring_layout(graph_vis, seed=0)  # positions for all nodes
@@ -441,7 +433,7 @@ class VisibilityGraphs:
                 save_path,
                 "weighted_graph-{0:03d}-{1}-{2}-{3}.png".format(
                     self.frame_id,
-                    len(self.visibility_graph_of_all_markers),
+                    len(self.visibility_graph_of_keyframes),
                     len(self.visibility_graph_of_ready_markers),
                     len(self.marker_extrinsics_opt),
                 ),

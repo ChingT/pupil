@@ -19,19 +19,19 @@ def optimization_generator(recv_pipe):
             msg, data_recv = recv_pipe.recv()
 
             if msg == "basic_models":
-                storage = data_recv
-                opt = Optimization(storage)
+                camera_model, marker_model = data_recv
+                opt = Optimization(camera_model, marker_model)
                 visibility_graphs = VisibilityGraphs(
-                    storage, origin_marker_id=origin_marker_id
+                    camera_model, marker_model, origin_marker_id=origin_marker_id
                 )
 
             elif msg == "frame":
                 visibility_graphs.update_visibility_graph_of_keyframes(lock, data_recv)
 
             elif msg == "restart":
-                opt = Optimization(storage)
+                opt = Optimization(camera_model, marker_model)
                 visibility_graphs = VisibilityGraphs(
-                    storage, origin_marker_id=origin_marker_id
+                    camera_model, marker_model, origin_marker_id=origin_marker_id
                 )
                 t1 = None
                 lock = threading.RLock()

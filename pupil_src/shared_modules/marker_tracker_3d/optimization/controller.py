@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 class Controller:
-    def __init__(self, storage, on_first_yield=None):
-        self.storage = storage
+    def __init__(self, camera_model, marker_model, on_first_yield=None):
+        self.marker_model = marker_model
 
         self.on_first_yield = on_first_yield
         self.first_yield_done = False
@@ -21,7 +21,7 @@ class Controller:
         self.bg_task = background_helper.IPC_Logging_Task_Proxy(
             name="generator", generator=optimization_generator, args=generator_args
         )
-        self.send_pipe.send(("basic_models", self.storage))
+        self.send_pipe.send(("basic_models", (camera_model, marker_model)))
 
     def update(self, markers, camera_extrinsics):
         self._add_marker_data(markers, camera_extrinsics)
@@ -52,7 +52,7 @@ class Controller:
     def _get_marker_points_3d(self, marker_extrinsics):
         if marker_extrinsics is not None:
             marker_points_3d = {
-                k: self.storage.marker_model.params_to_points_3d(v)[0]
+                k: self.marker_model.params_to_points_3d(v)[0]
                 for k, v in marker_extrinsics.items()
             }
             return marker_points_3d

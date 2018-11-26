@@ -33,13 +33,15 @@ class Marker_Tracker_3D(Plugin):
         super().__init__(g_pool)
 
         self.storage = Storage()
-        self.storage.camera_model = self.g_pool.capture.intrinsics
-        self.storage.marker_model = MarkerModel()
 
         self.ui = UserInterface(self, self.storage)
 
         self.controller = Controller(
-            self.storage, self.ui.update_menu, min_marker_perimeter
+            self.storage,
+            self.g_pool.capture.intrinsics,
+            MarkerModel(),
+            self.ui.update_menu,
+            min_marker_perimeter,
         )
 
         # for experiments

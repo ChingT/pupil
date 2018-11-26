@@ -12,14 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 class Controller:
-    def __init__(self, storage, update_menu, min_marker_perimeter):
+    def __init__(
+        self, storage, camera_model, marker_model, update_menu, min_marker_perimeter
+    ):
         self.storage = storage
 
         self.marker_detector = MarkerDetector(min_marker_perimeter)
         self.optimization_controller = optimization.Controller(
-            self.storage, update_menu
+            camera_model, marker_model, update_menu
         )
-        self.camera_localizer = CameraLocalizer(self.storage)
+        self.camera_localizer = CameraLocalizer(camera_model, marker_model)
         self.register_new_markers = True
 
     def recent_events(self, frame):

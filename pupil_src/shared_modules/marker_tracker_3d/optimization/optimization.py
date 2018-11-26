@@ -44,7 +44,6 @@ class Optimization:
 
         logger.debug("reconstruction done")
 
-        # bundle adjustment
         camera_extrinsics_opt, marker_extrinsics_opt = self._bundle_adjustment(
             camera_extrinsics_init, marker_extrinsics_init
         )
@@ -262,6 +261,15 @@ class Optimization:
         )
         return proj_error
 
+    def _get_markers_points_2d_projected(
+        self, camera_extrinsics, camera_indices, marker_extrinsics, marker_indices
+    ):
+        markers_points_3d = utils.params_to_points_3d(marker_extrinsics)
+        markers_points_2d_projected = self._project_markers(
+            camera_extrinsics[camera_indices], markers_points_3d[marker_indices]
+        )
+        return markers_points_2d_projected
+
     def _cal_proj_error(
         self,
         camera_extrinsics,
@@ -270,9 +278,9 @@ class Optimization:
         marker_indices,
         markers_points_2d_detected,
     ):
-        markers_points_3d = utils.params_to_points_3d(marker_extrinsics.reshape(-1, 6))
-        markers_points_2d_projected = self._project_markers(
-            camera_extrinsics[camera_indices], markers_points_3d[marker_indices]
+
+        markers_points_2d_projected = self._get_markers_points_2d_projected(
+            camera_extrinsics, camera_indices, marker_extrinsics, marker_indices
         )
         diff = markers_points_2d_projected - markers_points_2d_detected
         return diff.ravel()
@@ -350,23 +358,51 @@ class Optimization:
     ):
         """ check if the result of optimization is reasonable """
 
-        camera_extrinsics = camera_extrinsics.reshape(-1, self.n_camera_params)
-        marker_extrinsics = marker_extrinsics.reshape(-1, self.n_marker_params)
-        markers_points_3d = utils.params_to_points_3d(marker_extrinsics)
-        markers_points_2d_projected = self._project_markers(
-            camera_extrinsics[camera_indices], markers_points_3d[marker_indices]
+        markers_points_2d_projected = self._get_markers_points_2d_projected(
+            camera_extrinsics, camera_indices, marker_extrinsics, marker_indices
         )
 
-        # check if the projected points are within reasonable range
-        max_projected_points = np.max(np.abs(markers_points_2d_projected), axis=(1, 2))
-        camera_index_failed = set(camera_indices[max_projected_points > 1e4])
-        marker_index_failed = set(marker_indices[max_projected_points > 1e4])
+        camera_keys_failed_0, marker_keys_failed_0 = self._check_projected_points(
+            camera_indices, marker_indices, markers_points_2d_projected
+        )
 
-        # check if the reprojection errors are small
+        camera_keys_failed_1, marker_keys_failed_1 = self._check_reprojection_error(
+            camera_indices,
+            marker_indices,
+            markers_points_2d_projected,
+            markers_points_2d_detected,
+            thres,
+        )
+
+        return (
+            camera_keys_failed_0 | camera_keys_failed_1,
+            marker_keys_failed_0 | marker_keys_failed_1,
+        )
+
+    @staticmethod
+    def _check_projected_points(
+        camera_indices, marker_indices, markers_points_2d_projected, thres=1e4
+    ):
+        """ find out those camera_keys and marker_keys which causes projected points out of the reasonable range """
+
+        max_projected_points = np.max(np.abs(markers_points_2d_projected), axis=(1, 2))
+        camera_keys_failed = set(camera_indices[max_projected_points > thres])
+        marker_keys_failed = set(marker_indices[max_projected_points > thres])
+        return camera_keys_failed, marker_keys_failed
+
+    @staticmethod
+    def _check_reprojection_error(
+        camera_indices,
+        marker_indices,
+        markers_points_2d_projected,
+        markers_points_2d_detected,
+        thres,
+    ):
+        """ find out those camera_keys and marker_keys which causes large reprojection errors """
+
         reprojection_errors = np.linalg.norm(
             (markers_points_2d_detected - markers_points_2d_projected), axis=2
         ).sum(axis=1)
-        camera_index_failed |= set(camera_indices[reprojection_errors > thres])
-        marker_index_failed |= set(marker_indices[reprojection_errors > thres])
-
-        return camera_index_failed, marker_index_failed
+        camera_keys_failed = set(camera_indices[reprojection_errors > thres])
+        marker_keys_failed = set(marker_indices[reprojection_errors > thres])
+        return camera_keys_failed, marker_keys_failed

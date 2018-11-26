@@ -86,7 +86,9 @@ class Controller:
 
     def restart(self):
         self.first_yield_done = False
-        self.visibility_graphs = VisibilityGraphs(self.storage, self.origin_marker_id)
+        self.visibility_graphs = VisibilityGraphs(
+            self.camera_model, self.origin_marker_id
+        )
         self.opt_is_running = False
 
         self.bg_task.cancel()

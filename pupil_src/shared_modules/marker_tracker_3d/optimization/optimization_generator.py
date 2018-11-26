@@ -13,6 +13,5 @@ def optimization_generator(recv_pipe):
 
             elif msg == "opt":
                 data_for_optimization = data_recv
-                result_opt_run = opt.run(data_for_optimization)
-                if result_opt_run:
-                    yield result_opt_run
+                optimization_result = opt.run(*data_for_optimization)
+                yield optimization_result

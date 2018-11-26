@@ -306,12 +306,14 @@ class VisibilityGraphs:
     def get_updated_marker_extrinsics(self, optimization_result):
         """ process the results of optimization """
 
-        if isinstance(optimization_result, dict) and len(optimization_result) == 4:
+        try:
             camera_extrinsics_opt = optimization_result["camera_extrinsics_opt"]
             marker_extrinsics_opt = optimization_result["marker_extrinsics_opt"]
             camera_index_failed = optimization_result["camera_index_failed"]
             marker_index_failed = optimization_result["marker_index_failed"]
-
+        except KeyError:
+            return
+        else:
             self._update_extrinsics(
                 camera_extrinsics_opt,
                 marker_extrinsics_opt,

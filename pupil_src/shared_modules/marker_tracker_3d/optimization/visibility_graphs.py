@@ -8,7 +8,7 @@ import numpy as np
 
 from marker_tracker_3d import math
 from marker_tracker_3d import utils
-from marker_tracker_3d.localization import Localization
+from marker_tracker_3d.camera_localizer import CameraLocalizer
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class VisibilityGraphs:
         self.marker_extrinsics_opt = collections.OrderedDict()
 
         self.data_for_optimization = None
-        self.localization = Localization(self.storage)
+        self.camera_localizer = CameraLocalizer(self.storage)
 
         self.keyframes = dict()
         self.origin_marker_id = origin_marker_id
@@ -83,7 +83,7 @@ class VisibilityGraphs:
                 return
 
             if camera_extrinsics is None:
-                camera_extrinsics = self.localization.get_camera_extrinsics(
+                camera_extrinsics = self.camera_localizer.get_camera_extrinsics(
                     self.markers, self.marker_extrinsics_opt
                 )
                 if camera_extrinsics is None:

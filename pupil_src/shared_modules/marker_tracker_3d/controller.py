@@ -25,7 +25,7 @@ class Controller:
     def recent_events(self, frame):
         self.storage.markers = self.marker_detector.detect(frame)
 
-        self.storage.camera_extrinsics = self.camera_localizer.update(
+        self.storage.camera_extrinsics = self.camera_localizer.get_camera_extrinsics(
             self.storage.markers,
             self.storage.marker_extrinsics,
             self.storage.camera_extrinsics_previous,

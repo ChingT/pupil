@@ -55,7 +55,7 @@ class Optimization:
         self.n_markers = len(
             set(self.marker_extrinsics_prv.keys()) | set(self.marker_indices)
         )
-
+        
     def _reconstruction(self):
         """ reconstruct camera extrinsics and markers extrinsics iteratively
         the results are used as the initial guess for bundle adjustment

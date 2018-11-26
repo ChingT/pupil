@@ -9,7 +9,6 @@ from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 class Controller:
     def __init__(self, camera_model, on_first_yield=None):
         self.camera_model = camera_model
-
         self.on_first_yield = on_first_yield
         self.first_yield_done = False
         self.origin_marker_id = None

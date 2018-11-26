@@ -309,33 +309,33 @@ class VisibilityGraphs:
         try:
             camera_extrinsics_opt = optimization_result["camera_extrinsics_opt"]
             marker_extrinsics_opt = optimization_result["marker_extrinsics_opt"]
-            camera_index_failed = optimization_result["camera_index_failed"]
-            marker_index_failed = optimization_result["marker_index_failed"]
+            camera_keys_failed = optimization_result["camera_keys_failed"]
+            marker_keys_failed = optimization_result["marker_keys_failed"]
         except KeyError:
             return
         else:
             self._update_extrinsics(
                 camera_extrinsics_opt,
                 marker_extrinsics_opt,
-                camera_index_failed,
-                marker_index_failed,
+                camera_keys_failed,
+                marker_keys_failed,
             )
 
-            self._discard_keyframes(camera_index_failed)
+            self._discard_keyframes(camera_keys_failed)
             return self.marker_extrinsics_opt
 
     def _update_extrinsics(
         self,
         camera_extrinsics,
         marker_extrinsics,
-        camera_index_failed,
-        marker_index_failed,
+        camera_keys_failed,
+        marker_keys_failed,
     ):
         for i, p in enumerate(camera_extrinsics):
-            if i not in camera_index_failed:
+            if i not in camera_keys_failed:
                 self.camera_extrinsics_opt[self.camera_keys[i]] = p
         for i, p in enumerate(marker_extrinsics):
-            if i not in marker_index_failed:
+            if i not in marker_keys_failed:
                 self.marker_extrinsics_opt[self.marker_keys[i]] = p
 
         for k in self.marker_keys:
@@ -348,15 +348,15 @@ class VisibilityGraphs:
             )
         )
 
-    def _discard_keyframes(self, camera_index_failed):
+    def _discard_keyframes(self, camera_keys_failed):
         """ if the optimization failed, remove those frame_id, which make optimization fail from self.keyframes
         update keyframes, the graph """
 
         # TODO: check the image
 
-        if len(camera_index_failed) == 0:
+        if len(camera_keys_failed) == 0:
             return
-        failed_keyframes = set(self.camera_keys[i] for i in camera_index_failed)
+        failed_keyframes = set(self.camera_keys[i] for i in camera_keys_failed)
         logger.debug("remove from keyframes: {}".format(failed_keyframes))
 
         # remove the last keyframes

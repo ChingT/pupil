@@ -60,7 +60,7 @@ class Optimization:
             camera_extrinsics_init, marker_extrinsics_init
         )
 
-        camera_index_failed, marker_index_failed = self._success_check(
+        camera_keys_failed, marker_keys_failed = self._success_check(
             camera_extrinsics_opt,
             marker_extrinsics_opt,
             self.camera_indices,
@@ -72,8 +72,8 @@ class Optimization:
         optimization_result = {
             "camera_extrinsics_opt": camera_extrinsics_opt,
             "marker_extrinsics_opt": marker_extrinsics_opt,
-            "camera_index_failed": camera_index_failed,
-            "marker_index_failed": marker_index_failed,
+            "camera_keys_failed": camera_keys_failed,
+            "marker_keys_failed": marker_keys_failed,
         }
         return optimization_result
 
@@ -104,18 +104,18 @@ class Optimization:
         """ get marker_extrinsics initial guess for bundle adjustment """
 
         marker_extrinsics_init = marker_extrinsics_prv
-        marker_index_not_computed = set(self.marker_indices) - set(
+        marker_keys_not_computed = set(self.marker_indices) - set(
             marker_extrinsics_init.keys()
         )
 
-        for marker_idx in marker_index_not_computed:
-            camera_index_available = list(
+        for marker_idx in marker_keys_not_computed:
+            camera_keys_available = list(
                 set(camera_extrinsics_prv.keys())
                 & set(self.camera_indices[self.marker_indices == marker_idx])
             )
             try:
                 camera_idx0, camera_idx1 = np.random.choice(
-                    camera_index_available, 2, replace=False
+                    camera_keys_available, 2, replace=False
                 )
             except ValueError:
                 return

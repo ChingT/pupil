@@ -11,10 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
-from marker_tracker_3d import localization
-from marker_tracker_3d import optimization
-from marker_tracker_3d.camera_model import CameraModel
-from marker_tracker_3d.marker_detector import MarkerDetector
+from marker_tracker_3d.controller import Controller
 from marker_tracker_3d.storage import Storage
 from marker_tracker_3d.user_interface import UserInterface
 from plugin import Plugin
@@ -36,16 +33,14 @@ class Marker_Tracker_3D(Plugin):
 
         self.storage = Storage()
 
-        self.marker_detector = MarkerDetector(self.storage, min_marker_perimeter)
         self.ui = UserInterface(self, self.storage)
-        self.camera_model = CameraModel()
-        self.optimization_controller = optimization.Controller(
-            self.storage, self.ui.update_menu
-        )
-        self.localization_controller = localization.Controller(self.storage)
 
-        # for tracking
-        self.min_number_of_markers_per_frame_for_loc = 2
+        self.controller = Controller(
+            self.storage,
+            self.g_pool.capture.intrinsics,
+            self.ui.update_menu,
+            min_marker_perimeter,
+        )
 
         # for experiments
         self.robustness = list()
@@ -65,45 +60,24 @@ class Marker_Tracker_3D(Plugin):
         """
 
         self.ui.close_window()
-        self.optimization_controller.cleanup()
+        self.controller.cleanup()
 
     def restart(self):
         self.storage.reset()
         self.ui.update_menu()
-        self.optimization_controller.restart()
+        self.controller.restart()
 
     def save_data(self):
-        self.optimization_controller.save_data()
+        self.controller.save_data()
 
     def get_init_dict(self):
         d = super().get_init_dict()
-        d["min_marker_perimeter"] = self.marker_detector.min_marker_perimeter
-
+        d["min_marker_perimeter"] = self.controller.marker_detector.min_marker_perimeter
         return d
 
     def recent_events(self, events):
         frame = events.get("frame")
-        if not frame:
-            self.early_exit()
-            return
-
-        self.marker_detector.detect(frame)
-        self.optimization_controller.fetch_extrinsics()
-
-        if len(self.storage.markers) < self.min_number_of_markers_per_frame_for_loc:
-            self.early_exit()
-            return
-
-        self.localization_controller.update_marker_extrinsics()
-        self.localization_controller.update_camera_extrinsics()
-
-        self.optimization_controller.send_marker_data()
-
-    # TODO by now this is doing so little, maybe we should rename it to
-    # pop_camera_trace or something similar
-    def early_exit(self):
-        if len(self.storage.camera_trace):
-            self.storage.camera_trace.popleft()
+        self.controller.recent_events(frame)
 
     def gl_display(self):
         self.ui.gl_display(

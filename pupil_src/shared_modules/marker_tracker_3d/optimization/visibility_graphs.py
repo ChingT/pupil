@@ -5,24 +5,24 @@ import os
 
 import networkx as nx
 import numpy as np
-from marker_tracker_3d.localization.camera_localizer import CameraLocalizer
-from marker_tracker_3d.camera_model import CameraModel
-from marker_tracker_3d.math import closest_angle_diff
-from marker_tracker_3d.utils import split_param
+
+from marker_tracker_3d import math
+from marker_tracker_3d import utils
+from marker_tracker_3d.camera_localizer import CameraLocalizer
 
 logger = logging.getLogger(__name__)
 
 
-class VisibilityGraphs(CameraModel):
+class VisibilityGraphs:
     def __init__(
         self,
+        camera_model,
         origin_marker_id=None,
         min_number_of_markers_per_frame_for_opt=3,
         min_number_of_frames_per_marker=2,
         min_camera_angle_diff=0.1,
         optimization_interval=1,
     ):
-        super().__init__()
         assert min_number_of_markers_per_frame_for_opt >= 2
         assert min_number_of_frames_per_marker >= 2
         assert min_camera_angle_diff > 0
@@ -42,11 +42,11 @@ class VisibilityGraphs(CameraModel):
         self.camera_keys = list()
         self.camera_keys_prv = list()
 
-        self.camera_params_opt = dict()
+        self.camera_extrinsics_opt = dict()
         self.marker_extrinsics_opt = collections.OrderedDict()
 
         self.data_for_optimization = None
-        self.localization = None
+        self.camera_localizer = CameraLocalizer(camera_model)
 
         self.keyframes = dict()
         self.origin_marker_id = origin_marker_id
@@ -56,17 +56,15 @@ class VisibilityGraphs(CameraModel):
 
     @property
     def markers(self):
-        return self.__current_frame
+        return self.__markers
 
     @markers.setter
-    def markers(self, current_frame_new):
-        assert isinstance(current_frame_new, dict), TypeError(
-            "current_frame_new should be a dict"
-        )
-        if len(current_frame_new) >= self.min_number_of_markers_per_frame:
-            self.__current_frame = current_frame_new
+    def markers(self, markers_new):
+        assert isinstance(markers_new, dict), TypeError("markers_new should be a dict")
+        if len(markers_new) >= self.min_number_of_markers_per_frame:
+            self.__markers = markers_new
         else:
-            self.__current_frame = dict()
+            self.__markers = dict()
 
     def update_visibility_graph_of_keyframes(self, lock, data):
         """ pick up keyframe and update visibility graph of keyframes """
@@ -83,7 +81,9 @@ class VisibilityGraphs(CameraModel):
                 return
 
             if camera_extrinsics is None:
-                camera_extrinsics = self._predict_camera_pose()
+                camera_extrinsics = self.camera_localizer.get_camera_extrinsics(
+                    self.markers, self.marker_extrinsics_opt
+                )
                 if camera_extrinsics is None:
                     return
 
@@ -97,7 +97,7 @@ class VisibilityGraphs(CameraModel):
         if self.marker_keys:
             return True
 
-        if self.origin_marker_id is not None:
+        if self.origin_marker_id:
             if self.origin_marker_id in self.markers:
                 origin_marker_id = self.origin_marker_id
             else:
@@ -105,31 +105,24 @@ class VisibilityGraphs(CameraModel):
         else:
             origin_marker_id = list(self.markers.keys())[0]
 
-        self.marker_extrinsics_opt = {origin_marker_id: self.marker_extrinsics_origin}
         self.marker_keys = [origin_marker_id]
-        self.localization = CameraLocalizer(self.marker_extrinsics_opt)
+        self.marker_extrinsics_opt = {origin_marker_id: utils.marker_extrinsics_origin}
+
         return True
 
-    def _predict_camera_pose(self):
-        """ predict current camera pose """
-
-        if self.localization is not None:
-            camera_params_tmp = self.localization.current_camera(self.markers)
-            return camera_params_tmp
-
-    def _get_candidate_markers(self, camera_params_loc):
+    def _get_candidate_markers(self, marker_extrinsics):
         """
         get those markers in markers, to which the rotation vector of the current camera pose is diverse enough
         """
 
-        rvec, _ = split_param(camera_params_loc)
+        rvec, _ = utils.split_param(marker_extrinsics)
 
         candidate_markers = list()
         for n_id in self.markers:
             if n_id in self.visibility_graph_of_all_markers.nodes and len(
                 self.visibility_graph_of_all_markers.nodes[n_id]
             ):
-                diff = closest_angle_diff(
+                diff = math.closest_angle_diff(
                     rvec,
                     list(self.visibility_graph_of_all_markers.nodes[n_id].values()),
                 )
@@ -140,12 +133,12 @@ class VisibilityGraphs(CameraModel):
 
         return candidate_markers
 
-    def _decide_keyframe(self, candidate_markers, camera_params_loc):
+    def _decide_keyframe(self, candidate_markers, marker_extrinsics):
         """
         decide if markers can be a keyframe
         add "previous_camera_extrinsics" as a key in the self.keyframes[self.frame_id] dicts
          """
-        # TODO: come up a way to pick up keyframes without camera_params_loc
+        # TODO: come up a way to pick up keyframes without camera extrinsics
 
         if len(candidate_markers) < self.min_number_of_markers_per_frame:
             return False
@@ -153,14 +146,14 @@ class VisibilityGraphs(CameraModel):
         self.keyframes[self.frame_id] = {
             k: v for k, v in self.markers.items() if k in candidate_markers
         }
-        self.keyframes[self.frame_id]["previous_camera_extrinsics"] = camera_params_loc
+        self.keyframes[self.frame_id]["previous_camera_extrinsics"] = marker_extrinsics
         logger.debug(
             "--> keyframe {0}; markers {1}".format(self.frame_id, candidate_markers)
         )
 
         return True
 
-    def _add_to_graph(self, unique_marker_id, camera_params_loc):
+    def _add_to_graph(self, unique_marker_id, camera_extrinsics):
         """
         graph"s node: marker id; attributes: the keyframe id
         graph"s edge: keyframe id, where two markers shown in the same frame
@@ -171,7 +164,7 @@ class VisibilityGraphs(CameraModel):
             self.visibility_graph_of_all_markers.add_edge(u, v, key=self.frame_id)
 
         # add frame_id as an attribute of the node
-        rvec, _ = split_param(camera_params_loc)
+        rvec, _ = utils.split_param(camera_extrinsics)
         for n_id in unique_marker_id:
             self.visibility_graph_of_all_markers.nodes[n_id][self.frame_id] = rvec
 
@@ -292,12 +285,12 @@ class VisibilityGraphs(CameraModel):
         else:
             return
 
-        camera_params_prv = {}
+        camera_extrinsics_prv = {}
         for i, k in enumerate(self.camera_keys):
-            if k in self.camera_params_opt:
-                camera_params_prv[i] = self.camera_params_opt[k]
+            if k in self.camera_extrinsics_opt:
+                camera_extrinsics_prv[i] = self.camera_extrinsics_opt[k]
             elif "previous_camera_extrinsics" in self.keyframes[k].keys():
-                camera_params_prv[i] = self.keyframes[k][
+                camera_extrinsics_prv[i] = self.keyframes[k][
                     "previous_camera_extrinsics"
                 ].ravel()
 
@@ -310,7 +303,7 @@ class VisibilityGraphs(CameraModel):
             camera_indices,
             marker_indices,
             markers_points_2d_detected,
-            camera_params_prv,
+            camera_extrinsics_prv,
             marker_extrinsics_prv,
         )
 
@@ -321,13 +314,13 @@ class VisibilityGraphs(CameraModel):
 
         with lock:
             if isinstance(result_opt_run, dict) and len(result_opt_run) == 4:
-                camera_params_opt = result_opt_run["camera_params_opt"]
+                camera_extrinsics_opt = result_opt_run["camera_extrinsics_opt"]
                 marker_extrinsics_opt = result_opt_run["marker_extrinsics_opt"]
                 camera_index_failed = result_opt_run["camera_index_failed"]
                 marker_index_failed = result_opt_run["marker_index_failed"]
 
-                self._update_params_opt(
-                    camera_params_opt,
+                self._update_extrinsics(
+                    camera_extrinsics_opt,
                     marker_extrinsics_opt,
                     camera_index_failed,
                     marker_index_failed,
@@ -340,12 +333,16 @@ class VisibilityGraphs(CameraModel):
 
                 return self.marker_extrinsics_opt
 
-    def _update_params_opt(
-        self, camera_params, marker_extrinsics, camera_index_failed, marker_index_failed
+    def _update_extrinsics(
+        self,
+        camera_extrinsics,
+        marker_extrinsics,
+        camera_index_failed,
+        marker_index_failed,
     ):
-        for i, p in enumerate(camera_params):
+        for i, p in enumerate(camera_extrinsics):
             if i not in camera_index_failed:
-                self.camera_params_opt[self.camera_keys[i]] = p
+                self.camera_extrinsics_opt[self.camera_keys[i]] = p
         for i, p in enumerate(marker_extrinsics):
             if i not in marker_index_failed:
                 self.marker_extrinsics_opt[self.marker_keys[i]] = p

@@ -4,38 +4,52 @@ import time
 import cv2
 import numpy as np
 import scipy
-from marker_tracker_3d.camera_model import CameraModel
-from marker_tracker_3d.math import get_transform_mat
-from marker_tracker_3d.utils import check_camera_param, merge_param
+
+from marker_tracker_3d import math
+from marker_tracker_3d import utils
 
 logger = logging.getLogger(__name__)
 
 
-class Optimization(CameraModel):
-    def __init__(
+class Optimization:
+    def __init__(self, camera_model):
+        self.camera_model = camera_model
+
+        self.tol = 1e-3
+        self.diff_step = 1e-3
+        self.result_opt_run = None
+
+        self.n_camera_params = 6
+        self.n_marker_params = 6
+
+        self.camera_indices = None
+        self.marker_indices = None
+        self.markers_points_2d_detected = None
+        self.camera_extrinsics_prv = None
+        self.marker_extrinsics_prv = None
+
+        self.n_cameras = 0
+        self.n_markers = 0
+
+    def update_params(
         self,
         camera_indices,
         marker_indices,
         markers_points_2d_detected,
-        camera_params_prv,
+        camera_extrinsics_prv,
         marker_extrinsics_prv,
     ):
         """
         :param camera_indices: array_like with shape (n, ), camera indices
         :param marker_indices: array_like with shape (n, ), marker indices
         :param markers_points_2d_detected: np.ndarray with shape (n x 4 x 2), markers points from image
-        :param camera_params_prv: dict, previous camera params
-        :param marker_extrinsics_prv: dict, previous marker params
+        :param camera_extrinsics_prv: dict, previous camera extrinsics
+        :param marker_extrinsics_prv: dict, previous marker extrinsics
         """
-
-        super().__init__()
         self.camera_indices = camera_indices
         self.marker_indices = marker_indices
         self.markers_points_2d_detected = markers_points_2d_detected
-
-        assert isinstance(camera_params_prv, dict)
-        assert isinstance(marker_extrinsics_prv, dict)
-        self.camera_params_prv = camera_params_prv
+        self.camera_extrinsics_prv = camera_extrinsics_prv
         self.marker_extrinsics_prv = marker_extrinsics_prv
 
         self.n_cameras = len(set(self.camera_indices))
@@ -43,22 +57,19 @@ class Optimization(CameraModel):
             set(self.marker_extrinsics_prv.keys()) | set(self.marker_indices)
         )
 
-        self.tol = 1e-3
-        self.diff_step = 1e-3
-        self.result_opt_run = None
-
     def prepare_data_for_reconstruct_camera(self, marker_extrinsics_init, camera_idx):
         """ prepare data for reconstruction using in cv2.solvePnP() """
 
-        marker_index_available = (
+        # TODO: merge with _prepare_data()
+        marker_keys_available = (
             set(self.marker_indices[self.camera_indices == camera_idx])
             & marker_extrinsics_init.keys()
         )
-        if len(marker_index_available) == 0:
+        if not marker_keys_available:
             return [], []
-        marker_key = min(marker_index_available)
+        marker_key = min(marker_keys_available)
 
-        marker_points_3d_for_rec = self.params_to_points_3d(
+        marker_points_3d_for_rec = utils.params_to_points_3d(
             marker_extrinsics_init[marker_key]
         )
         marker_points_2d_for_rec = self.markers_points_2d_detected[
@@ -74,14 +85,14 @@ class Optimization(CameraModel):
         return marker_points_3d_for_rec, marker_points_2d_for_rec
 
     def _reconstruction(self):
-        """ reconstruct camera params and markers params iteratively
+        """ reconstruct camera extrinsics and markers extrinsics iteratively
         the results are used as the initial guess for bundle adjustment
         """
 
-        camera_params_init = self.camera_params_prv.copy()
+        camera_extrinsics_init = self.camera_extrinsics_prv.copy()
         marker_extrinsics_init = self.marker_extrinsics_prv.copy()
         camera_index_not_computed = set(self.camera_indices) - set(
-            camera_params_init.keys()
+            camera_extrinsics_init.keys()
         )
         marker_index_not_computed = set(self.marker_indices) - set(
             marker_extrinsics_init.keys()
@@ -94,18 +105,22 @@ class Optimization(CameraModel):
                     marker_extrinsics_init, camera_idx
                 )
 
-                retval, rvec, tvec = self.run_solvePnP(
+                retval, rvec, tvec = self.camera_model.solvePnP(
                     marker_points_3d_for_rec, marker_points_2d_for_rec
                 )
 
                 if retval:
-                    if check_camera_param(marker_points_3d_for_rec, rvec, tvec):
-                        camera_params_init[camera_idx] = merge_param(rvec, tvec)
+                    if utils.check_camera_extrinsics(
+                        marker_points_3d_for_rec, rvec, tvec
+                    ):
+                        camera_extrinsics_init[camera_idx] = utils.merge_param(
+                            rvec, tvec
+                        )
 
             # reconstruct markers
             for marker_idx in marker_index_not_computed:
                 camera_index_available = list(
-                    set(camera_params_init.keys())
+                    set(camera_extrinsics_init.keys())
                     & set(self.camera_indices[self.marker_indices == marker_idx])
                 )
                 if len(camera_index_available) < 2:
@@ -116,11 +131,11 @@ class Optimization(CameraModel):
 
                 # triangulate points
                 marker_extrinsics_init[marker_idx] = self.run_triangulation(
-                    camera_params_init, camera_idx0, camera_idx1, marker_idx
+                    camera_extrinsics_init, camera_idx0, camera_idx1, marker_idx
                 )
 
             camera_index_not_computed = set(self.camera_indices) - set(
-                camera_params_init.keys()
+                camera_extrinsics_init.keys()
             )
             marker_index_not_computed = set(self.marker_indices) - set(
                 marker_extrinsics_init.keys()
@@ -134,35 +149,33 @@ class Optimization(CameraModel):
         if len(camera_index_not_computed) > 0 or len(marker_index_not_computed) > 0:
             return [], []
 
-        return camera_params_init, marker_extrinsics_init
+        return camera_extrinsics_init, marker_extrinsics_init
 
-    def run_triangulation(self, camera_params, camera_idx0, camera_idx1, marker_idx):
-        proj_mat1 = get_transform_mat(camera_params[camera_idx0])[:3, :4]
-        proj_mat2 = get_transform_mat(camera_params[camera_idx1])[:3, :4]
+    def run_triangulation(
+        self, camera_extrinsics, camera_idx0, camera_idx1, marker_idx
+    ):
+        proj_mat1 = math.get_transform_mat(camera_extrinsics[camera_idx0])[:3, :4]
+        proj_mat2 = math.get_transform_mat(camera_extrinsics[camera_idx1])[:3, :4]
 
         points1 = self.markers_points_2d_detected[
             np.bitwise_and(
                 self.camera_indices == camera_idx0, self.marker_indices == marker_idx
             )
         ]
-        undistort_points1 = cv2.undistortPoints(
-            points1, self.cameraMatrix, self.distCoeffs
-        )
+        undistort_points1 = self.camera_model.undistortPoints(points1)
 
         points2 = self.markers_points_2d_detected[
             np.bitwise_and(
                 self.camera_indices == camera_idx1, self.marker_indices == marker_idx
             )
         ]
-        undistort_points2 = cv2.undistortPoints(
-            points2, self.cameraMatrix, self.distCoeffs
-        )
+        undistort_points2 = self.camera_model.undistortPoints(points2)
 
         points4D = cv2.triangulatePoints(
             proj_mat1, proj_mat2, undistort_points1, undistort_points2
         )
         marker_points_3d = cv2.convertPointsFromHomogeneous(points4D.T).reshape(4, 3)
-        marker_extrinsics = self.point_3d_to_param(marker_points_3d)
+        marker_extrinsics = utils.point_3d_to_param(marker_points_3d)
 
         return marker_extrinsics
 
@@ -176,7 +189,7 @@ class Optimization(CameraModel):
         n_residuals = self.markers_points_2d_detected.size
         n_params = (
             self.n_camera_params * self.n_cameras
-            + self.n_marker_extrinsics * self.n_markers
+            + self.n_marker_params * self.n_markers
         )
         logger.debug(
             "n_cameras {0} n_markers {1} n_residuals {2} n_params {3}".format(
@@ -193,12 +206,12 @@ class Optimization(CameraModel):
                     8 * i + j, self.camera_indices * self.n_camera_params + s
                 ] = 1
 
-        for s in range(self.n_marker_extrinsics):
+        for s in range(self.n_marker_params):
             for j in range(8):
                 sparsity_mat[
                     8 * i + j,
                     self.n_cameras * self.n_camera_params
-                    + self.marker_indices * self.n_marker_extrinsics
+                    + self.marker_indices * self.n_marker_params
                     + s,
                 ] = 1
 
@@ -210,21 +223,21 @@ class Optimization(CameraModel):
 
         camera_params_size = self.n_cameras * self.n_camera_params
         lower_bound = np.full_like(x, -np.inf)
-        lower_bound[
-            camera_params_size : camera_params_size + self.n_marker_extrinsics
-        ] = (self.marker_extrinsics_origin - epsilon)
+        lower_bound[camera_params_size : camera_params_size + self.n_marker_params] = (
+            utils.marker_extrinsics_origin - epsilon
+        )
         upper_bound = np.full_like(x, np.inf)
-        upper_bound[
-            camera_params_size : camera_params_size + self.n_marker_extrinsics
-        ] = (self.marker_extrinsics_origin + epsilon)
+        upper_bound[camera_params_size : camera_params_size + self.n_marker_params] = (
+            utils.marker_extrinsics_origin + epsilon
+        )
         assert (
             (x > lower_bound)[
-                camera_params_size : camera_params_size + self.n_marker_extrinsics
+                camera_params_size : camera_params_size + self.n_marker_params
             ]
         ).all(), "lower_bound hit"
         assert (
             (x < upper_bound)[
-                camera_params_size : camera_params_size + self.n_marker_extrinsics
+                camera_params_size : camera_params_size + self.n_marker_params
             ]
         ).all(), "upper_bound hit"
 
@@ -237,47 +250,74 @@ class Optimization(CameraModel):
         The argument x passed to this function is an ndarray of shape (n,)
         """
 
-        camera_params, marker_extrinsics = self._reshape_params(params)
-        return self.cal_proj_error(
-            camera_params,
+        camera_extrinsics, marker_extrinsics = self._reshape_params(params)
+        proj_error = self.cal_proj_error(
+            camera_extrinsics,
             marker_extrinsics,
             self.camera_indices,
             self.marker_indices,
             self.markers_points_2d_detected,
         )
+        return proj_error
+
+    def cal_proj_error(
+        self,
+        camera_extrinsics,
+        marker_extrinsics,
+        camera_indices,
+        marker_indices,
+        markers_points_2d_detected,
+    ):
+        markers_points_3d = utils.params_to_points_3d(marker_extrinsics.reshape(-1, 6))
+        markers_points_2d_projected = self._project_markers(
+            camera_extrinsics[camera_indices], markers_points_3d[marker_indices]
+        )
+        diff = markers_points_2d_projected - markers_points_2d_detected
+        return diff.ravel()
+
+    def _project_markers(self, camera_extrinsics, markers_points_3d):
+        camera_extrinsics = camera_extrinsics.reshape(-1, 6).copy()
+        markers_points_3d = markers_points_3d.reshape(-1, 4, 3).copy()
+        markers_points_2d_projected = [
+            self.camera_model.projectPoints(points, cam[0:3], cam[3:6])
+            for cam, points in zip(camera_extrinsics, markers_points_3d)
+        ]
+        markers_points_2d_projected = np.array(
+            markers_points_2d_projected, dtype=np.float32
+        )
+        return markers_points_2d_projected
 
     def _reshape_params(self, params):
-        """ reshape camera_params and marker_extrinsics into original shape"""
+        """ reshape camera_extrinsics and marker_extrinsics into original shape"""
 
         camera_params_size = self.n_cameras * self.n_camera_params
-        camera_params = params[:camera_params_size].reshape(
+        camera_extrinsics = params[:camera_params_size].reshape(
             self.n_cameras, self.n_camera_params
         )
         marker_extrinsics = params[camera_params_size:].reshape(
-            self.n_markers, self.n_marker_extrinsics
+            self.n_markers, self.n_marker_params
         )
-        return camera_params, marker_extrinsics
+        return camera_extrinsics, marker_extrinsics
 
     def bundle_adjustment(
-        self, camera_params_init, marker_extrinsics_init, verbose=False
+        self, camera_extrinsics_init, marker_extrinsics_init, verbose=False
     ):
         """ run bundle adjustment given the result of reconstruction """
 
         # initial guess
-        camera_params_0 = np.array(
-            [camera_params_init[i] for i in sorted(camera_params_init.keys())]
+        camera_extrinsics_0 = np.array(
+            [camera_extrinsics_init[i] for i in sorted(camera_extrinsics_init.keys())]
         )
         marker_extrinsics_0 = np.array(
             [marker_extrinsics_init[i] for i in sorted(marker_extrinsics_init.keys())]
         )
 
-        x0 = np.hstack((camera_params_0.ravel(), marker_extrinsics_0.ravel()))
+        x0 = np.hstack((camera_extrinsics_0.ravel(), marker_extrinsics_0.ravel()))
 
         bounds = self._cal_bounds(x0)
         A = self._find_sparsity()
 
         t0 = time.time()
-        # do bundle adjustment by scipy.optimize
         res = scipy.optimize.least_squares(
             self._func,
             x0,
@@ -294,26 +334,26 @@ class Optimization(CameraModel):
         t1 = time.time()
         logger.debug("bundle_adjustment took {0:.4f} seconds".format(t1 - t0))
 
-        camera_params_opt, marker_extrinsics_opt = self._reshape_params(res.x)
-        return camera_params_opt, marker_extrinsics_opt
+        camera_extrinsics_opt, marker_extrinsics_opt = self._reshape_params(res.x)
+        return camera_extrinsics_opt, marker_extrinsics_opt
 
     def run(self):
         """ run reconstruction and then bundle adjustment """
 
         # Reconstruction
-        camera_params_init, marker_extrinsics_init = self._reconstruction()
-        if len(camera_params_init) == 0 or len(marker_extrinsics_init) == 0:
+        camera_extrinsics_init, marker_extrinsics_init = self._reconstruction()
+        if len(camera_extrinsics_init) == 0 or len(marker_extrinsics_init) == 0:
             self.result_opt_run = None
             logger.debug("reconstruction failed")
             return
         logger.debug("reconstruction done")
 
         # bundle adjustment
-        camera_params_opt, marker_extrinsics_opt = self.bundle_adjustment(
-            camera_params_init, marker_extrinsics_init
+        camera_extrinsics_opt, marker_extrinsics_opt = self.bundle_adjustment(
+            camera_extrinsics_init, marker_extrinsics_init
         )
         camera_index_failed, marker_index_failed = self._success_check(
-            camera_params_opt,
+            camera_extrinsics_opt,
             marker_extrinsics_opt,
             self.camera_indices,
             self.marker_indices,
@@ -322,7 +362,7 @@ class Optimization(CameraModel):
         )
 
         self.result_opt_run = {
-            "camera_params_opt": camera_params_opt,
+            "camera_extrinsics_opt": camera_extrinsics_opt,
             "marker_extrinsics_opt": marker_extrinsics_opt,
             "camera_index_failed": camera_index_failed,
             "marker_index_failed": marker_index_failed,
@@ -332,7 +372,7 @@ class Optimization(CameraModel):
 
     def _success_check(
         self,
-        camera_params,
+        camera_extrinsics,
         marker_extrinsics,
         camera_indices,
         marker_indices,
@@ -341,11 +381,11 @@ class Optimization(CameraModel):
     ):
         """ check if the result of optimization is reasonable """
 
-        camera_params = camera_params.reshape(-1, self.n_camera_params)
-        marker_extrinsics = marker_extrinsics.reshape(-1, self.n_marker_extrinsics)
-        markers_points_3d = self.params_to_points_3d(marker_extrinsics)
-        markers_points_2d_projected = self.project_markers(
-            camera_params[camera_indices], markers_points_3d[marker_indices]
+        camera_extrinsics = camera_extrinsics.reshape(-1, self.n_camera_params)
+        marker_extrinsics = marker_extrinsics.reshape(-1, self.n_marker_params)
+        markers_points_3d = utils.params_to_points_3d(marker_extrinsics)
+        markers_points_2d_projected = self._project_markers(
+            camera_extrinsics[camera_indices], markers_points_3d[marker_indices]
         )
 
         # check if the projected points are within reasonable range

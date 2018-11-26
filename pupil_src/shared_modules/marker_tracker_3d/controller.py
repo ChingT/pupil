@@ -3,10 +3,10 @@ import os
 
 import numpy as np
 
-from marker_tracker_3d import optimization
 from marker_tracker_3d import utils
 from marker_tracker_3d.camera_localizer import CameraLocalizer
 from marker_tracker_3d.marker_detector import MarkerDetector
+from marker_tracker_3d.optimization.model_optimizer import ModelOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +16,7 @@ class Controller:
         self.storage = storage
 
         self.marker_detector = MarkerDetector(min_marker_perimeter)
-        self.optimization_controller = optimization.Controller(
-            camera_model, update_menu
-        )
+        self.model_optimizer = ModelOptimizer(camera_model, update_menu)
         self.camera_localizer = CameraLocalizer(camera_model)
         self.register_new_markers = True
 
@@ -32,7 +30,7 @@ class Controller:
         )
 
         if self.register_new_markers:
-            result = self.optimization_controller.update(
+            result = self.model_optimizer.update(
                 self.storage.marker_detections, self.storage.camera_extrinsics
             )
             if result:
@@ -57,11 +55,11 @@ class Controller:
         utils.save_params_dicts(save_path=self.storage.save_path, dicts=dicts)
 
         logger.info("save_data at {}".format(self.storage.save_path))
-        self.optimization_controller.save_data(self.storage.save_path)
+        self.model_optimizer.save_data(self.storage.save_path)
 
     def restart(self):
         logger.info("Restart!")
-        self.optimization_controller.restart()
+        self.model_optimizer.restart()
 
     def cleanup(self):
-        self.optimization_controller.cleanup()
+        self.model_optimizer.cleanup()

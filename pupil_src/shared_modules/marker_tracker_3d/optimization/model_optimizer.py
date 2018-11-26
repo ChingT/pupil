@@ -6,7 +6,7 @@ from marker_tracker_3d.optimization.optimization_generator import optimization_g
 from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 
 
-class Controller:
+class ModelOptimizer:
     def __init__(self, camera_model, on_first_yield=None):
         self.camera_model = camera_model
         self.on_first_yield = on_first_yield

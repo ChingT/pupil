@@ -12,14 +12,15 @@ logger = logging.getLogger(__name__)
 
 
 class Controller:
-    def __init__(self, storage, update_menu):
+    def __init__(self, storage, update_menu, min_marker_perimeter):
         self.storage = storage
 
-        self.marker_detector = MarkerDetector(self.storage)
+        self.marker_detector = MarkerDetector(min_marker_perimeter)
         self.optimization_controller = optimization.Controller(
             self.storage, update_menu
         )
         self.camera_localizer = CameraLocalizer(self.storage)
+        self.register_new_markers = True
 
     def recent_events(self, frame):
         self.storage.markers = self.marker_detector.detect(frame)
@@ -30,9 +31,10 @@ class Controller:
             self.storage.camera_extrinsics_previous,
         )
 
-        self.storage.marker_extrinsics, self.storage.marker_points_3d = self.optimization_controller.update(
-            self.storage.markers, self.storage.camera_extrinsics
-        )
+        if self.register_new_markers:
+            self.storage.marker_extrinsics, self.storage.marker_points_3d = self.optimization_controller.update(
+                self.storage.markers, self.storage.camera_extrinsics
+            )
 
     def save_data(self):
         # For experiments

@@ -35,11 +35,12 @@ class Marker_Tracker_3D(Plugin):
         self.storage = Storage()
         self.storage.camera_model = self.g_pool.capture.intrinsics
         self.storage.marker_model = MarkerModel()
-        self.storage.min_marker_perimeter = min_marker_perimeter
 
         self.ui = UserInterface(self, self.storage)
 
-        self.controller = Controller(self.storage, self.ui.update_menu)
+        self.controller = Controller(
+            self.storage, self.ui.update_menu, min_marker_perimeter
+        )
 
         # for experiments
         self.robustness = list()
@@ -71,7 +72,7 @@ class Marker_Tracker_3D(Plugin):
 
     def get_init_dict(self):
         d = super().get_init_dict()
-        d["min_marker_perimeter"] = self.storage.min_marker_perimeter
+        d["min_marker_perimeter"] = self.controller.marker_detector.min_marker_perimeter
         return d
 
     def recent_events(self, events):

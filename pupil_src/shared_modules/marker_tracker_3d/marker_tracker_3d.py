@@ -64,8 +64,8 @@ class Marker_Tracker_3D(Plugin):
 
     def restart(self):
         self.storage.reset()
-        self.ui.update_menu()
         self.controller.restart()
+        self.ui.update_menu()
 
     def save_data(self):
         self.controller.save_data()

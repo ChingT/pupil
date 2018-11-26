@@ -7,16 +7,12 @@ from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 
 
 class ModelOptimizer:
-    def __init__(self, camera_model, on_first_yield=None):
+    def __init__(self, camera_model, update_menu=None):
         self.camera_model = camera_model
-        self.on_first_yield = on_first_yield
-        self.first_yield_done = False
         self.origin_marker_id = None
 
-        self.opt_is_running = False
-
         self.visibility_graphs = VisibilityGraphs(
-            self.camera_model, self.origin_marker_id
+            self.camera_model, self.origin_marker_id, update_menu
         )
 
         recv_pipe, self.send_pipe = mp.Pipe(False)
@@ -25,6 +21,7 @@ class ModelOptimizer:
             name="generator", generator=optimization_generator, args=generator_args
         )
         self.send_pipe.send(("camera_model", camera_model))
+        self.opt_is_running = False
 
     def update(self, marker_detections, camera_extrinsics):
         self.visibility_graphs.add_marker_detections(
@@ -55,10 +52,6 @@ class ModelOptimizer:
 
     def _fetch_optimization_result(self):
         for optimization_result in self.bg_task.fetch():
-            if not self.first_yield_done:
-                self.on_first_yield()
-                self.first_yield_done = True
-
             return optimization_result
 
     def _get_updated_3d_marker_model(self, optimization_result):

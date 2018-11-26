@@ -91,23 +91,25 @@ class UserInterface:
             ui.Button("restart markers registration", self.marker_tracker_3d.restart)
         )
         # TODO external ref
-        try:
-            self.menu.append(
-                ui.Info_Text(
-                    "The marker with id {} is defined as the origin of the coordinate system".format(
-                        list(self.storage.marker_extrinsics.keys())[0]  #
-                        # TODO external ref
-                    )
-                )
-            )
-        except IndexError:
-            self.menu.append(
-                ui.Info_Text("The coordinate system has not yet been built up")
-            )
+        text = self._get_text_for_origin_marker()
+        self.menu.append(ui.Info_Text(text))
 
         self.menu.append(
             ui.Button("save data", self.marker_tracker_3d.save_data)
         )  # TODO external ref
+
+    def _get_text_for_origin_marker(self):
+        marker_keys = (
+            self.marker_tracker_3d.controller.model_optimizer.visibility_graphs.marker_keys
+        )
+        if marker_keys:
+            text = "The marker with id {} is defined as the origin of the coordinate system".format(
+                marker_keys[0]
+            )
+            logger.info(text)
+        else:
+            text = "The coordinate system has not yet been built up"
+        return text
 
     def gl_display(self, K, img_size):
         for m in self.storage.marker_detections.values():

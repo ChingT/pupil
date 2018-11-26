@@ -18,6 +18,7 @@ class VisibilityGraphs:
         self,
         camera_model,
         origin_marker_id=None,
+        update_menu=None,
         min_number_of_markers_per_frame=3,
         min_number_of_frames_per_marker=2,
         min_camera_angle_diff=0.1,
@@ -32,6 +33,7 @@ class VisibilityGraphs:
 
         self.camera_localizer = CameraLocalizer(camera_model)
         self.origin_marker_id = origin_marker_id
+        self.update_menu = update_menu
 
         self.min_number_of_markers_per_frame = min_number_of_markers_per_frame
         self.min_number_of_frames_per_marker = min_number_of_frames_per_marker
@@ -113,6 +115,7 @@ class VisibilityGraphs:
 
         self.marker_keys = [origin_marker_id]
         self.marker_extrinsics_opt = {origin_marker_id: utils.marker_extrinsics_origin}
+        self.update_menu()
 
     def _get_camera_extrinsics(self, marker_detections, camera_extrinsics):
         if camera_extrinsics is None:

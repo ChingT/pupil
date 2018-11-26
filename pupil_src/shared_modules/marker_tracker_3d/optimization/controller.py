@@ -42,7 +42,7 @@ class Controller:
 
         optimization_result = self._fetch_optimization_result()
 
-        if optimization_result:
+        if optimization_result is not None:
             marker_extrinsics, marker_points_3d = self._get_updated_3d_marker_model(
                 optimization_result
             )

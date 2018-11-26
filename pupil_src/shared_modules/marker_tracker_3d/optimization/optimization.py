@@ -24,29 +24,42 @@ class Optimization:
         self.camera_indices = None
         self.marker_indices = None
         self.markers_points_2d_detected = None
-        self.camera_extrinsics_prv = None
-        self.marker_extrinsics_prv = None
 
         self.n_cameras = 0
         self.n_markers = 0
 
-    def run(self, data_for_optimization):
-        """ run reconstruction and then bundle adjustment """
+    def run(
+        self,
+        camera_indices,
+        marker_indices,
+        markers_points_2d_detected,
+        camera_extrinsics_prv,
+        marker_extrinsics_prv,
+    ):
+        """ calculate initial guess of marker and camera poses and then run bundle adjustment """
 
-        self._update_params(*data_for_optimization)
+        self._update_params(
+            camera_indices,
+            marker_indices,
+            markers_points_2d_detected,
+            marker_extrinsics_prv,
+        )
 
-        # Reconstruction
-        camera_extrinsics_init, marker_extrinsics_init = self._reconstruction()
-        if len(marker_extrinsics_init) != self.n_markers:
+        marker_extrinsics_init = self._get_marker_extrinsics_initial_guess(
+            camera_extrinsics_prv, marker_extrinsics_prv
+        )
+
+        if not marker_extrinsics_init:
             logger.debug("reconstruction failed")
-            optimization_result = "failed"
-            return optimization_result
+            return dict()
 
-        logger.debug("reconstruction done")
+        # no need to calculate cameras_extrinsics initial guess since we have got them when picking the keyframe
+        camera_extrinsics_init = camera_extrinsics_prv
 
         camera_extrinsics_opt, marker_extrinsics_opt = self._bundle_adjustment(
             camera_extrinsics_init, marker_extrinsics_init
         )
+
         camera_index_failed, marker_index_failed = self._success_check(
             camera_extrinsics_opt,
             marker_extrinsics_opt,
@@ -56,7 +69,6 @@ class Optimization:
             12,
         )
 
-        logger.debug("bundle adjustment done")
         optimization_result = {
             "camera_extrinsics_opt": camera_extrinsics_opt,
             "marker_extrinsics_opt": marker_extrinsics_opt,
@@ -70,54 +82,35 @@ class Optimization:
         camera_indices,
         marker_indices,
         markers_points_2d_detected,
-        camera_extrinsics_prv,
         marker_extrinsics_prv,
     ):
         """
         :param camera_indices: array_like with shape (n, ), camera indices
         :param marker_indices: array_like with shape (n, ), marker indices
         :param markers_points_2d_detected: np.ndarray with shape (n x 4 x 2), markers points from image
-        :param camera_extrinsics_prv: dict, previous camera extrinsics
-        :param marker_extrinsics_prv: dict, previous marker extrinsics
         """
         self.camera_indices = camera_indices
         self.marker_indices = marker_indices
         self.markers_points_2d_detected = markers_points_2d_detected
-        self.camera_extrinsics_prv = camera_extrinsics_prv
-        self.marker_extrinsics_prv = marker_extrinsics_prv
 
         self.n_cameras = len(set(self.camera_indices))
         self.n_markers = len(
-            set(self.marker_extrinsics_prv.keys()) | set(self.marker_indices)
+            set(marker_extrinsics_prv.keys()) | set(self.marker_indices)
         )
 
-    def _reconstruction(self):
-        """ reconstruct camera extrinsics and markers extrinsics iteratively
-        the results are used as the initial guess for bundle adjustment
-        """
+    def _get_marker_extrinsics_initial_guess(
+        self, camera_extrinsics_prv, marker_extrinsics_prv
+    ):
+        """ get marker_extrinsics initial guess for bundle adjustment """
 
-        camera_extrinsics_init = self.camera_extrinsics_prv.copy()
-        marker_extrinsics_init = self.marker_extrinsics_prv.copy()
-
-        # no need to reconstruct cameras since we have got initial guess when picking the keyframe
-
+        marker_extrinsics_init = marker_extrinsics_prv
         marker_index_not_computed = set(self.marker_indices) - set(
             marker_extrinsics_init.keys()
         )
 
-        # reconstruct markers
-        marker_extrinsics_init = self._reconstruct_markers(
-            camera_extrinsics_init, marker_extrinsics_init, marker_index_not_computed
-        )
-
-        return camera_extrinsics_init, marker_extrinsics_init
-
-    def _reconstruct_markers(
-        self, camera_extrinsics_init, marker_extrinsics_init, marker_index_not_computed
-    ):
         for marker_idx in marker_index_not_computed:
             camera_index_available = list(
-                set(camera_extrinsics_init.keys())
+                set(camera_extrinsics_prv.keys())
                 & set(self.camera_indices[self.marker_indices == marker_idx])
             )
             try:
@@ -125,10 +118,10 @@ class Optimization:
                     camera_index_available, 2, replace=False
                 )
             except ValueError:
-                return marker_extrinsics_init
+                return
             else:
                 points_4d = self._run_triangulation(
-                    camera_extrinsics_init, camera_idx0, camera_idx1, marker_idx
+                    camera_extrinsics_prv, camera_idx0, camera_idx1, marker_idx
                 )
                 marker_extrinsics_init[marker_idx] = self._convert_to_marker_extrinsics(
                     points_4d
@@ -286,7 +279,7 @@ class Optimization:
         return diff.ravel()
 
     def _project_markers(self, camera_extrinsics, markers_points_3d):
-        camera_extrinsics = camera_extrinsics.reshape(-1, 6).copy()
+        camera_extrinsics = camera_extrinsics.reshape(-1, self.n_camera_params).copy()
         markers_points_3d = markers_points_3d.reshape(-1, 4, 3).copy()
         markers_points_2d_projected = [
             self.camera_model.projectPoints(points, cam[0:3], cam[3:6])

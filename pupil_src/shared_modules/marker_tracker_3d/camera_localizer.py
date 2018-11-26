@@ -7,9 +7,9 @@ class CameraLocalizer:
         self.localization = Localization(self.storage)
         self.min_number_of_markers_per_frame_for_loc = 2
 
-    def update(self, markers, marker_extrinsics, camera_extrinsics_previous):
-        if len(markers) >= self.min_number_of_markers_per_frame_for_loc:
+    def update(self, marker_detections, marker_extrinsics, camera_extrinsics_previous):
+        if len(marker_detections) >= self.min_number_of_markers_per_frame_for_loc:
             camera_extrinsics = self.localization.get_camera_extrinsics(
-                markers, marker_extrinsics, camera_extrinsics_previous
+                marker_detections, marker_extrinsics, camera_extrinsics_previous
             )
             return camera_extrinsics

@@ -25,8 +25,8 @@ class Controller:
         )
         self.send_pipe.send(("storage", self.storage))
 
-    def update(self, markers, camera_extrinsics):
-        self.visibility_graphs.add_markers(markers, camera_extrinsics)
+    def update(self, marker_detections, camera_extrinsics):
+        self.visibility_graphs.add_marker_detections(marker_detections, camera_extrinsics)
 
         if not self.opt_is_running:
             self.opt_is_running = True

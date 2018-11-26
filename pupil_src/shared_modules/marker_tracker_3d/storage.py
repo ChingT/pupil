@@ -12,7 +12,7 @@ class Storage:
         self.camera_model = None
         self.marker_model = None
 
-        self.markers = {}  # TODO rename to marker_detections
+        self.marker_detections = {}
         self.marker_extrinsics = {}
         self.marker_points_3d = {}
 
@@ -36,7 +36,7 @@ class Storage:
         self.reprojection_errors = list()
 
     def reset(self):
-        self.markers = {}  # TODO rename to marker_detections
+        self.marker_detections = {}
         self.marker_extrinsics = {}
         self.marker_points_3d = {}
 

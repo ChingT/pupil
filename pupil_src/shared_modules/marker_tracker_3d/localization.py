@@ -8,10 +8,10 @@ class Localization:
         self.storage = storage
 
     def get_camera_extrinsics(
-        self, markers, marker_extrinsics, camera_extrinsics_previous=None
+        self, marker_detections, marker_extrinsics, camera_extrinsics_previous=None
     ):
         marker_points_3d, marker_points_2d = self._prepare_data(
-            markers, marker_extrinsics
+            marker_detections, marker_extrinsics
         )
         if camera_extrinsics_previous is not None:
             rvec, tvec = utils.split_param(camera_extrinsics_previous)
@@ -33,14 +33,14 @@ class Localization:
                 camera_extrinsics = utils.merge_param(rvec, tvec)
                 return camera_extrinsics
 
-    def _prepare_data(self, markers, marker_extrinsics):
-        marker_keys_available = markers.keys() & set(marker_extrinsics.keys())
+    def _prepare_data(self, marker_detections, marker_extrinsics):
+        marker_keys_available = marker_detections.keys() & set(marker_extrinsics.keys())
 
         marker_points_3d = self.storage.marker_model.params_to_points_3d(
             [marker_extrinsics[i] for i in marker_keys_available]
         )
         marker_points_2d = np.array(
-            [markers[i]["verts"] for i in marker_keys_available]
+            [marker_detections[i]["verts"] for i in marker_keys_available]
         )
 
         if len(marker_points_3d) and len(marker_points_2d):

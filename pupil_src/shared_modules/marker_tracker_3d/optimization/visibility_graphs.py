@@ -59,69 +59,69 @@ class VisibilityGraphs:
         self.visibility_graph_of_ready_markers = nx.MultiGraph()
         logger.debug("create MultiGraph")
 
-    def add_markers(self, markers, camera_extrinsics):
+    def add_marker_detections(self, marker_detections, camera_extrinsics):
         self.count_frame += 1
         if self.count_frame >= self.select_keyframe_interval:
             self.count_frame = 0
 
             self._add_markers_to_visibility_graph_of_keyframes(
-                markers, camera_extrinsics
+                marker_detections, camera_extrinsics
             )
 
-    def _add_markers_to_visibility_graph_of_keyframes(self, markers, camera_extrinsics):
+    def _add_markers_to_visibility_graph_of_keyframes(self, marker_detections, camera_extrinsics):
         """ pick up keyframe and update visibility graph of keyframes """
 
-        camera_extrinsics = self._get_camera_extrinsics(markers, camera_extrinsics)
+        camera_extrinsics = self._get_camera_extrinsics(marker_detections, camera_extrinsics)
         if camera_extrinsics is None:
             return
 
         candidate_marker_keys = self._get_candidate_marker_keys(
-            markers, camera_extrinsics
+            marker_detections, camera_extrinsics
         )
         if self._decide_keyframe(candidate_marker_keys):
-            self._add_keyframe(markers, candidate_marker_keys, camera_extrinsics)
+            self._add_keyframe(marker_detections, candidate_marker_keys, camera_extrinsics)
             self._add_to_graph(candidate_marker_keys, camera_extrinsics)
             self.count_opt += 1
             self.frame_id += 1
 
-    def _set_coordinate_system(self, markers):
-        if not markers:
+    def _set_coordinate_system(self, marker_detections):
+        if not marker_detections:
             return
 
         if self.origin_marker_id:
-            if self.origin_marker_id in markers:
+            if self.origin_marker_id in marker_detections:
                 origin_marker_id = self.origin_marker_id
             else:
                 return
         else:
-            origin_marker_id = list(markers.keys())[0]
+            origin_marker_id = list(marker_detections.keys())[0]
 
         self.marker_keys = [origin_marker_id]
         self.marker_extrinsics_opt = {
             origin_marker_id: self.storage.marker_model.marker_extrinsics_origin
         }
 
-    def _get_camera_extrinsics(self, markers, camera_extrinsics):
+    def _get_camera_extrinsics(self, marker_detections, camera_extrinsics):
         if camera_extrinsics is None:
             try:
                 assert self.marker_extrinsics_opt
             except AssertionError:
-                self._set_coordinate_system(markers)
+                self._set_coordinate_system(marker_detections)
 
             camera_extrinsics = self.localization.get_camera_extrinsics(
-                markers, self.marker_extrinsics_opt
+                marker_detections, self.marker_extrinsics_opt
             )
         return camera_extrinsics
 
-    def _get_candidate_marker_keys(self, markers, camera_extrinsics):
+    def _get_candidate_marker_keys(self, marker_detections, camera_extrinsics):
         """
-        get those markers in markers, to which the rotation vector of the current camera pose is diverse enough
+        get those markers in marker_detections, to which the rotation vector of the current camera pose is diverse enough
         """
 
         rvec, _ = utils.split_param(camera_extrinsics)
 
         candidate_marker_keys = list()
-        for n_id in markers.keys():
+        for n_id in marker_detections.keys():
             if n_id in self.visibility_graph_of_all_markers.nodes and len(
                 self.visibility_graph_of_all_markers.nodes[n_id]
             ):
@@ -148,8 +148,8 @@ class VisibilityGraphs:
         )
         return True
 
-    def _add_keyframe(self, markers, candidate_marker_keys, camera_extrinsics):
-        self.keyframes[self.frame_id] = {k: markers[k] for k in candidate_marker_keys}
+    def _add_keyframe(self, marker_detections, candidate_marker_keys, camera_extrinsics):
+        self.keyframes[self.frame_id] = {k: marker_detections[k] for k in candidate_marker_keys}
         self.keyframes[self.frame_id]["previous_camera_extrinsics"] = camera_extrinsics
 
     def _add_to_graph(self, candidate_marker_keys, camera_extrinsics):

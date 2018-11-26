@@ -22,17 +22,17 @@ class Controller:
         self.camera_localizer = CameraLocalizer(self.storage)
 
     def recent_events(self, frame):
-        self.storage.markers = self.marker_detector.detect(frame)
+        self.storage.marker_detections = self.marker_detector.detect(frame)
 
         self.storage.camera_extrinsics = self.camera_localizer.update(
-            self.storage.markers,
+            self.storage.marker_detections,
             self.storage.marker_extrinsics,
             self.storage.camera_extrinsics_previous,
         )
 
         if self.storage.register_new_markers:
             result = self.optimization_controller.update(
-                self.storage.markers, self.storage.camera_extrinsics
+                self.storage.marker_detections, self.storage.camera_extrinsics
             )
             if result:
                 self.storage.marker_extrinsics, self.storage.marker_points_3d = result

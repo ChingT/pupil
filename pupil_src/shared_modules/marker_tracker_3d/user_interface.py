@@ -108,7 +108,7 @@ class UserInterface:
         )  # TODO external ref
 
     def gl_display(self, K, img_size):
-        for m in self.storage.markers.values():
+        for m in self.storage.marker_detections.values():
             hat = np.array(
                 [[[0, 0], [0, 1], [0.5, 1.3], [1, 1], [1, 0], [0, 0]]], dtype=np.float32
             )
@@ -143,7 +143,7 @@ class UserInterface:
 
             # Draw registered markers
             for (idx, verts) in self.storage.marker_points_3d.items():
-                if idx in self.storage.markers.keys():
+                if idx in self.storage.marker_detections.keys():
                     color = (1, 0, 0, 0.8)
                 else:
                     color = (1, 0.4, 0, 0.6)

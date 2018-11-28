@@ -95,7 +95,7 @@ class UserInterface:
         self.menu.append(ui.Info_Text(text))
 
         self.menu.append(
-            ui.Button("save data", self.marker_tracker_3d.save_data)
+            ui.Button("export data", self.marker_tracker_3d.export_data)
         )  # TODO external ref
 
     def _get_text_for_origin_marker(self):

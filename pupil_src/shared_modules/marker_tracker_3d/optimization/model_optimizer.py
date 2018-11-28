@@ -69,12 +69,7 @@ class ModelOptimizer:
             }
             return marker_points_3d
 
-    def save_data(self, save_path):
-        dicts = {
-            "marker_extrinsics_opt": self.visibility_graphs.marker_extrinsics_opt,
-            "camera_extrinsics_opt": self.visibility_graphs.camera_extrinsics_opt,
-        }
-        utils.save_params_dicts(save_path=save_path, dicts=dicts)
+    def export_data(self, save_path):
         self.visibility_graphs.vis_graph(save_path)
 
     def restart(self):

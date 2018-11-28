@@ -2,6 +2,7 @@ import datetime
 import os
 
 from marker_tracker_3d import math
+from marker_tracker_3d import utils
 
 
 class Storage:
@@ -15,7 +16,8 @@ class Storage:
         self.camera_extrinsics_previous = None
         self.camera_extrinsics = None
 
-        # for experiments
+        # for export_data
+        root = os.path.join(os.path.split(__file__)[0], "storage")
         now = datetime.datetime.now()
         now_str = "%02d%02d%02d-%02d%02d" % (
             now.year,
@@ -24,10 +26,21 @@ class Storage:
             now.hour,
             now.minute,
         )
-        self.save_path = os.path.join(
-            "/cluster/users/Ching/experiments/marker_tracker_3d", now_str
-        )
-        self.reprojection_errors = list()
+        self.save_path = os.path.join(root, now_str)
+
+    def export_data(self):
+        dicts = {
+            "marker_detections": self.marker_detections,
+            "marker_extrinsics": self.marker_extrinsics,
+            "marker_points_3d": self.marker_points_3d,
+            "camera_trace": self.camera_trace,
+            "camera_pose_matrix": self.camera_pose_matrix,
+            "camera_extrinsics": self.camera_extrinsics,
+        }
+
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path)
+        utils.save_params_dicts(save_path=self.save_path, dicts=dicts)
 
     def reset(self):
         self.marker_detections = {}

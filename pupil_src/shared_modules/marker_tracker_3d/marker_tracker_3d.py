@@ -42,11 +42,6 @@ class Marker_Tracker_3D(Plugin):
             min_marker_perimeter,
         )
 
-        # for experiments
-        self.robustness = list()
-        self.all_frames = list()
-        self.reprojection_errors = list()
-
     def init_ui(self):
         self.ui.init_ui()
 
@@ -67,8 +62,8 @@ class Marker_Tracker_3D(Plugin):
         self.controller.restart()
         self.ui.update_menu()
 
-    def save_data(self):
-        self.controller.save_data()
+    def export_data(self):
+        self.controller.export_data()
 
     def get_init_dict(self):
         d = super().get_init_dict()

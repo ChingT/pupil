@@ -186,80 +186,88 @@ class VisibilityGraphs:
     def get_data_for_optimization(self):
         # Do optimization when there are some new keyframes selected
         if self.frame_id % self.optimization_interval == 0:
-            self._update_visibility_graph_of_ready_markers()
+            self.visibility_graph_of_ready_markers = (
+                self._get_visibility_graph_of_ready_markers()
+            )
             self._update_camera_and_marker_keys()
 
             # prepare data for optimization
             data_for_optimization = self._prepare_data_for_optimization()
             return data_for_optimization
 
-    def _update_visibility_graph_of_ready_markers(self):
-        """
-        find out ready markers for optimization
-        """
+    def _get_visibility_graph_of_ready_markers(self):
+        """ find out ready markers for optimization """
 
-        if self.marker_keys:
-            self.visibility_graph_of_ready_markers = (
-                self.visibility_graph_of_keyframes.copy()
+        visibility_graph_of_ready_markers = self.visibility_graph_of_keyframes.copy()
+
+        while True:
+            nodes_less_viewed = self._find_nodes_less_viewed(
+                visibility_graph_of_ready_markers
             )
-            while True:
-                # remove the nodes which are not viewed more than self.min_number_of_frames_per_marker times
-                nodes_not_candidate = [
-                    n
-                    for n in self.visibility_graph_of_ready_markers.nodes
-                    if len(self.visibility_graph_of_ready_markers.nodes[n])
-                    < self.min_number_of_frames_per_marker
-                ]
-                self._remove_nodes(nodes_not_candidate)
+            visibility_graph_of_ready_markers.remove_nodes_from(nodes_less_viewed)
 
-                if (
-                    len(self.visibility_graph_of_ready_markers) == 0
-                    or self.marker_keys[0] not in self.visibility_graph_of_ready_markers
-                ):
-                    return
+            nodes_not_connected = self._find_nodes_not_connected_to_first_node(
+                visibility_graph_of_ready_markers
+            )
+            visibility_graph_of_ready_markers.remove_nodes_from(nodes_not_connected)
 
-                # remove the nodes which are not connected to the first node
-                nodes_not_connected = list(
-                    set(self.visibility_graph_of_ready_markers.nodes)
-                    - set(
-                        nx.node_connected_component(
-                            self.visibility_graph_of_ready_markers, self.marker_keys[0]
-                        )
-                    )
-                )
-                self._remove_nodes(nodes_not_connected)
+            if (not nodes_less_viewed) and (not nodes_not_connected):
+                break
 
-                if len(self.visibility_graph_of_ready_markers) == 0:
-                    return
+        return visibility_graph_of_ready_markers
 
-                if len(nodes_not_candidate) == 0 and len(nodes_not_connected) == 0:
-                    return
+    def _find_nodes_less_viewed(self, visibility_graph_of_ready_markers):
+        """ find the nodes which are not viewed more than self.min_number_of_frames_per_marker times"""
 
-    def _remove_nodes(self, nodes):
-        """ remove nodes in the graph """
+        nodes_less_viewed = set(
+            n
+            for n in visibility_graph_of_ready_markers.nodes
+            if len(visibility_graph_of_ready_markers.nodes[n])
+            < self.min_number_of_frames_per_marker
+        )
+        return nodes_less_viewed
 
-        self.visibility_graph_of_ready_markers.remove_nodes_from(nodes)
+    def _find_nodes_not_connected_to_first_node(
+        self, visibility_graph_of_ready_markers
+    ):
+        """ find the nodes which are not connected to the first node """
+
+        try:
+            nodes_connected_to_first_node = nx.node_connected_component(
+                visibility_graph_of_ready_markers, self.marker_keys[0]
+            )
+        except KeyError:
+            nodes_connected_to_first_node = set()
+        except IndexError:
+            nodes_connected_to_first_node = set()
+
+        nodes_not_connected_to_first_node = (
+            visibility_graph_of_ready_markers.nodes - nodes_connected_to_first_node
+        )
+        return nodes_not_connected_to_first_node
 
     def _update_camera_and_marker_keys(self):
-        """ add new ids to self.marker_keys """
+        try:
+            self.marker_keys = [self.marker_keys[0]]
+        except IndexError:
+            return
 
-        if self.marker_keys:
-            self.camera_keys = sorted(
-                set(
-                    f_id
-                    for _, _, f_id in self.visibility_graph_of_ready_markers.edges(
-                        keys=True
-                    )
+        self.marker_keys += [
+            n
+            for n in self.visibility_graph_of_ready_markers.nodes
+            if n != self.marker_keys[0]
+        ]
+        logger.debug("self.marker_keys updated {}".format(self.marker_keys))
+
+        self.camera_keys = sorted(
+            set(
+                f_id
+                for _, _, f_id in self.visibility_graph_of_ready_markers.edges(
+                    keys=True
                 )
             )
-            logger.debug("self.camera_keys updated {}".format(self.camera_keys))
-
-            self.marker_keys = [self.marker_keys[0]] + [
-                n
-                for n in self.visibility_graph_of_ready_markers.nodes
-                if n != self.marker_keys[0]
-            ]
-            logger.debug("self.marker_keys updated {}".format(self.marker_keys))
+        )
+        logger.debug("self.camera_keys updated {}".format(self.camera_keys))
 
     def _prepare_data_for_optimization(self):
         """ prepare data for optimization """

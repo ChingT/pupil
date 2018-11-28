@@ -24,7 +24,11 @@ class BundleAdjustment:
         camera_extrinsics_init,
         marker_extrinsics_init,
     ):
-        """ run bundle adjustment given the result of reconstruction """
+        """ run bundle adjustment given the initial guess and then check the result of optimization """
+
+        if marker_extrinsics_init is None:
+            optimization_result = dict()
+            return optimization_result
 
         self._update_data(
             camera_indices,
@@ -38,24 +42,10 @@ class BundleAdjustment:
             camera_extrinsics_init, marker_extrinsics_init
         )
 
-        result = scipy.optimize.least_squares(
-            fun=self._fun_compute_residuals,
-            x0=initial_guess,
-            bounds=bounds,
-            ftol=self.tol,
-            xtol=self.tol,
-            gtol=self.tol,
-            x_scale="jac",
-            diff_step=self.diff_step,
-            jac_sparsity=sparsity_matrix,
+        optimization_result = self._get_optimization_result(
+            initial_guess, bounds, sparsity_matrix
         )
-
-        camera_extrinsics_opt, marker_extrinsics_opt = self._reshape_variables_to_extrinsics(
-            result.x
-        )
-        residuals = result.fun
-
-        return camera_extrinsics_opt, marker_extrinsics_opt, residuals
+        return optimization_result
 
     def _update_data(
         self,
@@ -78,7 +68,9 @@ class BundleAdjustment:
         ).ravel()
 
         bounds = self._cal_bounds()
+
         sparsity_matrix = self._construct_sparsity_matrix()
+
         return initial_guess, bounds, sparsity_matrix
 
     def _cal_bounds(self, epsilon=1e-8):
@@ -141,6 +133,33 @@ class BundleAdjustment:
 
         return sparsity_matrix
 
+    def _get_optimization_result(self, initial_guess, bounds, sparsity_matrix):
+        result = scipy.optimize.least_squares(
+            fun=self._fun_compute_residuals,
+            x0=initial_guess,
+            bounds=bounds,
+            ftol=self.tol,
+            xtol=self.tol,
+            gtol=self.tol,
+            x_scale="jac",
+            diff_step=self.diff_step,
+            jac_sparsity=sparsity_matrix,
+        )
+
+        camera_extrinsics_opt, marker_extrinsics_opt = self._reshape_variables_to_extrinsics(
+            result.x
+        )
+
+        camera_keys_failed, marker_keys_failed = self._find_failed_keys(result.fun)
+
+        optimization_result = {
+            "camera_extrinsics_opt": camera_extrinsics_opt,
+            "marker_extrinsics_opt": marker_extrinsics_opt,
+            "camera_keys_failed": camera_keys_failed,
+            "marker_keys_failed": marker_keys_failed,
+        }
+        return optimization_result
+
     def _fun_compute_residuals(self, variables):
         """ Function which computes the vector of residuals,
         i.e., the minimization proceeds with respect to params
@@ -151,10 +170,7 @@ class BundleAdjustment:
         )
 
         markers_points_2d_projected = self._project_markers(
-            self.camera_indices,
-            self.marker_indices,
-            camera_extrinsics,
-            marker_extrinsics,
+            camera_extrinsics, marker_extrinsics
         )
         residuals = markers_points_2d_projected - self.markers_points_2d_detected
         return residuals.ravel()
@@ -170,17 +186,24 @@ class BundleAdjustment:
 
         return camera_extrinsics, marker_extrinsics
 
-    def _project_markers(
-        self, camera_indices, marker_indices, camera_extrinsics, marker_extrinsics
-    ):
+    def _project_markers(self, camera_extrinsics, marker_extrinsics):
         markers_points_3d = utils.params_to_points_3d(marker_extrinsics)
 
         markers_points_2d_projected = [
             self.camera_model.projectPoints(points, cam[0:3], cam[3:6])
             for cam, points in zip(
-                camera_extrinsics[camera_indices], markers_points_3d[marker_indices]
+                camera_extrinsics[self.camera_indices],
+                markers_points_3d[self.marker_indices],
             )
         ]
         markers_points_2d_projected = np.array(markers_points_2d_projected)
-
         return markers_points_2d_projected
+
+    def _find_failed_keys(self, residuals, thres=6):
+        """ find out those camera_keys and marker_keys which causes large reprojection errors """
+
+        residuals.shape = -1, 4, 2
+        reprojection_errors = np.linalg.norm(residuals, axis=2).sum(axis=1)
+        camera_keys_failed = set(self.camera_indices[reprojection_errors > thres])
+        marker_keys_failed = set(self.marker_indices[reprojection_errors > thres])
+        return camera_keys_failed, marker_keys_failed

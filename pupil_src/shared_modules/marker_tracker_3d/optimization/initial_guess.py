@@ -76,17 +76,17 @@ class InitialGuess:
             except ValueError:
                 return
             else:
-                points_4d = self._run_triangulation(
-                    markers_points_2d_detected,
+                data_for_run_triangulation = (
                     camera_indices,
                     marker_indices,
+                    markers_points_2d_detected,
                     camera_extrinsics_prv,
                     camera_idx0,
                     camera_idx1,
                     marker_idx,
                 )
-                marker_extrinsics_init[marker_idx] = self._convert_to_marker_extrinsics(
-                    points_4d
+                marker_extrinsics_init[marker_idx] = self._calculate_marker_extrinsics(
+                    data_for_run_triangulation
                 )
 
         marker_extrinsics_init = np.array(
@@ -94,39 +94,21 @@ class InitialGuess:
         )
         return marker_extrinsics_init
 
-    def _run_triangulation(
-        self,
-        markers_points_2d_detected,
-        camera_indices,
-        marker_indices,
-        camera_extrinsics,
-        camera_idx0,
-        camera_idx1,
-        marker_idx,
-    ):
-        """ triangulate points """
+    def _calculate_marker_extrinsics(self, data_for_run_triangulation):
 
-        proj_mat1, proj_mat2, undistort_points1, undistort_points2 = self._prepare_data_for_triangulation(
-            markers_points_2d_detected,
-            camera_indices,
-            marker_indices,
-            camera_extrinsics,
-            camera_idx0,
-            camera_idx1,
-            marker_idx,
+        data_for_cv2_triangulate_points = self._prepare_data_for_cv2_triangulate_points(
+            *data_for_run_triangulation
         )
 
-        points_4d = cv2.triangulatePoints(
-            proj_mat1, proj_mat2, undistort_points1, undistort_points2
-        )
+        points_4d = cv2.triangulatePoints(*data_for_cv2_triangulate_points)
 
-        return points_4d
+        return self._convert_to_marker_extrinsics(points_4d)
 
-    def _prepare_data_for_triangulation(
+    def _prepare_data_for_cv2_triangulate_points(
         self,
-        markers_points_2d_detected,
         camera_indices,
         marker_indices,
+        markers_points_2d_detected,
         camera_extrinsics,
         camera_idx0,
         camera_idx1,

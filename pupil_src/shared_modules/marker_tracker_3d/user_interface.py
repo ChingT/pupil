@@ -100,7 +100,7 @@ class UserInterface:
 
     def _get_text_for_origin_marker(self):
         marker_keys = (
-            self.marker_tracker_3d.controller.model_optimizer.visibility_graphs.marker_keys
+            self.marker_tracker_3d.controller.model_optimizer.model_optimizer_storage.marker_keys
         )
         if marker_keys:
             text = "The marker with id {} is defined as the origin of the coordinate system".format(

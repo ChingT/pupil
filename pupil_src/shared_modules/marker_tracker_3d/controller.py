@@ -35,7 +35,7 @@ class Controller:
     def export_data(self):
         logger.info("save_data at {}".format(self.storage.save_path))
         self.storage.export_data()
-        self.model_optimizer.export_data(self.storage.save_path)
+        self.model_optimizer.export_data()
 
     def restart(self):
         logger.info("Restart!")

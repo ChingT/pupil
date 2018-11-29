@@ -1,5 +1,5 @@
 import background_helper
-from marker_tracker_3d.model_optimizer_storage import ModelOptimizerStorage
+from marker_tracker_3d.optimization.model_optimizer_storage import ModelOptimizerStorage
 from marker_tracker_3d.optimization.optimization_generator import optimization_generator
 from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 

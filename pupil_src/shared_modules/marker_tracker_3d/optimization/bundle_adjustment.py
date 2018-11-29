@@ -27,8 +27,7 @@ class BundleAdjustment:
         """ run bundle adjustment given the initial guess and then check the result of optimization """
 
         if marker_extrinsics_init is None:
-            optimization_result = dict()
-            return optimization_result
+            return
 
         self._update_data(
             camera_indices,
@@ -152,12 +151,12 @@ class BundleAdjustment:
 
         camera_keys_failed, marker_keys_failed = self._find_failed_keys(result.fun)
 
-        optimization_result = {
-            "camera_extrinsics_opt": camera_extrinsics_opt,
-            "marker_extrinsics_opt": marker_extrinsics_opt,
-            "camera_keys_failed": camera_keys_failed,
-            "marker_keys_failed": marker_keys_failed,
-        }
+        optimization_result = utils.ResultOfOptimization(
+            camera_extrinsics_opt,
+            marker_extrinsics_opt,
+            camera_keys_failed,
+            marker_keys_failed,
+        )
         return optimization_result
 
     def _fun_compute_residuals(self, variables):

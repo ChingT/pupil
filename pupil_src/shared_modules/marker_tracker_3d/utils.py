@@ -1,9 +1,31 @@
+import collections
 import os
 
 import cv2
 import numpy as np
 
 from marker_tracker_3d import math
+
+DataForOptimization = collections.namedtuple(
+    "DataForOptimization",
+    [
+        "camera_indices",
+        "marker_indices",
+        "markers_points_2d_detected",
+        "camera_extrinsics_prv",
+        "marker_extrinsics_prv",
+    ],
+)
+
+ResultOfOptimization = collections.namedtuple(
+    "ResultOfOptimization",
+    [
+        "camera_extrinsics_opt",
+        "marker_extrinsics_opt",
+        "camera_keys_failed",
+        "marker_keys_failed",
+    ],
+)
 
 
 def get_marker_vertex_coord(marker_extrinsics, camera_model):

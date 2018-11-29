@@ -311,7 +311,7 @@ class VisibilityGraphs:
             if k in self.marker_extrinsics_opt
         }
 
-        data_for_optimization = (
+        data_for_optimization = utils.DataForOptimization(
             camera_indices,
             marker_indices,
             markers_points_2d_detected,
@@ -323,23 +323,20 @@ class VisibilityGraphs:
     def get_updated_marker_extrinsics(self, optimization_result):
         """ process the results of optimization """
 
-        try:
-            camera_extrinsics_opt = optimization_result["camera_extrinsics_opt"]
-            marker_extrinsics_opt = optimization_result["marker_extrinsics_opt"]
-            camera_keys_failed = optimization_result["camera_keys_failed"]
-            marker_keys_failed = optimization_result["marker_keys_failed"]
-        except KeyError:
-            return
-        else:
-            self._update_extrinsics(
-                camera_extrinsics_opt,
-                marker_extrinsics_opt,
-                camera_keys_failed,
-                marker_keys_failed,
-            )
+        camera_extrinsics_opt = optimization_result.camera_extrinsics_opt
+        marker_extrinsics_opt = optimization_result.marker_extrinsics_opt
+        camera_keys_failed = optimization_result.camera_keys_failed
+        marker_keys_failed = optimization_result.marker_keys_failed
 
-            self._discard_keyframes(camera_keys_failed)
-            return self.marker_extrinsics_opt
+        self._update_extrinsics(
+            camera_extrinsics_opt,
+            marker_extrinsics_opt,
+            camera_keys_failed,
+            marker_keys_failed,
+        )
+
+        self._discard_keyframes(camera_keys_failed)
+        return self.marker_extrinsics_opt
 
     def _update_extrinsics(
         self,

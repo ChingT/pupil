@@ -40,11 +40,12 @@ class ModelOptimizer:
 
     def _update_marker_extrinsics(self):
         optimization_result = self._fetch_optimization_result()
+        marker_extrinsics = None
         if optimization_result:
             marker_extrinsics = self.visibility_graphs.get_updated_marker_extrinsics(
                 optimization_result
             )
-            return marker_extrinsics
+        return marker_extrinsics
 
     def _fetch_optimization_result(self):
         if self.bg_task:

@@ -84,9 +84,10 @@ def params_to_points_3d(params):
 
 
 def point_3d_to_param(marker_points_3d):
-    R, L, RMSE = math.svdt(A=marker_df, B=marker_points_3d)
-    rvec = cv2.Rodrigues(R)[0]
-    tvec = L
+    rotation_matrix, translation_vector, _ = math.svdt(A=marker_df, B=marker_points_3d)
+
+    rvec = cv2.Rodrigues(rotation_matrix)[0]
+    tvec = translation_vector
     marker_extrinsics = merge_param(rvec, tvec)
     return marker_extrinsics
 

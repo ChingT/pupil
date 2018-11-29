@@ -77,34 +77,37 @@ def svdt(A, B, order="row"):
         if B.ndim == 1:
             A = A.reshape(A.size / 3, 3)
             B = B.reshape(B.size / 3, 3)
-        R, L, RMSE = _svd(A, B)
+        rotation_matrix, translation_vector, root_mean_squared_error = _svd(A, B)
     else:
         A = A.reshape(A.size / 3, 3)
         ni = B.shape[0]
-        R = np.empty((ni, 3, 3))
-        L = np.empty((ni, 3))
-        RMSE = np.empty(ni)
+        rotation_matrix = np.empty((ni, 3, 3))
+        translation_vector = np.empty((ni, 3))
+        root_mean_squared_error = np.empty(ni)
         for i in range(ni):
-            R[i, :, :], L[i, :], RMSE[i] = _svd(A, B[i, :].reshape(A.shape))
+            rotation_matrix[i, :, :], translation_vector[i, :], root_mean_squared_error[
+                i
+            ] = _svd(A, B[i, :].reshape(A.shape))
 
-    return R, L, RMSE
+    return rotation_matrix, translation_vector, root_mean_squared_error
 
 
 def _svd(A, B):
     Am = np.mean(A, axis=0)  # centroid of m1
     Bm = np.mean(B, axis=0)  # centroid of m2
     M = np.dot((B - Bm).T, (A - Am))  # considering only rotation
-    # singular value decomposition
-    U, S, Vt = np.linalg.svd(M)
-    # rotation matrix
-    R = np.dot(U, np.dot(np.diag([1, 1, np.linalg.det(np.dot(U, Vt))]), Vt))
-    # translation vector
-    L = B.mean(0) - np.dot(R, A.mean(0))
-    # RMSE
+    U, S, Vt = np.linalg.svd(M)  # singular value decomposition
+
+    rotation_matrix = np.dot(
+        U, np.dot(np.diag([1, 1, np.linalg.det(np.dot(U, Vt))]), Vt)
+    )
+
+    translation_vector = B.mean(0) - np.dot(rotation_matrix, A.mean(0))
+
     err = 0
     for i in range(A.shape[0]):
-        Bp = np.dot(R, A[i, :]) + L
+        Bp = np.dot(rotation_matrix, A[i, :]) + translation_vector
         err += np.sum((Bp - B[i, :]) ** 2)
-    RMSE = np.sqrt(err / A.shape[0] / 3)
+    root_mean_squared_error = np.sqrt(err / A.shape[0] / 3)
 
-    return R, L, RMSE
+    return rotation_matrix, translation_vector, root_mean_squared_error

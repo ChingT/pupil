@@ -75,12 +75,7 @@ class Storage:
     def marker_extrinsics(self, marker_extrinsics_new):
         if marker_extrinsics_new is not None:
             self.__marker_extrinsics = marker_extrinsics_new
-
-    @property
-    def marker_points_3d(self):
-        return self.__marker_points_3d
-
-    @marker_points_3d.setter
-    def marker_points_3d(self, marker_points_3d_new):
-        if marker_points_3d_new is not None:
-            self.__marker_points_3d = marker_points_3d_new
+            self.marker_points_3d = {
+                k: utils.params_to_points_3d(v)[0]
+                for k, v in marker_extrinsics_new.items()
+            }

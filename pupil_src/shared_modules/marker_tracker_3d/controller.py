@@ -26,11 +26,9 @@ class Controller:
         )
 
         if self.register_new_markers:
-            result = self.model_optimizer.update(
+            self.storage.marker_extrinsics = self.model_optimizer.update(
                 self.storage.marker_detections, self.storage.camera_extrinsics
             )
-            if result:
-                self.storage.marker_extrinsics, self.storage.marker_points_3d = result
 
     def export_data(self):
         logger.info("save_data at {}".format(self.storage.save_path))

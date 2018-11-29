@@ -1,5 +1,4 @@
 import background_helper
-from marker_tracker_3d import utils
 from marker_tracker_3d.model_optimizer_storage import ModelOptimizerStorage
 from marker_tracker_3d.optimization.optimization_generator import optimization_generator
 from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
@@ -27,7 +26,8 @@ class ModelOptimizer:
 
         self._run_optimization()
 
-        return self._get_updated_3d_marker_model()
+        marker_extrinsics = self._update_marker_extrinsics()
+        return marker_extrinsics
 
     def _run_optimization(self):
         if not self.bg_task:
@@ -38,28 +38,19 @@ class ModelOptimizer:
                     name="generator", generator=optimization_generator, args=args
                 )
 
-    def _get_updated_3d_marker_model(self):
+    def _update_marker_extrinsics(self):
         optimization_result = self._fetch_optimization_result()
         if optimization_result:
             marker_extrinsics = self.visibility_graphs.get_updated_marker_extrinsics(
                 optimization_result
             )
-            marker_points_3d = self._get_marker_points_3d(marker_extrinsics)
-            return marker_extrinsics, marker_points_3d
+            return marker_extrinsics
 
     def _fetch_optimization_result(self):
         if self.bg_task:
             for optimization_result in self.bg_task.fetch():
                 self.bg_task = None
                 return optimization_result
-
-    @staticmethod
-    def _get_marker_points_3d(marker_extrinsics):
-        if marker_extrinsics is not None:
-            marker_points_3d = {
-                k: utils.params_to_points_3d(v)[0] for k, v in marker_extrinsics.items()
-            }
-            return marker_points_3d
 
     def export_data(self):
         self.model_optimizer_storage.export_data()

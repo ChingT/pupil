@@ -3,7 +3,6 @@ import random
 import cv2
 import numpy as np
 
-from marker_tracker_3d import math
 from marker_tracker_3d import utils
 
 
@@ -114,8 +113,8 @@ class InitialGuess:
         camera_idx1,
         marker_idx,
     ):
-        proj_mat1 = math.get_transform_mat(camera_extrinsics[camera_idx0])[:3, :4]
-        proj_mat2 = math.get_transform_mat(camera_extrinsics[camera_idx1])[:3, :4]
+        proj_mat1 = utils.get_extrinsic_matrix(camera_extrinsics[camera_idx0])[:3, :4]
+        proj_mat2 = utils.get_extrinsic_matrix(camera_extrinsics[camera_idx1])[:3, :4]
 
         points1 = markers_points_2d_detected[
             np.bitwise_and(camera_indices == camera_idx0, marker_indices == marker_idx)

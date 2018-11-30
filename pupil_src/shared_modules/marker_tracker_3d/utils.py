@@ -65,14 +65,31 @@ def check_camera_extrinsics(pts_3d_world, rvec, tvec):
     return True
 
 
+def get_extrinsic_matrix(camera_extrinsics):
+    rvec, tvec = split_param(camera_extrinsics)
+    extrinsic_matrix = np.eye(4, dtype=np.float32)
+    extrinsic_matrix[0:3, 0:3] = cv2.Rodrigues(rvec)[0]
+    extrinsic_matrix[0:3, 3] = tvec
+    return extrinsic_matrix
+
+
+def get_camera_pose_matrix(camera_extrinsics):
+    rvec, tvec = split_param(camera_extrinsics)
+    camera_pose_matrix = np.eye(4, dtype=np.float32)
+    camera_pose_matrix[0:3, 0:3] = cv2.Rodrigues(rvec)[0].T
+    camera_pose_matrix[0:3, 3] = -camera_pose_matrix[0:3, 0:3] @ tvec
+    return camera_pose_matrix
+
+
+def get_camera_trace(camera_pose_matrix):
+    return camera_pose_matrix[0:3, 3]
+
+
 def params_to_points_3d(params):
     params = np.asarray(params).reshape(-1, 6)
     marker_points_3d = list()
     for param in params:
-        rvec, tvec = split_param(param)
-        mat = np.eye(4, dtype=np.float32)
-        mat[0:3, 0:3] = cv2.Rodrigues(rvec)[0]
-        mat[0:3, 3] = tvec
+        mat = get_extrinsic_matrix(param)
         marker_transformed_h = mat @ marker_df_h.T
         marker_transformed = cv2.convertPointsFromHomogeneous(
             marker_transformed_h.T

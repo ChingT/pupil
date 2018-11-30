@@ -1,7 +1,6 @@
 import datetime
 import os
 
-from marker_tracker_3d import math
 from marker_tracker_3d import utils
 
 
@@ -59,13 +58,16 @@ class Storage:
     @camera_extrinsics.setter
     def camera_extrinsics(self, camera_extrinsics_new):
         self.__camera_extrinsics = camera_extrinsics_new
-
-        self.camera_pose_matrix = math.get_camera_pose_mat(camera_extrinsics_new)
-        self.camera_trace.append(math.get_camera_trace(self.camera_pose_matrix))
-
         if camera_extrinsics_new is not None:
             # Do not set camera_extrinsics_previous to None to ensure a decent initial guess for the next solve_pnp call
             self.camera_extrinsics_previous = camera_extrinsics_new
+            self.camera_pose_matrix = utils.get_camera_pose_matrix(
+                camera_extrinsics_new
+            )
+            self.camera_trace.append(utils.get_camera_trace(self.camera_pose_matrix))
+        else:
+            self.camera_pose_matrix = None
+            self.camera_trace.append(None)
 
     @property
     def marker_extrinsics(self):

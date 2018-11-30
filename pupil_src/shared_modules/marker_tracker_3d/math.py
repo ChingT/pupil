@@ -1,7 +1,4 @@
-import cv2
 import numpy as np
-
-from marker_tracker_3d import utils
 
 
 def closest_angle_diff(vec_1, vec_2):
@@ -26,28 +23,6 @@ def angle_between(v1, v2):
 def unit_vector(vector):
     """ Returns the unit vector of the vector. """
     return vector / np.linalg.norm(vector, axis=1)[:, np.newaxis]
-
-
-def get_transform_mat(param):
-    rvec, tvec = utils.split_param(param)
-    mat_extrinsic = np.eye(4)
-    mat_extrinsic[:3, :3] = cv2.Rodrigues(rvec)[0]
-    mat_extrinsic[:3, 3] = tvec
-    return mat_extrinsic
-
-
-def get_camera_pose_mat(camera_extrinsics):
-    if camera_extrinsics is None:
-        return None
-    camera_pose_inv = get_transform_mat(camera_extrinsics.copy())
-    camera_pose = np.linalg.inv(camera_pose_inv)
-    return camera_pose
-
-
-def get_camera_trace(camera_pose_matrix):
-    if camera_pose_matrix is None:
-        return None
-    return camera_pose_matrix[0:3, 3]
 
 
 def svdt(A, B, order="row"):

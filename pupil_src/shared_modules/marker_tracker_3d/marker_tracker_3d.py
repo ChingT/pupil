@@ -34,36 +34,13 @@ class Marker_Tracker_3D(Plugin, Observable):
 
         self.storage = Storage()
 
+        self.controller = Controller(
+            self, self.storage, self.g_pool.capture.intrinsics, min_marker_perimeter
+        )
         self.ui = UserInterface(self, self.storage, self.g_pool.capture.intrinsics)
 
-        self.controller = Controller(
-            self.storage,
-            self.g_pool.capture.intrinsics,
-            self.ui.update_menu,
-            min_marker_perimeter,
-        )
-
-    def cleanup(self):
-        """ called when the plugin gets terminated.
-        This happens either voluntarily or forced.
-        if you have a GUI or glfw window destroy it here.
-        """
-
-        self.controller.cleanup()
-
-    def restart(self):
-        self.storage.reset()
-        self.controller.restart()
-        self.ui.update_menu()
-
-    def export_data(self):
-        self.controller.export_data()
-
     def get_init_dict(self):
-        d = super().get_init_dict()
-        d["min_marker_perimeter"] = self.controller.marker_detector.min_marker_perimeter
+        d = {
+            "min_marker_perimeter": self.controller.marker_detector.min_marker_perimeter
+        }
         return d
-
-    def recent_events(self, events):
-        frame = events.get("frame")
-        self.controller.update(frame)

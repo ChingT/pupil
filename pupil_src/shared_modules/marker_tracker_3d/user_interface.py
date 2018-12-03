@@ -16,18 +16,20 @@ logger = logging.getLogger(__name__)
 
 class UserInterface:
     def __init__(self, marker_tracker_3d, storage, intrinsics):
-        self.storage = storage
         self.marker_tracker_3d = marker_tracker_3d
-        self.open_3d_window = True
-        self.intrinsics = intrinsics
-
         self.marker_tracker_3d.add_observer("gl_display", self.gl_display)
         self.marker_tracker_3d.add_observer("init_ui", self.init_ui)
         self.marker_tracker_3d.add_observer("deinit_ui", self.deinit_ui)
         self.marker_tracker_3d.add_observer("cleanup", self.close_window)
+        self.marker_tracker_3d.controller.model_optimizer.visibility_graphs.add_observer(
+            "update_menu", self.update_menu
+        )
 
+        self.storage = storage
+        self.intrinsics = intrinsics
+
+        self.open_3d_window = True
         self.name = "Marker Tracker 3D"
-
         self.menu = None
 
         # window for 3d vis
@@ -94,15 +96,18 @@ class UserInterface:
             )
         )
         self.menu.append(
-            ui.Button("restart markers registration", self.marker_tracker_3d.restart)
+            ui.Button(
+                "restart markers registration",
+                self.marker_tracker_3d.controller.on_restart,
+            )
         )
-        # TODO external ref
+
         text = self._get_text_for_origin_marker()
         self.menu.append(ui.Info_Text(text))
 
         self.menu.append(
-            ui.Button("export data", self.marker_tracker_3d.export_data)
-        )  # TODO external ref
+            ui.Button("export data", self.marker_tracker_3d.controller.on_export_data)
+        )
 
     def _get_text_for_origin_marker(self):
         marker_keys = (

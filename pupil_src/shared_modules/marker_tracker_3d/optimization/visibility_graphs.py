@@ -7,17 +7,17 @@ import numpy as np
 from marker_tracker_3d import math
 from marker_tracker_3d import utils
 from marker_tracker_3d.camera_localizer import CameraLocalizer
+from observable import Observable
 
 logger = logging.getLogger(__name__)
 
 
-class VisibilityGraphs:
+class VisibilityGraphs(Observable):
     def __init__(
         self,
         model_optimizer_storage,
         camera_model,
         origin_marker_id=None,
-        update_menu=None,
         min_number_of_markers_per_frame=3,
         min_number_of_frames_per_marker=2,
         min_camera_angle_diff=0.1,
@@ -33,7 +33,6 @@ class VisibilityGraphs:
         self.model_optimizer_storage = model_optimizer_storage
         self.camera_localizer = CameraLocalizer(camera_model)
         self.origin_marker_id = origin_marker_id
-        self.update_menu = update_menu
 
         self.min_number_of_markers_per_frame = min_number_of_markers_per_frame
         self.min_number_of_frames_per_marker = min_number_of_frames_per_marker
@@ -86,9 +85,7 @@ class VisibilityGraphs:
 
     def _get_camera_extrinsics(self, marker_detections, camera_extrinsics):
         if camera_extrinsics is None:
-            try:
-                assert self.marker_extrinsics_opt
-            except AssertionError:
+            if len(self.marker_extrinsics_opt) == 0:
                 self._set_coordinate_system(marker_detections)
 
             camera_extrinsics = self.camera_localizer.get_camera_extrinsics(
@@ -111,6 +108,9 @@ class VisibilityGraphs:
         self.model_optimizer_storage.marker_keys = [origin_marker_id]
         self.marker_extrinsics_opt = {origin_marker_id: utils.marker_extrinsics_origin}
         self.update_menu()
+
+    def update_menu(self):
+        pass
 
     def _get_candidate_marker_keys(self, marker_detections, camera_extrinsics):
         """

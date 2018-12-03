@@ -5,16 +5,16 @@ from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 
 
 class ModelOptimizer:
-    def __init__(self, camera_model, update_menu=None):
+    def __init__(self, marker_tracker_3d, camera_model):
+        self.marker_tracker_3d = marker_tracker_3d
+        self.marker_tracker_3d.add_observer("cleanup", self.cleanup)
+
         self.camera_model = camera_model
 
         self.model_optimizer_storage = ModelOptimizerStorage()
         self.origin_marker_id = None
         self.visibility_graphs = VisibilityGraphs(
-            self.model_optimizer_storage,
-            self.camera_model,
-            self.origin_marker_id,
-            update_menu,
+            self.model_optimizer_storage, self.camera_model, self.origin_marker_id
         )
 
         self.bg_task = None
@@ -53,11 +53,7 @@ class ModelOptimizer:
                 self.bg_task = None
                 return optimization_result
 
-    def export_data(self):
-        self.model_optimizer_storage.export_data()
-
     def restart(self):
-        self.model_optimizer_storage.reset()
         self.visibility_graphs.reset()
         self.cleanup()
 

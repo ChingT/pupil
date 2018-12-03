@@ -15,43 +15,43 @@ class MarkerDetector:
         # not use detect_markers_robust to avoid cv2.calcOpticalFlowPyrLK for
         # performance reasons
         try:
-            markers = square_marker_detect.detect_markers(
+            marker_list = square_marker_detect.detect_markers(
                 frame.gray,
                 grid_size=5,
                 aperture=13,
                 min_marker_perimeter=self.min_marker_perimeter,
             )
         except AttributeError:
-            markers = dict()
+            marker_detections = dict()
         else:
-            markers = self._filter_markers(markers)
+            marker_detections = self._filter_markers(marker_list)
 
-        return markers
+        return marker_detections
 
-    def _filter_markers(self, markers):
-        markers = [m for m in markers if m["id_confidence"] > 0.9]
+    def _filter_markers(self, marker_list):
+        marker_list = [m for m in marker_list if m["id_confidence"] > 0.9]
 
-        markers_id_all = set([m["id"] for m in markers])
+        markers_id_all = set([m["id"] for m in marker_list])
         for marker_id in markers_id_all:
-            markers_with_same_id = [m for m in markers if m["id"] == marker_id]
+            markers_with_same_id = [m for m in marker_list if m["id"] == marker_id]
             if len(markers_with_same_id) > 2:
-                markers = [m for m in markers if m["id"] != marker_id]
+                marker_list = [m for m in marker_list if m["id"] != marker_id]
                 logger.warning(
                     "WARNING! Multiple markers with same id {} found!".format(marker_id)
                 )
             elif len(markers_with_same_id) == 2:
-                markers = self._remove_duplicate(
-                    marker_id, markers, markers_with_same_id
+                marker_list = self._remove_duplicate(
+                    marker_id, marker_list, markers_with_same_id
                 )
 
-        marker_dict = {
-            m["id"]: {k: v for k, v in m.items() if k != "id"} for m in markers
+        marker_detections = {
+            m["id"]: {k: v for k, v in m.items() if k != "id"} for m in marker_list
         }
 
-        return marker_dict
+        return marker_detections
 
     @staticmethod
-    def _remove_duplicate(marker_id, markers, markers_with_same_id):
+    def _remove_duplicate(marker_id, marker_list, markers_with_same_id):
         dist = np.linalg.norm(
             np.array(markers_with_same_id[0]["centroid"])
             - np.array(markers_with_same_id[1]["centroid"])
@@ -59,16 +59,16 @@ class MarkerDetector:
         # If two markers are very close, pick the bigger one. It may due to double detection
         if dist < 5:
             marker_small = min(markers_with_same_id, key=lambda x: x["perimeter"])
-            markers = [
+            marker_list = [
                 m
-                for m in markers
+                for m in marker_list
                 if not (
                     m["id"] == marker_id and m["centroid"] == marker_small["centroid"]
                 )
             ]
         else:
-            markers = [m for m in markers if m["id"] != marker_id]
+            marker_list = [m for m in marker_list if m["id"] != marker_id]
             logger.warning(
                 "WARNING! Multiple markers with same id {} found!".format(marker_id)
             )
-        return markers
+        return marker_list

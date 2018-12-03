@@ -1,9 +1,31 @@
+import collections
 import os
 
 import cv2
 import numpy as np
 
 from marker_tracker_3d import math
+
+DataForOptimization = collections.namedtuple(
+    "DataForOptimization",
+    [
+        "camera_indices",
+        "marker_indices",
+        "markers_points_2d_detected",
+        "camera_extrinsics_prv",
+        "marker_extrinsics_prv",
+    ],
+)
+
+ResultOfOptimization = collections.namedtuple(
+    "ResultOfOptimization",
+    [
+        "camera_extrinsics_opt",
+        "marker_extrinsics_opt",
+        "camera_keys_failed",
+        "marker_keys_failed",
+    ],
+)
 
 
 def get_marker_vertex_coord(marker_extrinsics, camera_model):
@@ -43,14 +65,31 @@ def check_camera_extrinsics(pts_3d_world, rvec, tvec):
     return True
 
 
+def get_extrinsic_matrix(camera_extrinsics):
+    rvec, tvec = split_param(camera_extrinsics)
+    extrinsic_matrix = np.eye(4, dtype=np.float32)
+    extrinsic_matrix[0:3, 0:3] = cv2.Rodrigues(rvec)[0]
+    extrinsic_matrix[0:3, 3] = tvec
+    return extrinsic_matrix
+
+
+def get_camera_pose_matrix(camera_extrinsics):
+    rvec, tvec = split_param(camera_extrinsics)
+    camera_pose_matrix = np.eye(4, dtype=np.float32)
+    camera_pose_matrix[0:3, 0:3] = cv2.Rodrigues(rvec)[0].T
+    camera_pose_matrix[0:3, 3] = -camera_pose_matrix[0:3, 0:3] @ tvec
+    return camera_pose_matrix
+
+
+def get_camera_trace(camera_pose_matrix):
+    return camera_pose_matrix[0:3, 3]
+
+
 def params_to_points_3d(params):
     params = np.asarray(params).reshape(-1, 6)
     marker_points_3d = list()
     for param in params:
-        rvec, tvec = split_param(param)
-        mat = np.eye(4, dtype=np.float32)
-        mat[0:3, 0:3] = cv2.Rodrigues(rvec)[0]
-        mat[0:3, 3] = tvec
+        mat = get_extrinsic_matrix(param)
         marker_transformed_h = mat @ marker_df_h.T
         marker_transformed = cv2.convertPointsFromHomogeneous(
             marker_transformed_h.T
@@ -62,9 +101,10 @@ def params_to_points_3d(params):
 
 
 def point_3d_to_param(marker_points_3d):
-    R, L, RMSE = math.svdt(A=marker_df, B=marker_points_3d)
-    rvec = cv2.Rodrigues(R)[0]
-    tvec = L
+    rotation_matrix, translation_vector, _ = math.svdt(A=marker_df, B=marker_points_3d)
+
+    rvec = cv2.Rodrigues(rotation_matrix)[0]
+    tvec = translation_vector
     marker_extrinsics = merge_param(rvec, tvec)
     return marker_extrinsics
 

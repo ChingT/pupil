@@ -15,10 +15,16 @@ logger = logging.getLogger(__name__)
 
 
 class UserInterface:
-    def __init__(self, marker_tracker_3d, storage):
+    def __init__(self, marker_tracker_3d, storage, intrinsics):
         self.storage = storage
         self.marker_tracker_3d = marker_tracker_3d
         self.open_3d_window = True
+        self.intrinsics = intrinsics
+
+        self.marker_tracker_3d.add_observer("gl_display", self.gl_display)
+        self.marker_tracker_3d.add_observer("init_ui", self.init_ui)
+        self.marker_tracker_3d.add_observer("deinit_ui", self.deinit_ui)
+        self.marker_tracker_3d.add_observer("cleanup", self.close_window)
 
         self.name = "Marker Tracker 3D"
 
@@ -91,26 +97,28 @@ class UserInterface:
             ui.Button("restart markers registration", self.marker_tracker_3d.restart)
         )
         # TODO external ref
-        try:
-            self.menu.append(
-                ui.Info_Text(
-                    "The marker with id {} is defined as the origin of the coordinate system".format(
-                        list(self.storage.marker_extrinsics.keys())[0]  #
-                        # TODO external ref
-                    )
-                )
-            )
-        except IndexError:
-            self.menu.append(
-                ui.Info_Text("The coordinate system has not yet been built up")
-            )
+        text = self._get_text_for_origin_marker()
+        self.menu.append(ui.Info_Text(text))
 
         self.menu.append(
-            ui.Button("save data", self.marker_tracker_3d.save_data)
+            ui.Button("export data", self.marker_tracker_3d.export_data)
         )  # TODO external ref
 
-    def gl_display(self, K, img_size):
-        for m in self.storage.markers.values():
+    def _get_text_for_origin_marker(self):
+        marker_keys = (
+            self.marker_tracker_3d.controller.model_optimizer.model_optimizer_storage.marker_keys
+        )
+        if marker_keys:
+            text = "The marker with id {} is defined as the origin of the coordinate system".format(
+                marker_keys[0]
+            )
+            logger.info(text)
+        else:
+            text = "The coordinate system has not yet been built up"
+        return text
+
+    def gl_display(self):
+        for m in self.storage.marker_detections.values():
             hat = np.array(
                 [[[0, 0], [0, 1], [0.5, 1.3], [1, 1], [1, 0], [0, 0]]], dtype=np.float32
             )
@@ -126,9 +134,9 @@ class UserInterface:
                 line_type=gl.GL_POLYGON,
             )
 
-        self.gl_display_in_window_3d(K, img_size)
+        self.gl_display_in_window_3d()
 
-    def gl_display_in_window_3d(self, K, img_size):
+    def gl_display_in_window_3d(self):
         if self._window:
             active_window = glfw.glfwGetCurrentContext()
             glfw.glfwMakeContextCurrent(self._window)
@@ -145,7 +153,7 @@ class UserInterface:
 
             # Draw registered markers
             for (idx, verts) in self.storage.marker_points_3d.items():
-                if idx in self.storage.markers.keys():
+                if idx in self.storage.marker_detections.keys():
                     color = (1, 0, 0, 0.8)
                 else:
                     color = (1, 0.4, 0, 0.6)
@@ -163,7 +171,7 @@ class UserInterface:
             if self.storage.camera_pose_matrix is not None:
                 gl.glPushMatrix()
                 gl.glMultMatrixf(self.storage.camera_pose_matrix.T.flatten())
-                self.draw_frustum(img_size, K, 500)
+                self.draw_frustum(self.intrinsics.resolution, self.intrinsics.K, 500)
                 gl.glLineWidth(1)
                 self.draw_coordinate_system(l=1)
                 gl.glPopMatrix()

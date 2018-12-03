@@ -1,63 +1,30 @@
-import threading
-
-from marker_tracker_3d import utils
-from marker_tracker_3d.optimization.optimization import Optimization
-from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
+from marker_tracker_3d.optimization.bundle_adjustment import BundleAdjustment
+from marker_tracker_3d.optimization.initial_guess import InitialGuess
 
 
-def optimization_generator(recv_pipe):
-    # TODO: background Process only do opt_run
+def optimization_generator(camera_model, data_for_optimization):
+    bundle_adjustment = BundleAdjustment(camera_model)
+    initial_guess = InitialGuess(camera_model)
 
-    origin_marker_id = None
-    visibility_graphs = None
-    t1 = None
-    opt = None
-    lock = threading.RLock()
+    camera_indices = data_for_optimization.camera_indices
+    marker_indices = data_for_optimization.marker_indices
+    markers_points_2d_detected = data_for_optimization.markers_points_2d_detected
+    camera_extrinsics_prv = data_for_optimization.camera_extrinsics_prv
+    marker_extrinsics_prv = data_for_optimization.marker_extrinsics_prv
 
-    while True:
-        if recv_pipe.poll(0.001):
-            msg, data_recv = recv_pipe.recv()
+    camera_extrinsics_init, marker_extrinsics_init = initial_guess.get(
+        camera_indices,
+        marker_indices,
+        markers_points_2d_detected,
+        camera_extrinsics_prv,
+        marker_extrinsics_prv,
+    )
 
-            if msg == "basic_models":
-                camera_model = data_recv
-                opt = Optimization(camera_model)
-                visibility_graphs = VisibilityGraphs(
-                    camera_model, origin_marker_id=origin_marker_id
-                )
-
-            elif msg == "frame":
-                visibility_graphs.update_visibility_graph_of_keyframes(lock, data_recv)
-
-            elif msg == "restart":
-                opt = Optimization(camera_model)
-                visibility_graphs = VisibilityGraphs(
-                    camera_model, origin_marker_id=origin_marker_id
-                )
-                t1 = None
-                lock = threading.RLock()
-
-            # for experiments
-            elif msg == "save":
-                dicts = {
-                    "marker_extrinsics_opt": visibility_graphs.marker_extrinsics_opt,
-                    "camera_extrinsics_opt": visibility_graphs.camera_extrinsics_opt,
-                }
-                save_path = data_recv
-                utils.save_params_dicts(save_path=save_path, dicts=dicts)
-                visibility_graphs.vis_graph(save_path)
-
-        if not t1:
-            data_for_optimization = visibility_graphs.optimization_pre_process(lock)
-            if data_for_optimization is not None:
-                opt.update_params(*data_for_optimization)
-                t1 = threading.Thread(name="opt_run", target=opt.run)
-                t1.start()
-
-        if t1 and not t1.is_alive():
-            result = visibility_graphs.optimization_post_process(
-                lock, opt.result_opt_run
-            )
-            t1 = None
-
-            if result:
-                yield result
+    optimization_result = bundle_adjustment.run(
+        camera_indices,
+        marker_indices,
+        markers_points_2d_detected,
+        camera_extrinsics_init,
+        marker_extrinsics_init,
+    )
+    yield optimization_result

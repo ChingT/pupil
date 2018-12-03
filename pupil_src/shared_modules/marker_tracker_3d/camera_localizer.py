@@ -39,7 +39,8 @@ class CameraLocalizer:
                 camera_extrinsics = utils.merge_param(rvec, tvec)
                 return camera_extrinsics
 
-    def _prepare_data(self, markers, marker_extrinsics):
+    @staticmethod
+    def _prepare_data(markers, marker_extrinsics):
         marker_keys_available = markers.keys() & set(marker_extrinsics.keys())
 
         marker_points_3d = utils.params_to_points_3d(

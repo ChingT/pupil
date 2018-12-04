@@ -19,6 +19,10 @@ class Controller:
 
         self.marker_tracker_3d.add_observer("recent_events", self.update)
 
+        self.model_optimizer.add_observer(
+            "got_marker_extrinsics", self._update_marker_extrinsics_in_storage
+        )
+
     def update(self, events):
         frame = events.get("frame")
 
@@ -31,9 +35,13 @@ class Controller:
         )
 
         if self.register_new_markers:
-            self.storage.marker_extrinsics = self.model_optimizer.update(
+            self.model_optimizer.add_marker_detections(
                 self.storage.marker_detections, self.storage.camera_extrinsics
             )
+
+    def _update_marker_extrinsics_in_storage(self, extrinsics):
+        if self.register_new_markers:
+            self.storage.marker_extrinsics = extrinsics
 
     def on_restart(self):
         self.storage.reset()

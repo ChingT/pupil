@@ -53,6 +53,12 @@ class VisibilityGraphs(Observable):
         self.camera_extrinsics_opt = dict()
         self.marker_extrinsics_opt = dict()
 
+    def _add_observer_to_keyframe_added(self):
+        self.add_observer("on_keyframe_added", self.get_data_for_optimization)
+
+    def _remove_observer_from_keyframe_added(self):
+        self.remove_observer("on_keyframe_added", self.get_data_for_optimization)
+
     def add_marker_detections(self, marker_detections, camera_extrinsics):
         self.count_frame += 1
         if self.count_frame >= self.select_keyframe_interval:
@@ -77,11 +83,15 @@ class VisibilityGraphs(Observable):
             marker_detections, camera_extrinsics
         )
         if len(candidate_marker_keys) >= self.min_number_of_markers_per_frame:
+            self.frame_id += 1
             self._add_keyframe(
                 marker_detections, candidate_marker_keys, camera_extrinsics
             )
             self._add_to_graph(candidate_marker_keys, camera_extrinsics)
-            self.frame_id += 1
+            self.on_keyframe_added()
+
+    def on_keyframe_added(self):
+        pass
 
     def _get_camera_extrinsics(self, marker_detections, camera_extrinsics):
         if camera_extrinsics is None:
@@ -178,9 +188,7 @@ class VisibilityGraphs(Observable):
             )
             self._update_camera_and_marker_keys()
 
-            # prepare data for optimization
-            data_for_optimization = self._prepare_data_for_optimization()
-            return data_for_optimization
+            self._prepare_data_for_optimization()
 
     def _get_visibility_graph_of_ready_markers(self):
         """ find out ready markers for optimization """
@@ -318,7 +326,10 @@ class VisibilityGraphs(Observable):
             camera_extrinsics_prv,
             marker_extrinsics_prv,
         )
-        return data_for_optimization
+        self.on_data_for_optimization_prepared(data_for_optimization)
+
+    def on_data_for_optimization_prepared(self, data_for_optimization):
+        pass
 
     def get_updated_marker_extrinsics(self, optimization_result):
         """ process the results of optimization """
@@ -336,7 +347,11 @@ class VisibilityGraphs(Observable):
         )
 
         self._discard_keyframes(camera_keys_failed)
-        return self.marker_extrinsics_opt
+
+        self.on_got_marker_extrinsics(self.marker_extrinsics_opt)
+
+    def on_got_marker_extrinsics(self, marker_extrinsics):
+        pass
 
     def _update_extrinsics(
         self,

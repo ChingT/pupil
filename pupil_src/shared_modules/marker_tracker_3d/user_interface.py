@@ -22,7 +22,7 @@ class UserInterface:
         self.marker_tracker_3d.add_observer("deinit_ui", self.deinit_ui)
         self.marker_tracker_3d.add_observer("cleanup", self.close_window)
         self.marker_tracker_3d.controller.model_optimizer.visibility_graphs.add_observer(
-            "update_menu", self.update_menu
+            "on_update_menu", self.update_menu
         )
 
         self.storage = storage

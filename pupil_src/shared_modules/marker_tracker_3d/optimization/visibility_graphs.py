@@ -40,14 +40,16 @@ class VisibilityGraphs(Observable):
         self.optimization_interval = optimization_interval
         self.select_keyframe_interval = select_keyframe_interval
 
-        self.frame_id = 0
+        self.frame_id = -1
+        self.frame_id_last_opt = self.frame_id
         self.count_frame = 0
 
         self.camera_extrinsics_opt = dict()
         self.marker_extrinsics_opt = dict()
 
     def reset(self):
-        self.frame_id = 0
+        self.frame_id = -1
+        self.frame_id_last_opt = self.frame_id
         self.count_frame = 0
 
         self.camera_extrinsics_opt = dict()
@@ -117,9 +119,9 @@ class VisibilityGraphs(Observable):
 
         self.model_optimizer_storage.marker_keys = [origin_marker_id]
         self.marker_extrinsics_opt = {origin_marker_id: utils.marker_extrinsics_origin}
-        self.update_menu()
+        self.on_update_menu()
 
-    def update_menu(self):
+    def on_update_menu(self):
         pass
 
     def _get_candidate_marker_keys(self, marker_detections, camera_extrinsics):
@@ -182,7 +184,7 @@ class VisibilityGraphs(Observable):
 
     def get_data_for_optimization(self):
         # Do optimization when there are some new keyframes selected
-        if self.frame_id % self.optimization_interval == 0:
+        if self.frame_id - self.frame_id_last_opt >= self.optimization_interval:
             self.model_optimizer_storage.visibility_graph_of_ready_markers = (
                 self._get_visibility_graph_of_ready_markers()
             )
@@ -208,7 +210,7 @@ class VisibilityGraphs(Observable):
             )
             visibility_graph_of_ready_markers.remove_nodes_from(nodes_not_connected)
 
-            if (not nodes_less_viewed) and (not nodes_not_connected):
+            if not nodes_less_viewed and not nodes_not_connected:
                 break
 
         return visibility_graph_of_ready_markers
@@ -334,10 +336,13 @@ class VisibilityGraphs(Observable):
     def get_updated_marker_extrinsics(self, optimization_result):
         """ process the results of optimization """
 
-        camera_extrinsics_opt = optimization_result.camera_extrinsics_opt
-        marker_extrinsics_opt = optimization_result.marker_extrinsics_opt
-        camera_keys_failed = optimization_result.camera_keys_failed
-        marker_keys_failed = optimization_result.marker_keys_failed
+        try:
+            camera_extrinsics_opt = optimization_result.camera_extrinsics_opt
+            marker_extrinsics_opt = optimization_result.marker_extrinsics_opt
+            camera_keys_failed = optimization_result.camera_keys_failed
+            marker_keys_failed = optimization_result.marker_keys_failed
+        except AttributeError:
+            return
 
         self._update_extrinsics(
             camera_extrinsics_opt,

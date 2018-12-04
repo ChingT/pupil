@@ -2,7 +2,7 @@ from marker_tracker_3d.optimization.bundle_adjustment import BundleAdjustment
 from marker_tracker_3d.optimization.initial_guess import InitialGuess
 
 
-def optimization_generator(camera_model, data_for_optimization):
+def optimization_routine(camera_model, data_for_optimization):
     bundle_adjustment = BundleAdjustment(camera_model)
     initial_guess = InitialGuess(camera_model)
 
@@ -27,4 +27,4 @@ def optimization_generator(camera_model, data_for_optimization):
         camera_extrinsics_init,
         marker_extrinsics_init,
     )
-    yield optimization_result
+    return optimization_result

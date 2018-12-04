@@ -16,6 +16,7 @@ from marker_tracker_3d.storage import Storage
 from marker_tracker_3d.user_interface import UserInterface
 from observable import Observable
 from plugin import Plugin
+from tasklib.manager import PluginTaskManager
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.NOTSET)
@@ -31,6 +32,8 @@ class Marker_Tracker_3D(Plugin, Observable):
 
     def __init__(self, g_pool, min_marker_perimeter=100):
         super().__init__(g_pool)
+
+        self.task_manager = PluginTaskManager(plugin=self)
 
         self.storage = Storage()
 

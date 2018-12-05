@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class UserInterface:
-    def __init__(self, marker_tracker_3d, storage, intrinsics):
+    def __init__(self, marker_tracker_3d, intrinsics):
         self.marker_tracker_3d = marker_tracker_3d
         self.marker_tracker_3d.add_observer("gl_display", self.gl_display)
         self.marker_tracker_3d.add_observer("init_ui", self.init_ui)
@@ -25,7 +25,6 @@ class UserInterface:
             "on_update_menu", self.update_menu
         )
 
-        self.storage = storage
         self.intrinsics = intrinsics
 
         self.open_3d_window = True
@@ -50,7 +49,6 @@ class UserInterface:
             self.close_window()
 
         self.scale = 1.0
-        self.len_camera_trace_shown = 150
 
     def init_ui(self):
         self.marker_tracker_3d.add_menu()
@@ -111,7 +109,7 @@ class UserInterface:
 
     def _get_text_for_origin_marker(self):
         marker_keys = (
-            self.marker_tracker_3d.controller.model_optimizer.model_optimizer_storage.marker_keys
+            self.marker_tracker_3d.controller.model_optimizer.storage.marker_keys
         )
         if marker_keys:
             text = "The marker with id {} is defined as the origin of the coordinate system".format(
@@ -123,7 +121,7 @@ class UserInterface:
         return text
 
     def gl_display(self):
-        for m in self.storage.marker_detections.values():
+        for m in self.marker_tracker_3d.controller.storage.marker_detections.values():
             hat = np.array(
                 [[[0, 0], [0, 1], [0.5, 1.3], [1, 1], [1, 0], [0, 0]]], dtype=np.float32
             )
@@ -157,8 +155,16 @@ class UserInterface:
             self.draw_coordinate_system(l=1)
 
             # Draw registered markers
-            for (idx, verts) in self.storage.marker_points_3d.items():
-                if idx in self.storage.marker_detections.keys():
+            for (
+                idx,
+                verts,
+            ) in (
+                self.marker_tracker_3d.controller.model_optimizer.storage.marker_points_3d_opt.items()
+            ):
+                if (
+                    idx
+                    in self.marker_tracker_3d.controller.storage.marker_detections.keys()
+                ):
                     color = (1, 0, 0, 0.8)
                 else:
                     color = (1, 0.4, 0, 0.6)
@@ -167,15 +173,17 @@ class UserInterface:
                 gl.glPopMatrix()
 
             # Draw camera trace
-            if len(self.storage.camera_trace[-self.len_camera_trace_shown :]):
+            if self.marker_tracker_3d.controller.storage.camera_trace:
                 self.draw_camera_trace(
-                    self.storage.camera_trace[-self.len_camera_trace_shown :]
+                    self.marker_tracker_3d.controller.storage.camera_trace
                 )
 
             # Draw the camera frustum and origin
-            if self.storage.camera_pose_matrix is not None:
+            if self.marker_tracker_3d.controller.storage.camera_pose_matrix is not None:
                 gl.glPushMatrix()
-                gl.glMultMatrixf(self.storage.camera_pose_matrix.T.flatten())
+                gl.glMultMatrixf(
+                    self.marker_tracker_3d.controller.storage.camera_pose_matrix.T.flatten()
+                )
                 self.draw_frustum(self.intrinsics.resolution, self.intrinsics.K, 500)
                 gl.glLineWidth(1)
                 self.draw_coordinate_system(l=1)

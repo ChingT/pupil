@@ -8,9 +8,12 @@ from marker_tracker_3d import utils
 
 class ModelOptimizerStorage:
     def __init__(self):
-        self.marker_keys = list()
-        self.camera_keys = list()
-        self.keyframes = dict()
+        self.marker_keys = []
+        self.camera_keys = []
+        self.keyframes = {}
+        self.camera_extrinsics_opt = {}
+        self.marker_extrinsics_opt = {}
+        self.marker_points_3d_opt = {}
         self.visibility_graph_of_keyframes = nx.MultiGraph()
         self.visibility_graph_of_ready_markers = nx.MultiGraph()
 
@@ -39,9 +42,12 @@ class ModelOptimizerStorage:
         self.save_graph()
 
     def reset(self):
-        self.marker_keys = list()
-        self.camera_keys = list()
-        self.keyframes = dict()
+        self.marker_keys = []
+        self.camera_keys = []
+        self.keyframes = {}
+        self.camera_extrinsics_opt = {}
+        self.marker_extrinsics_opt = {}
+        self.marker_points_3d_opt = {}
         self.visibility_graph_of_keyframes = nx.MultiGraph()
         self.visibility_graph_of_ready_markers = nx.MultiGraph()
 

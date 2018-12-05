@@ -9,35 +9,38 @@ class CameraLocalizer:
         self.min_number_of_markers_per_frame_for_loc = (
             min_number_of_markers_per_frame_for_loc
         )
+        self.camera_extrinsics_previous = None
 
-    def get_camera_extrinsics(
-        self, markers, marker_extrinsics, camera_extrinsics_previous=None
-    ):
-        if len(markers) < self.min_number_of_markers_per_frame_for_loc:
-            return
+    def get_camera_extrinsics(self, markers, marker_extrinsics):
+        camera_extrinsics = None
 
-        marker_points_3d, marker_points_2d = self._prepare_data(
-            markers, marker_extrinsics
-        )
-        if camera_extrinsics_previous is not None:
-            rvec, tvec = utils.split_param(camera_extrinsics_previous)
-
-            retval, rvec, tvec = self.camera_model.solvePnP(
-                marker_points_3d,
-                marker_points_2d,
-                useExtrinsicGuess=True,
-                rvec=rvec.copy(),
-                tvec=tvec.copy(),
+        if len(markers) >= self.min_number_of_markers_per_frame_for_loc:
+            marker_points_3d, marker_points_2d = self._prepare_data(
+                markers, marker_extrinsics
             )
-        else:
-            retval, rvec, tvec = self.camera_model.solvePnP(
-                marker_points_3d, marker_points_2d
-            )
+            if self.camera_extrinsics_previous is not None:
+                rvec, tvec = utils.split_param(self.camera_extrinsics_previous)
 
-        if retval:
-            if utils.check_camera_extrinsics(marker_points_3d, rvec, tvec):
-                camera_extrinsics = utils.merge_param(rvec, tvec)
-                return camera_extrinsics
+                retval, rvec, tvec = self.camera_model.solvePnP(
+                    marker_points_3d,
+                    marker_points_2d,
+                    useExtrinsicGuess=True,
+                    rvec=rvec.copy(),
+                    tvec=tvec.copy(),
+                )
+            else:
+                retval, rvec, tvec = self.camera_model.solvePnP(
+                    marker_points_3d, marker_points_2d
+                )
+
+            if retval:
+                if utils.check_camera_extrinsics(marker_points_3d, rvec, tvec):
+                    camera_extrinsics = utils.merge_param(rvec, tvec)
+                    # Do not set camera_extrinsics_previous to None to ensure a decent initial guess
+                    # for the next solve_pnp call
+                    self.camera_extrinsics_previous = camera_extrinsics
+
+        return camera_extrinsics
 
     @staticmethod
     def _prepare_data(markers, marker_extrinsics):

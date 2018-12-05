@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class VisibilityGraphs(Observable):
     def __init__(
         self,
-        model_optimizer_storage,
+        storage,
         camera_model,
         origin_marker_id=None,
         min_number_of_markers_per_frame=3,
@@ -30,7 +30,7 @@ class VisibilityGraphs(Observable):
         assert optimization_interval >= 1
         assert select_keyframe_interval >= 1
 
-        self.model_optimizer_storage = model_optimizer_storage
+        self.storage = storage
         self.camera_localizer = CameraLocalizer(camera_model)
         self.origin_marker_id = origin_marker_id
 
@@ -44,16 +44,11 @@ class VisibilityGraphs(Observable):
         self.frame_id_last_opt = self.frame_id
         self.count_frame = 0
 
-        self.camera_extrinsics_opt = dict()
-        self.marker_extrinsics_opt = dict()
-
     def reset(self):
         self.frame_id = -1
         self.frame_id_last_opt = self.frame_id
         self.count_frame = 0
-
-        self.camera_extrinsics_opt = dict()
-        self.marker_extrinsics_opt = dict()
+        self.on_update_menu()
 
     def _add_observer_to_keyframe_added(self):
         self.add_observer("on_keyframe_added", self.get_data_for_optimization)
@@ -97,11 +92,11 @@ class VisibilityGraphs(Observable):
 
     def _get_camera_extrinsics(self, marker_detections, camera_extrinsics):
         if camera_extrinsics is None:
-            if len(self.marker_extrinsics_opt) == 0:
+            if not self.storage.marker_extrinsics_opt:
                 self._set_coordinate_system(marker_detections)
 
             camera_extrinsics = self.camera_localizer.get_camera_extrinsics(
-                marker_detections, self.marker_extrinsics_opt
+                marker_detections, self.storage.marker_extrinsics_opt
             )
         return camera_extrinsics
 
@@ -117,8 +112,11 @@ class VisibilityGraphs(Observable):
         else:
             origin_marker_id = list(marker_detections.keys())[0]
 
-        self.model_optimizer_storage.marker_keys = [origin_marker_id]
-        self.marker_extrinsics_opt = {origin_marker_id: utils.marker_extrinsics_origin}
+        self.storage.marker_keys = [origin_marker_id]
+        self.storage.marker_extrinsics_opt = {
+            origin_marker_id: utils.marker_extrinsics_origin
+        }
+        self.storage.marker_points_3d_opt = {origin_marker_id: utils.marker_df}
         self.on_update_menu()
 
     def on_update_menu(self):
@@ -133,10 +131,10 @@ class VisibilityGraphs(Observable):
 
         rvec, _ = utils.split_param(camera_extrinsics)
 
-        candidate_marker_keys = list()
+        candidate_marker_keys = []
         for n_id in marker_detections.keys():
             try:
-                rvecs_saved = self.model_optimizer_storage.visibility_graph_of_keyframes.nodes[
+                rvecs_saved = self.storage.visibility_graph_of_keyframes.nodes[
                     n_id
                 ].values()
             except KeyError:
@@ -152,10 +150,10 @@ class VisibilityGraphs(Observable):
     def _add_keyframe(
         self, marker_detections, candidate_marker_keys, camera_extrinsics
     ):
-        self.model_optimizer_storage.keyframes[self.frame_id] = {
+        self.storage.keyframes[self.frame_id] = {
             k: marker_detections[k] for k in candidate_marker_keys
         }
-        self.model_optimizer_storage.keyframes[self.frame_id][
+        self.storage.keyframes[self.frame_id][
             "previous_camera_extrinsics"
         ] = camera_extrinsics
 
@@ -171,21 +169,17 @@ class VisibilityGraphs(Observable):
 
         # add frame_id as edges in the graph
         for u, v in list(it.combinations(candidate_marker_keys, 2)):
-            self.model_optimizer_storage.visibility_graph_of_keyframes.add_edge(
-                u, v, key=self.frame_id
-            )
+            self.storage.visibility_graph_of_keyframes.add_edge(u, v, key=self.frame_id)
 
         # add frame_id as an attribute of the node
         rvec, _ = utils.split_param(camera_extrinsics)
         for n_id in candidate_marker_keys:
-            self.model_optimizer_storage.visibility_graph_of_keyframes.nodes[n_id][
-                self.frame_id
-            ] = rvec
+            self.storage.visibility_graph_of_keyframes.nodes[n_id][self.frame_id] = rvec
 
     def get_data_for_optimization(self):
         # Do optimization when there are some new keyframes selected
         if self.frame_id - self.frame_id_last_opt >= self.optimization_interval:
-            self.model_optimizer_storage.visibility_graph_of_ready_markers = (
+            self.storage.visibility_graph_of_ready_markers = (
                 self._get_visibility_graph_of_ready_markers()
             )
             self._update_camera_and_marker_keys()
@@ -196,7 +190,7 @@ class VisibilityGraphs(Observable):
         """ find out ready markers for optimization """
 
         visibility_graph_of_ready_markers = (
-            self.model_optimizer_storage.visibility_graph_of_keyframes.copy()
+            self.storage.visibility_graph_of_keyframes.copy()
         )
 
         while True:
@@ -233,8 +227,7 @@ class VisibilityGraphs(Observable):
 
         try:
             nodes_connected_to_first_node = nx.node_connected_component(
-                visibility_graph_of_ready_markers,
-                self.model_optimizer_storage.marker_keys[0],
+                visibility_graph_of_ready_markers, self.storage.marker_keys[0]
             )
         except KeyError:
             nodes_connected_to_first_node = set()
@@ -248,55 +241,41 @@ class VisibilityGraphs(Observable):
 
     def _update_camera_and_marker_keys(self):
         try:
-            self.model_optimizer_storage.marker_keys = [
-                self.model_optimizer_storage.marker_keys[0]
-            ]
+            self.storage.marker_keys = [self.storage.marker_keys[0]]
         except IndexError:
             return
 
-        self.model_optimizer_storage.marker_keys += [
+        self.storage.marker_keys += [
             n
-            for n in self.model_optimizer_storage.visibility_graph_of_ready_markers.nodes
-            if n != self.model_optimizer_storage.marker_keys[0]
+            for n in self.storage.visibility_graph_of_ready_markers.nodes
+            if n != self.storage.marker_keys[0]
         ]
-        logger.debug(
-            "self.model_optimizer_storage.marker_keys updated {}".format(
-                self.model_optimizer_storage.marker_keys
-            )
-        )
+        logger.debug("marker_keys updated {}".format(self.storage.marker_keys))
 
-        self.model_optimizer_storage.camera_keys = sorted(
+        self.storage.camera_keys = sorted(
             set(
                 f_id
-                for _, _, f_id in self.model_optimizer_storage.visibility_graph_of_ready_markers.edges(
+                for _, _, f_id in self.storage.visibility_graph_of_ready_markers.edges(
                     keys=True
                 )
             )
         )
-        logger.debug(
-            "self.model_optimizer_storage.camera_keys updated {}".format(
-                self.model_optimizer_storage.camera_keys
-            )
-        )
+        logger.debug("camera_keys updated {}".format(self.storage.camera_keys))
 
     def _prepare_data_for_optimization(self):
         """ prepare data for optimization """
 
-        camera_indices = list()
-        marker_indices = list()
-        markers_points_2d_detected = list()
-        for f_id in self.model_optimizer_storage.camera_keys:
-            for n_id in self.model_optimizer_storage.keyframes[f_id].keys() & set(
-                self.model_optimizer_storage.marker_keys
+        camera_indices = []
+        marker_indices = []
+        markers_points_2d_detected = []
+        for f_id in self.storage.camera_keys:
+            for n_id in self.storage.keyframes[f_id].keys() & set(
+                self.storage.marker_keys
             ):
-                camera_indices.append(
-                    self.model_optimizer_storage.camera_keys.index(f_id)
-                )
-                marker_indices.append(
-                    self.model_optimizer_storage.marker_keys.index(n_id)
-                )
+                camera_indices.append(self.storage.camera_keys.index(f_id))
+                marker_indices.append(self.storage.marker_keys.index(n_id))
                 markers_points_2d_detected.append(
-                    self.model_optimizer_storage.keyframes[f_id][n_id]["verts"]
+                    self.storage.keyframes[f_id][n_id]["verts"]
                 )
 
         camera_indices = np.array(camera_indices)
@@ -309,16 +288,16 @@ class VisibilityGraphs(Observable):
             return
 
         camera_extrinsics_prv = {
-            i: self.camera_extrinsics_opt[k]
-            if k in self.camera_extrinsics_opt
-            else self.model_optimizer_storage.keyframes[k]["previous_camera_extrinsics"]
-            for i, k in enumerate(self.model_optimizer_storage.camera_keys)
+            i: self.storage.camera_extrinsics_opt[k]
+            if k in self.storage.camera_extrinsics_opt
+            else self.storage.keyframes[k]["previous_camera_extrinsics"]
+            for i, k in enumerate(self.storage.camera_keys)
         }
 
         marker_extrinsics_prv = {
-            i: self.marker_extrinsics_opt[k]
-            for i, k in enumerate(self.model_optimizer_storage.marker_keys)
-            if k in self.marker_extrinsics_opt
+            i: self.storage.marker_extrinsics_opt[k]
+            for i, k in enumerate(self.storage.marker_keys)
+            if k in self.storage.marker_extrinsics_opt
         }
 
         data_for_optimization = utils.DataForOptimization(
@@ -353,11 +332,6 @@ class VisibilityGraphs(Observable):
 
         self._discard_keyframes(camera_keys_failed)
 
-        self.on_got_marker_extrinsics(self.marker_extrinsics_opt)
-
-    def on_got_marker_extrinsics(self, marker_extrinsics):
-        pass
-
     def _update_extrinsics(
         self,
         camera_extrinsics,
@@ -367,32 +341,29 @@ class VisibilityGraphs(Observable):
     ):
         for i, p in enumerate(camera_extrinsics):
             if i not in camera_keys_failed:
-                self.camera_extrinsics_opt[
-                    self.model_optimizer_storage.camera_keys[i]
-                ] = p
+                self.storage.camera_extrinsics_opt[self.storage.camera_keys[i]] = p
         for i, p in enumerate(marker_extrinsics):
             if i not in marker_keys_failed:
-                self.marker_extrinsics_opt[
-                    self.model_optimizer_storage.marker_keys[i]
-                ] = p
+                self.storage.marker_extrinsics_opt[self.storage.marker_keys[i]] = p
+                self.storage.marker_points_3d_opt[
+                    self.storage.marker_keys[i]
+                ] = utils.params_to_points_3d(p)[0]
 
         logger.info(
             "{} markers have been registered and updated".format(
-                len(self.marker_extrinsics_opt)
+                len(self.storage.marker_extrinsics_opt)
             )
         )
 
     def _discard_keyframes(self, camera_keys_failed):
         """ if the optimization failed, remove those frame_id, which make optimization fail
-        from self.model_optimizer_storage.keyframes, update keyframes and the graph """
+        from self.storage.keyframes, update keyframes and the graph """
 
         # TODO: check the image
 
         if not camera_keys_failed:
             return
-        failed_keyframes = set(
-            self.model_optimizer_storage.camera_keys[i] for i in camera_keys_failed
-        )
+        failed_keyframes = set(self.storage.camera_keys[i] for i in camera_keys_failed)
 
         self._del_failed_keyframes(failed_keyframes)
         self._remove_failed_frame_id_from_graph(failed_keyframes)
@@ -401,7 +372,7 @@ class VisibilityGraphs(Observable):
     def _del_failed_keyframes(self, failed_keyframes):
         for f_id in failed_keyframes:
             try:
-                del self.model_optimizer_storage.keyframes[f_id]
+                del self.storage.keyframes[f_id]
             except KeyError:
                 logger.debug("{} is not in keyframes".format(f_id))
         logger.debug("remove from keyframes: {}".format(failed_keyframes))
@@ -409,38 +380,30 @@ class VisibilityGraphs(Observable):
     def _remove_failed_frame_id_from_graph(self, failed_keyframes):
         redundant_edges = [
             (n_id, neighbor, f_id)
-            for n_id, neighbor, f_id in self.model_optimizer_storage.visibility_graph_of_keyframes.edges(
+            for n_id, neighbor, f_id in self.storage.visibility_graph_of_keyframes.edges(
                 keys=True
             )
             if f_id in failed_keyframes
         ]
-        self.model_optimizer_storage.visibility_graph_of_keyframes.remove_edges_from(
-            redundant_edges
-        )
+        self.storage.visibility_graph_of_keyframes.remove_edges_from(redundant_edges)
 
         for f_id in failed_keyframes:
             for n_id in set(n for n, _, f in redundant_edges if f == f_id) | set(
                 n for _, n, f in redundant_edges if f == f_id
             ):
-                del self.model_optimizer_storage.visibility_graph_of_keyframes.nodes[
-                    n_id
-                ][f_id]
+                del self.storage.visibility_graph_of_keyframes.nodes[n_id][f_id]
 
         redundant_nodes = [
             n_id
-            for n_id in self.model_optimizer_storage.visibility_graph_of_keyframes.nodes
-            if not self.model_optimizer_storage.visibility_graph_of_keyframes.nodes[
-                n_id
-            ]
+            for n_id in self.storage.visibility_graph_of_keyframes.nodes
+            if not self.storage.visibility_graph_of_keyframes.nodes[n_id]
         ]
-        self.model_optimizer_storage.visibility_graph_of_keyframes.remove_nodes_from(
-            redundant_nodes
-        )
+        self.storage.visibility_graph_of_keyframes.remove_nodes_from(redundant_nodes)
 
     def _remove_failed_marker_keys(self):
-        fail_marker_keys = set(self.model_optimizer_storage.marker_keys) - set(
-            self.marker_extrinsics_opt.keys()
+        fail_marker_keys = set(self.storage.marker_keys) - set(
+            self.storage.marker_extrinsics_opt.keys()
         )
         for k in fail_marker_keys:
-            self.model_optimizer_storage.marker_keys.remove(k)
+            self.storage.marker_keys.remove(k)
         logger.debug("remove from marker_keys: {}".format(fail_marker_keys))

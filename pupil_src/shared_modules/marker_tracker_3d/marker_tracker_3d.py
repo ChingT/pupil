@@ -12,7 +12,6 @@ See COPYING and COPYING.LESSER for license details.
 import logging
 
 from marker_tracker_3d.controller import Controller
-from marker_tracker_3d.storage import Storage
 from marker_tracker_3d.user_interface import UserInterface
 from observable import Observable
 from plugin import Plugin
@@ -35,12 +34,10 @@ class Marker_Tracker_3D(Plugin, Observable):
 
         self.task_manager = PluginTaskManager(plugin=self)
 
-        self.storage = Storage()
-
         self.controller = Controller(
-            self, self.storage, self.g_pool.capture.intrinsics, min_marker_perimeter
+            self, self.g_pool.capture.intrinsics, min_marker_perimeter
         )
-        self.ui = UserInterface(self, self.storage, self.g_pool.capture.intrinsics)
+        self.ui = UserInterface(self, self.g_pool.capture.intrinsics)
 
     def get_init_dict(self):
         d = {

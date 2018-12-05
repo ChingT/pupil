@@ -1,8 +1,12 @@
+import logging
+
 import tasklib
 from marker_tracker_3d.optimization.model_optimizer_storage import ModelOptimizerStorage
 from marker_tracker_3d.optimization.optimization_routine import optimization_routine
 from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 from observable import Observable
+
+logger = logging.getLogger(__name__)
 
 
 class ModelOptimizer(Observable):
@@ -11,19 +15,16 @@ class ModelOptimizer(Observable):
 
         self.camera_model = camera_model
 
-        self.model_optimizer_storage = ModelOptimizerStorage()
+        self.storage = ModelOptimizerStorage()
         self.origin_marker_id = None
 
         self.bg_task = None
         self.visibility_graphs = VisibilityGraphs(
-            self.model_optimizer_storage, self.camera_model, self.origin_marker_id
+            self.storage, self.camera_model, self.origin_marker_id
         )
         self.visibility_graphs._add_observer_to_keyframe_added()
         self.visibility_graphs.add_observer(
             "on_data_for_optimization_prepared", self._run_optimization
-        )
-        self.visibility_graphs.add_observer(
-            "on_got_marker_extrinsics", self.got_marker_extrinsics
         )
 
     def add_marker_detections(self, marker_detections, camera_extrinsics):
@@ -49,10 +50,8 @@ class ModelOptimizer(Observable):
         )
         self.bg_task.add_observer("on_exception", tasklib.raise_exception)
 
-    def got_marker_extrinsics(self, marker_extrinsics):
-        pass
-
     def restart(self):
+        self.storage.reset()
         self.visibility_graphs.reset()
         if self.bg_task and self.bg_task.running:
             self.bg_task.kill(grace_period=None)

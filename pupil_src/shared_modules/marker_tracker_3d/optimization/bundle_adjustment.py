@@ -1,3 +1,4 @@
+import collections
 import logging
 
 import cv2
@@ -7,6 +8,16 @@ import scipy
 from marker_tracker_3d import utils
 
 logger = logging.getLogger(__name__)
+
+ResultOfOptimization = collections.namedtuple(
+    "ResultOfOptimization",
+    [
+        "camera_extrinsics_opt",
+        "marker_extrinsics_opt",
+        "camera_keys_failed",
+        "marker_keys_failed",
+    ],
+)
 
 
 class BundleAdjustment:
@@ -151,11 +162,11 @@ class BundleAdjustment:
 
         camera_keys_failed, marker_keys_failed = self._find_failed_keys(result.fun)
 
-        optimization_result = utils.ResultOfOptimization(
-            camera_extrinsics_opt,
-            marker_extrinsics_opt,
-            camera_keys_failed,
-            marker_keys_failed,
+        optimization_result = ResultOfOptimization(
+            camera_extrinsics_opt=camera_extrinsics_opt,
+            marker_extrinsics_opt=marker_extrinsics_opt,
+            camera_keys_failed=camera_keys_failed,
+            marker_keys_failed=marker_keys_failed,
         )
         return optimization_result
 

@@ -1,31 +1,9 @@
-import collections
 import os
 
 import cv2
 import numpy as np
 
 from marker_tracker_3d import math
-
-DataForOptimization = collections.namedtuple(
-    "DataForOptimization",
-    [
-        "camera_indices",
-        "marker_indices",
-        "markers_points_2d_detected",
-        "camera_extrinsics_prv",
-        "marker_extrinsics_prv",
-    ],
-)
-
-ResultOfOptimization = collections.namedtuple(
-    "ResultOfOptimization",
-    [
-        "camera_extrinsics_opt",
-        "marker_extrinsics_opt",
-        "camera_keys_failed",
-        "marker_keys_failed",
-    ],
-)
 
 
 def get_marker_vertex_coord(marker_extrinsics, camera_model):
@@ -87,7 +65,7 @@ def get_camera_trace(camera_pose_matrix):
 
 def params_to_points_3d(params):
     params = np.asarray(params).reshape(-1, 6)
-    marker_points_3d = list()
+    marker_points_3d = []
     for param in params:
         mat = get_extrinsic_matrix(param)
         marker_transformed_h = mat @ marker_df_h.T

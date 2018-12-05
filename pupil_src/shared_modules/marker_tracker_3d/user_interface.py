@@ -66,7 +66,7 @@ class UserInterface:
                 self.close_window()
                 logger.info("3d visualization window is closed")
 
-        self.menu.elements[:] = list()
+        self.menu.elements[:] = []
         self.menu.append(ui.Info_Text("This plugin detects current camera pose"))
         self.menu.append(
             ui.Slider(

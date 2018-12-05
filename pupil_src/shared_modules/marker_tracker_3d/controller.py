@@ -38,6 +38,7 @@ class Controller:
     def on_restart(self):
         self.storage.reset()
         self.model_optimizer.restart()
+        self.camera_localizer.reset()
         logger.info("Restart!")
 
     def on_export_data(self):

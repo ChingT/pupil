@@ -1,3 +1,4 @@
+import collections
 import itertools as it
 import logging
 
@@ -10,6 +11,18 @@ from marker_tracker_3d.camera_localizer import CameraLocalizer
 from observable import Observable
 
 logger = logging.getLogger(__name__)
+
+
+DataForOptimization = collections.namedtuple(
+    "DataForOptimization",
+    [
+        "camera_indices",
+        "marker_indices",
+        "markers_points_2d_detected",
+        "camera_extrinsics_prv",
+        "marker_extrinsics_prv",
+    ],
+)
 
 
 class VisibilityGraphs(Observable):
@@ -48,7 +61,18 @@ class VisibilityGraphs(Observable):
         self.frame_id = -1
         self.frame_id_last_opt = self.frame_id
         self.count_frame = 0
+
+        self.camera_localizer.reset()
         self.on_update_menu()
+
+    def on_update_menu(self):
+        pass
+
+    def on_keyframe_added(self):
+        pass
+
+    def on_data_for_optimization_prepared(self, data_for_optimization):
+        pass
 
     def _add_observer_to_keyframe_added(self):
         self.add_observer("on_keyframe_added", self.get_data_for_optimization)
@@ -87,9 +111,6 @@ class VisibilityGraphs(Observable):
             self._add_to_graph(candidate_marker_keys, camera_extrinsics)
             self.on_keyframe_added()
 
-    def on_keyframe_added(self):
-        pass
-
     def _get_camera_extrinsics(self, marker_detections, camera_extrinsics):
         if camera_extrinsics is None:
             if not self.storage.marker_extrinsics_opt:
@@ -118,9 +139,6 @@ class VisibilityGraphs(Observable):
         }
         self.storage.marker_points_3d_opt = {origin_marker_id: utils.marker_df}
         self.on_update_menu()
-
-    def on_update_menu(self):
-        pass
 
     def _get_candidate_marker_keys(self, marker_detections, camera_extrinsics):
         """
@@ -300,11 +318,11 @@ class VisibilityGraphs(Observable):
             if k in self.storage.marker_extrinsics_opt
         }
 
-        data_for_optimization = utils.DataForOptimization(
-            camera_indices,
-            marker_indices,
-            markers_points_2d_detected,
-            camera_extrinsics_prv,
-            marker_extrinsics_prv,
+        data_for_optimization = DataForOptimization(
+            camera_indices=camera_indices,
+            marker_indices=marker_indices,
+            markers_points_2d_detected=markers_points_2d_detected,
+            camera_extrinsics_prv=camera_extrinsics_prv,
+            marker_extrinsics_prv=marker_extrinsics_prv,
         )
         self.on_data_for_optimization_prepared(data_for_optimization)

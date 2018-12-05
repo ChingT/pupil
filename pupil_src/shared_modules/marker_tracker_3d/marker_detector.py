@@ -22,7 +22,7 @@ class MarkerDetector:
                 min_marker_perimeter=self.min_marker_perimeter,
             )
         except AttributeError:
-            marker_detections = dict()
+            marker_detections = {}
         else:
             marker_detections = self._filter_markers(marker_list)
 

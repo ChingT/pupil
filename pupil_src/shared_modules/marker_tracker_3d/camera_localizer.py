@@ -11,6 +11,9 @@ class CameraLocalizer:
         )
         self.camera_extrinsics_previous = None
 
+    def reset(self):
+        self.camera_extrinsics_previous = None
+
     def get_camera_extrinsics(self, markers, marker_extrinsics):
         camera_extrinsics = None
 

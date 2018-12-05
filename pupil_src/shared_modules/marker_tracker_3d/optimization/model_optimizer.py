@@ -1,6 +1,7 @@
 import logging
 
 import tasklib
+from marker_tracker_3d import utils
 from marker_tracker_3d.optimization.model_optimizer_storage import ModelOptimizerStorage
 from marker_tracker_3d.optimization.optimization_routine import optimization_routine
 from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
@@ -42,13 +43,34 @@ class ModelOptimizer(Observable):
             routine_or_generator_function=optimization_routine,
             args=(self.camera_model, data_for_optimization),
         )
-        self.bg_task.add_observer(
-            "on_completed", self.visibility_graphs.get_updated_marker_extrinsics
-        )
+        self.bg_task.add_observer("on_completed", self._update_extrinsics_opt)
         self.bg_task.add_observer(
             "on_ended", self.visibility_graphs._add_observer_to_keyframe_added
         )
         self.bg_task.add_observer("on_exception", tasklib.raise_exception)
+
+    def _update_extrinsics_opt(self, optimization_result):
+        """ process the results of optimization; update camera_extrinsics_opt,
+        marker_extrinsics_opt and marker_points_3d_opt """
+
+        if not optimization_result:
+            return
+
+        for i, p in enumerate(optimization_result.camera_extrinsics_opt):
+            if i not in optimization_result.camera_keys_failed:
+                self.storage.camera_extrinsics_opt[self.storage.camera_keys[i]] = p
+        for i, p in enumerate(optimization_result.marker_extrinsics_opt):
+            if i not in optimization_result.marker_keys_failed:
+                self.storage.marker_extrinsics_opt[self.storage.marker_keys[i]] = p
+                self.storage.marker_points_3d_opt[
+                    self.storage.marker_keys[i]
+                ] = utils.params_to_points_3d(p)[0]
+
+        logger.info(
+            "{} markers have been registered and updated".format(
+                len(self.storage.marker_extrinsics_opt)
+            )
+        )
 
     def restart(self):
         self.storage.reset()

@@ -30,25 +30,76 @@ class InitialGuess:
         :param marker_extrinsics_prv: dict, previous marker extrinsics
         """
 
-        camera_extrinsics_init = self._get_camera_extrinsics_initial_guess(
-            camera_extrinsics_prv
-        )
-        marker_extrinsics_init = self._get_marker_extrinsics_initial_guess(
-            camera_indices,
-            marker_indices,
-            markers_points_2d_detected,
-            camera_extrinsics_prv,
-            marker_extrinsics_prv,
-        )
-        return camera_extrinsics_init, marker_extrinsics_init
+        camera_extrinsics_init = camera_extrinsics_prv
+        marker_extrinsics_init = marker_extrinsics_prv
 
-    @staticmethod
-    def _get_camera_extrinsics_initial_guess(camera_extrinsics_prv):
-        # no need to calculate cameras_extrinsics initial guess since we have got them when picking the keyframe
+        for ii in range(5):
+            camera_extrinsics_init = self._get_camera_extrinsics_initial_guess(
+                camera_indices,
+                marker_indices,
+                markers_points_2d_detected,
+                camera_extrinsics_init,
+                marker_extrinsics_init,
+            )
+            marker_extrinsics_init = self._get_marker_extrinsics_initial_guess(
+                camera_indices,
+                marker_indices,
+                markers_points_2d_detected,
+                camera_extrinsics_init,
+                marker_extrinsics_init,
+            )
 
-        camera_extrinsics_init = np.array(
-            [camera_extrinsics_prv[i] for i in range(len(camera_extrinsics_prv))]
+            try:
+                camera_extrinsics_init_array = np.array(
+                    [camera_extrinsics_init[i] for i in range(len(set(camera_indices)))]
+                )
+                marker_extrinsics_init_array = np.array(
+                    [marker_extrinsics_init[i] for i in range(len(set(marker_indices)))]
+                )
+            except KeyError:
+                continue
+            else:
+                return camera_extrinsics_init_array, marker_extrinsics_init_array
+
+        return None, None
+
+    def _get_camera_extrinsics_initial_guess(
+        self,
+        camera_indices,
+        marker_indices,
+        markers_points_2d_detected,
+        camera_extrinsics_init,
+        marker_extrinsics_init,
+    ):
+        camera_keys_not_computed = set(camera_indices) - set(
+            camera_extrinsics_init.keys()
         )
+
+        for camera_idx in camera_keys_not_computed:
+            marker_keys_available = list(
+                set(marker_extrinsics_init.keys())
+                & set(marker_indices[camera_indices == camera_idx])
+            )
+            try:
+                marker_idx = marker_keys_available[0]
+            except IndexError:
+                continue
+
+            marker_points_3d = utils.params_to_points_3d(
+                marker_extrinsics_init[marker_idx]
+            )
+            marker_points_2d = markers_points_2d_detected[
+                np.bitwise_and(
+                    camera_indices == camera_idx, marker_indices == marker_idx
+                )
+            ]
+
+            retval, rvec, tvec = self.camera_model.solvePnP(
+                marker_points_3d, marker_points_2d
+            )
+            if retval:
+                if utils.check_camera_extrinsics(marker_points_3d, rvec, tvec):
+                    camera_extrinsics_init[camera_idx] = utils.merge_param(rvec, tvec)
         return camera_extrinsics_init
 
     def _get_marker_extrinsics_initial_guess(
@@ -73,7 +124,7 @@ class InitialGuess:
             try:
                 camera_idx0, camera_idx1 = random.sample(camera_keys_available, 2)
             except ValueError:
-                return
+                continue
             else:
                 data_for_run_triangulation = (
                     camera_indices,
@@ -88,9 +139,6 @@ class InitialGuess:
                     data_for_run_triangulation
                 )
 
-        marker_extrinsics_init = np.array(
-            [marker_extrinsics_init[i] for i in range(len(marker_extrinsics_init))]
-        )
         return marker_extrinsics_init
 
     def _calculate_marker_extrinsics(self, data_for_run_triangulation):

@@ -17,26 +17,34 @@ class ModelOptimizer(Observable):
         self.camera_model = camera_model
 
         self.storage = ModelOptimizerStorage()
-        self.origin_marker_id = None
 
         self.bg_task = None
+
         self.visibility_graphs = VisibilityGraphs(
-            self.storage, self.camera_model, self.origin_marker_id
+            self.storage, self.camera_model, origin_marker_id=16
         )
-        self.visibility_graphs._add_observer_to_keyframe_added()
+        self.visibility_graphs.add_observer_to_keyframe_added()
         self.visibility_graphs.add_observer(
             "on_data_for_optimization_prepared", self._run_optimization
         )
 
-    def add_marker_detections(self, marker_detections, camera_extrinsics):
-        self.visibility_graphs.add_marker_detections(
-            marker_detections, camera_extrinsics
-        )
+    def add_observations(self, marker_detections, camera_extrinsics):
+        self._save_current_camera_extrinsics(camera_extrinsics)
+
+        self.visibility_graphs.add_marker_detections(marker_detections)
+
+        self.storage.frame_id += 1
+
+    def _save_current_camera_extrinsics(self, camera_extrinsics):
+        if camera_extrinsics is not None:
+            self.storage.camera_extrinsics_opt[
+                self.storage.frame_id
+            ] = camera_extrinsics
 
     def _run_optimization(self, data_for_optimization):
         assert not self.bg_task or not self.bg_task.running
 
-        self.visibility_graphs._remove_observer_from_keyframe_added()
+        self.visibility_graphs.remove_observer_from_keyframe_added()
 
         self.bg_task = self.marker_tracker_3d.task_manager.create_background_task(
             name="optimization_routine",
@@ -45,7 +53,7 @@ class ModelOptimizer(Observable):
         )
         self.bg_task.add_observer("on_completed", self._update_extrinsics_opt)
         self.bg_task.add_observer(
-            "on_ended", self.visibility_graphs._add_observer_to_keyframe_added
+            "on_ended", self.visibility_graphs.add_observer_to_keyframe_added
         )
         self.bg_task.add_observer("on_exception", tasklib.raise_exception)
 
@@ -73,7 +81,9 @@ class ModelOptimizer(Observable):
         )
 
     def restart(self):
+        if self.bg_task:
+            if self.bg_task.running:
+                self.bg_task.kill(grace_period=None)
+            self.bg_task = None
         self.storage.reset()
         self.visibility_graphs.reset()
-        if self.bg_task and self.bg_task.running:
-            self.bg_task.kill(grace_period=None)

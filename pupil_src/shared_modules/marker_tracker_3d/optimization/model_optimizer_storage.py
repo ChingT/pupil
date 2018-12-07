@@ -8,14 +8,15 @@ from marker_tracker_3d import utils
 
 class ModelOptimizerStorage:
     def __init__(self):
+        self.frame_id = 0
+
         self.marker_keys = []
         self.camera_keys = []
         self.keyframes = {}
-        self.camera_extrinsics_opt = {}
+        self.camera_extrinsics_opt = {}  # contain camera_extrinsics every frame
         self.marker_extrinsics_opt = {}
         self.marker_points_3d_opt = {}
-        self.visibility_graph_of_keyframes = nx.MultiGraph()
-        self.visibility_graph_of_ready_markers = nx.MultiGraph()
+        self.visibility_graph = nx.MultiGraph()
 
         # for export_data
         root = os.path.join(os.path.split(__file__)[0], "storage")
@@ -48,15 +49,14 @@ class ModelOptimizerStorage:
         self.camera_extrinsics_opt = {}
         self.marker_extrinsics_opt = {}
         self.marker_points_3d_opt = {}
-        self.visibility_graph_of_keyframes = nx.MultiGraph()
-        self.visibility_graph_of_ready_markers = nx.MultiGraph()
+        self.visibility_graph = nx.MultiGraph()
 
     # For debug
     def save_graph(self):
         import matplotlib.pyplot as plt
 
-        if self.visibility_graph_of_keyframes and self.marker_keys:
-            graph_vis = self.visibility_graph_of_keyframes.copy()
+        if self.visibility_graph and self.marker_keys:
+            graph_vis = self.visibility_graph.copy()
             all_nodes = list(graph_vis.nodes)
 
             pos = nx.spring_layout(graph_vis, seed=0)  # positions for all nodes
@@ -65,17 +65,9 @@ class ModelOptimizerStorage:
             nx.draw_networkx_nodes(
                 graph_vis, pos, nodelist=all_nodes, node_color="g", node_size=100
             )
-            if self.marker_keys[0] in self.visibility_graph_of_ready_markers:
-                connected_component = nx.node_connected_component(
-                    self.visibility_graph_of_ready_markers, self.marker_keys[0]
-                )
-                nx.draw_networkx_nodes(
-                    graph_vis,
-                    pos,
-                    nodelist=connected_component,
-                    node_color="r",
-                    node_size=100,
-                )
+            nx.draw_networkx_nodes(
+                graph_vis, pos, nodelist=self.marker_keys, node_color="r", node_size=100
+            )
             nx.draw_networkx_edges(graph_vis, pos, width=1, alpha=0.1)
             nx.draw_networkx_labels(graph_vis, pos, font_size=7)
 
@@ -91,8 +83,7 @@ class ModelOptimizerStorage:
             save_name = os.path.join(
                 self.save_path,
                 "visibility_graph-{0}-{1}.png".format(
-                    len(self.visibility_graph_of_keyframes),
-                    len(self.visibility_graph_of_ready_markers),
+                    len(self.visibility_graph), len(self.marker_keys)
                 ),
             )
             plt.savefig(save_name)

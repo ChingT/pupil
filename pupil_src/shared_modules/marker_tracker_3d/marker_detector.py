@@ -24,8 +24,14 @@ class MarkerDetector:
         except AttributeError:
             marker_detections = {}
         else:
-            marker_detections = self._filter_markers(marker_list)
-
+            marker_list = self._filter_markers(marker_list)
+            marker_detections = {
+                m["id"]: {
+                    "verts": m["verts"],
+                    "centroid": np.array(m["centroid"]) / [frame.width, frame.height],
+                }
+                for m in marker_list
+            }
         return marker_detections
 
     def _filter_markers(self, marker_list):
@@ -44,11 +50,7 @@ class MarkerDetector:
                     marker_id, marker_list, markers_with_same_id
                 )
 
-        marker_detections = {
-            m["id"]: {k: v for k, v in m.items() if k != "id"} for m in marker_list
-        }
-
-        return marker_detections
+        return marker_list
 
     @staticmethod
     def _remove_duplicate(marker_id, marker_list, markers_with_same_id):

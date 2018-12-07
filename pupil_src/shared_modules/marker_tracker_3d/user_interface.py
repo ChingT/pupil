@@ -61,10 +61,8 @@ class UserInterface:
             self.open_3d_window = open_3d_window
             if self.open_3d_window:
                 self.open_window()
-                logger.info("3d visualization window is opened")
             else:
                 self.close_window()
-                logger.info("3d visualization window is closed")
 
         self.menu.elements[:] = []
         self.menu.append(ui.Info_Text("This plugin detects current camera pose"))
@@ -86,17 +84,12 @@ class UserInterface:
                 label="3d visualization window",
             )
         )
+
         self.menu.append(
             ui.Switch(
-                "register_new_markers",
-                self.marker_tracker_3d.controller,
-                label="Registering new markers",
-            )
-        )
-        self.menu.append(
-            ui.Button(
-                "restart markers registration",
-                self.marker_tracker_3d.controller.on_restart,
+                "adding_marker_detections",
+                self.marker_tracker_3d.controller.model_optimizer.visibility_graphs,
+                label="Adding observations",
             )
         )
 
@@ -104,19 +97,24 @@ class UserInterface:
         self.menu.append(ui.Info_Text(text))
 
         self.menu.append(
+            ui.Button(
+                "restart markers registration",
+                self.marker_tracker_3d.controller.on_restart,
+            )
+        )
+
+        self.menu.append(
             ui.Button("export data", self.marker_tracker_3d.controller.on_export_data)
         )
 
     def _get_text_for_origin_marker(self):
-        marker_keys = (
-            self.marker_tracker_3d.controller.model_optimizer.storage.marker_keys
-        )
-        if marker_keys:
+        keys = self.marker_tracker_3d.controller.model_optimizer.storage.marker_keys
+        try:
             text = "The marker with id {} is defined as the origin of the coordinate system".format(
-                marker_keys[0]
+                keys[0]
             )
             logger.info(text)
-        else:
+        except IndexError:
             text = "The coordinate system has not yet been built up"
         return text
 
@@ -311,10 +309,13 @@ class UserInterface:
 
             glfw.glfwMakeContextCurrent(active_window)
 
+        logger.info("3d visualization window is opened")
+
     def close_window(self):
         if self._window:
             glfw.glfwDestroyWindow(self._window)
             self._window = None
+        logger.info("3d visualization window is closed")
 
     def on_resize(self, window, w, h):
         self.trackball.set_window_size(w, h)

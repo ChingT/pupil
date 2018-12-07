@@ -1,9 +1,11 @@
 import collections
 import logging
+import time
 
-import cv2
 import numpy as np
-import scipy
+from scipy import misc as scipy_misc
+from scipy import optimize as scipy_optimize
+from scipy import sparse as scipy_sparse
 
 from marker_tracker_3d import utils
 
@@ -51,10 +53,9 @@ class BundleAdjustment:
         initial_guess, bounds, sparsity_matrix = self._prepare_parameters(
             camera_extrinsics_init, marker_extrinsics_init
         )
+        result = self._least_squares(bounds, initial_guess, sparsity_matrix)
 
-        optimization_result = self._get_optimization_result(
-            initial_guess, bounds, sparsity_matrix
-        )
+        optimization_result = self._get_optimization_result(result)
         return optimization_result
 
     def _update_data(
@@ -117,34 +118,36 @@ class BundleAdjustment:
         """
 
         n_samples = len(self.camera_indices)
-        n_residual_per_sample = self.markers_points_2d_detected.size // n_samples
 
         mat_camera = np.zeros((n_samples, self.camera_extrinsics_shape[0]), dtype=int)
         mat_camera[np.arange(n_samples), self.camera_indices] = 1
-        mat_camera = cv2.resize(
+        mat_camera = scipy_misc.imresize(
             mat_camera,
-            fx=self.camera_extrinsics_shape[1],
-            fy=n_residual_per_sample,
-            dsize=(0, 0),
-            interpolation=cv2.INTER_NEAREST,
+            size=(
+                self.markers_points_2d_detected.size,
+                np.prod(self.camera_extrinsics_shape),
+            ),
+            interp="nearest",
         )
 
         mat_marker = np.zeros((n_samples, self.marker_extrinsics_shape[0]), dtype=int)
         mat_marker[np.arange(n_samples), self.marker_indices] = 1
-        mat_marker = cv2.resize(
+        mat_marker = scipy_misc.imresize(
             mat_marker,
-            fx=self.marker_extrinsics_shape[1],
-            fy=n_residual_per_sample,
-            dsize=(0, 0),
-            interpolation=cv2.INTER_NEAREST,
+            size=(
+                self.markers_points_2d_detected.size,
+                np.prod(self.marker_extrinsics_shape),
+            ),
+            interp="nearest",
         )
 
-        sparsity_matrix = scipy.sparse.lil_matrix(np.hstack((mat_camera, mat_marker)))
+        sparsity_matrix = scipy_sparse.lil_matrix(np.hstack((mat_camera, mat_marker)))
 
         return sparsity_matrix
 
-    def _get_optimization_result(self, initial_guess, bounds, sparsity_matrix):
-        result = scipy.optimize.least_squares(
+    def _least_squares(self, bounds, initial_guess, sparsity_matrix):
+        s_time = time.time()
+        result = scipy_optimize.least_squares(
             fun=self._fun_compute_residuals,
             x0=initial_guess,
             bounds=bounds,
@@ -155,7 +158,13 @@ class BundleAdjustment:
             diff_step=self.diff_step,
             jac_sparsity=sparsity_matrix,
         )
+        e_time = time.time()
+        logger.debug(
+            "took {0:.2f}s; shape {1}".format(e_time - s_time, sparsity_matrix.shape)
+        )
+        return result
 
+    def _get_optimization_result(self, result):
         camera_extrinsics_opt, marker_extrinsics_opt = self._reshape_variables_to_extrinsics(
             result.x
         )

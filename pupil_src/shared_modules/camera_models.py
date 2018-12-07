@@ -358,10 +358,13 @@ class Fisheye_Dist_Camera(object):
         # xy_undist = xy_undist * f + c
         # xy_undist = cv2.fisheye.undistortPoints(xy, self.K, self.D, P=self.K)
 
-        if len(uv3d) == 0 or len(xy) == 0:
-            return False, None, None
+        try:
+            uv3d = np.reshape(uv3d, (1, -1, 3))
+            xy = np.reshape(xy, (1, -1, 2))
+        except ValueError:
+            raise ValueError
 
-        if uv3d.shape[1] != xy.shape[1]:
+        if uv3d.shape[1] != xy.shape[1] or uv3d.shape[1] == 0 or xy.shape[1] == 0:
             return False, None, None
 
         if xy.ndim == 2:
@@ -503,10 +506,13 @@ class Radial_Dist_Camera(object):
         rvec=None,
         tvec=None,
     ):
-        if len(uv3d) == 0 or len(xy) == 0:
-            return False, None, None
+        try:
+            uv3d = np.reshape(uv3d, (1, -1, 3))
+            xy = np.reshape(xy, (1, -1, 2))
+        except ValueError:
+            raise ValueError
 
-        if uv3d.shape[1] != xy.shape[1]:
+        if uv3d.shape[1] != xy.shape[1] or uv3d.shape[1] == 0 or xy.shape[1] == 0:
             return False, None, None
 
         res = cv2.solvePnP(

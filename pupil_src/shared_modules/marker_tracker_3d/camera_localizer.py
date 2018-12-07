@@ -55,9 +55,4 @@ class CameraLocalizer:
         marker_points_2d = np.array(
             [markers[i]["verts"] for i in marker_keys_available]
         )
-
-        if len(marker_points_3d) and len(marker_points_2d):
-            marker_points_3d.shape = 1, -1, 3
-            marker_points_2d.shape = 1, -1, 2
-
         return marker_points_3d, marker_points_2d

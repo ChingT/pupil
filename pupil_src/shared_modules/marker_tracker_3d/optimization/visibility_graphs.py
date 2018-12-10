@@ -31,18 +31,16 @@ class VisibilityGraphs(Observable):
         storage,
         camera_model,
         origin_marker_id=None,
-        select_keyframe_interval=10,
+        select_keyframe_interval=6,
         min_n_markers_per_frame=2,
-        max_n_same_markers_per_bin=5,
-        optimization_interval=2,
-        min_angle_diff=0.1,
+        max_n_same_markers_per_bin=1,
+        optimization_interval=1,
         min_n_frames_per_marker=2,
     ):
         assert select_keyframe_interval >= 1
         assert min_n_markers_per_frame >= 2
         assert max_n_same_markers_per_bin >= 1
         assert optimization_interval >= 1
-        assert min_angle_diff >= 0
         assert min_n_frames_per_marker >= 2
 
         self.storage = storage
@@ -52,18 +50,24 @@ class VisibilityGraphs(Observable):
         self._min_n_markers_per_frame = min_n_markers_per_frame
         self._max_n_same_markers_per_bin = max_n_same_markers_per_bin
         self._optimization_interval = optimization_interval
-        self._min_angle_diff = min_angle_diff
         self._min_n_frames_per_marker = min_n_frames_per_marker
 
-        self._bins = np.linspace(0, 1, 10)
+        self._n_bins_x = 10
+        self._n_bins_y = 6
+        self._bins_x = np.linspace(0, 1, self._n_bins_x + 1)[1:-1]
+        self._bins_y = np.linspace(0, 1, self._n_bins_y + 1)[1:-1]
 
-        self._all_marker_location = {(x, y): {} for x in range(10) for y in range(10)}
+        self._all_marker_location = {
+            (x, y): {} for x in range(self._n_bins_x) for y in range(self._n_bins_y)
+        }
         self._n_frames_passed = 0
         self._n_new_keyframe_added = 0
         self.adding_marker_detections = True
 
     def reset(self):
-        self._all_marker_location = {(x, y): {} for x in range(10) for y in range(10)}
+        self._all_marker_location = {
+            (x, y): {} for x in range(self._n_bins_x) for y in range(self._n_bins_y)
+        }
         self._n_frames_passed = 0
         self._n_new_keyframe_added = 0
         self.adding_marker_detections = True
@@ -94,10 +98,6 @@ class VisibilityGraphs(Observable):
         self._n_frames_passed += 1
 
     def _select_keyframe(self, marker_detections):
-        """ select keyframe and update visibility_graph """
-        if len(marker_detections) < self._min_n_markers_per_frame:
-            return
-
         novel_marker_detections = self._filter_novel_marker_detections(
             marker_detections
         )
@@ -109,54 +109,49 @@ class VisibilityGraphs(Observable):
             self.on_keyframe_added()
 
     def _filter_novel_marker_detections(self, marker_detections):
-        marker_candidates = []
-        for marker_id in marker_detections.keys():
-            marker_bin = self._get_bin(marker_detections[marker_id])
-            marker_normal = self._find_diverse_marker_normal(
-                marker_id, marker_bin, marker_detections[marker_id]["verts"]
-            )
-            if marker_normal is None:
-                continue
-            marker_candidates.append(
-                MarkerCandidate(marker_id, marker_bin, marker_normal)
-            )
-
-        if len(marker_candidates) < self._min_n_markers_per_frame:
-            return
-
+        marker_candidates = self._get_marker_candidates(marker_detections)
         self._add_to_all_marker_location(marker_candidates)
+
         novel_marker_detections = {
             marker.id: marker_detections[marker.id] for marker in marker_candidates
         }
         return novel_marker_detections
 
-    def _get_bin(self, marker_detection):
-        return tuple(np.digitize(marker_detection["centroid"], self._bins, right=True))
+    def _get_marker_candidates(self, marker_detections):
+        if len(marker_detections) < self._min_n_markers_per_frame:
+            return []
 
-    def _find_diverse_marker_normal(self, marker_id, marker_bin, verts):
-        """ if the bin is not full and the marker normal is diverse enough,
-        return marker_normal
-        """
+        bins_x, bins_y = self._get_bins(marker_detections)
+        no_need_to_check_bin = bool(marker_detections.keys() - self.storage.marker_keys)
+        # if there are markers which have not yet been optimized,
+        # add all markers in this frame and
+        # do not need to check if the corresponding bins are available
+        marker_candidates = [
+            MarkerCandidate(id=marker_id, bin=(x, y))
+            for marker_id, x, y in zip(marker_detections.keys(), bins_x, bins_y)
+            if no_need_to_check_bin or self._check_bin_available(marker_id, (x, y))
+        ]
 
+        if len(marker_candidates) < self._min_n_markers_per_frame:
+            return []
+
+        return marker_candidates
+
+    def _get_bins(self, marker_detections):
+        all_centroids = np.array(
+            [marker_detections[k]["centroid"] for k in marker_detections.keys()]
+        )
+        bins_x = np.digitize(all_centroids[:, 0], self._bins_x)
+        bins_y = np.digitize(all_centroids[:, 1], self._bins_y)
+        return bins_x, bins_y
+
+    def _check_bin_available(self, marker_id, marker_bin):
         try:
             count = len(self._all_marker_location[marker_bin][marker_id])
         except KeyError:
-            return self._compute_marker_normal(verts)
+            return True
 
-        if count < self._max_n_same_markers_per_bin:
-            marker_normal = self._compute_marker_normal(verts)
-            angle_diff = math.closest_angle_diff(
-                marker_normal, self._all_marker_location[marker_bin][marker_id]
-            )
-            if angle_diff >= self._min_angle_diff:
-                return marker_normal
-        else:
-            return
-
-    def _compute_marker_normal(self, verts):
-        retval, rvec, _ = self.camera_model.solvePnP(utils.marker_df, verts)
-        marker_normal = rvec.ravel()
-        return marker_normal
+        return count < self._max_n_same_markers_per_bin
 
     def _add_to_all_marker_location(self, marker_candidates):
         for marker in marker_candidates:
@@ -192,16 +187,19 @@ class VisibilityGraphs(Observable):
         if self._n_new_keyframe_added >= self._optimization_interval:
             self._n_new_keyframe_added = 0
 
-            self._update_camera_and_marker_keys()
-            self._collect_data_for_optimization()
+            self._update_marker_keys()
+            self._update_camera_keys()
+            self.on_ready_for_optimization()
 
-    def _update_camera_and_marker_keys(self):
+    def _update_marker_keys(self):
         candidate_nodes = self._filter_candidate_nodes()
-
         for node in candidate_nodes:
             if node not in self.storage.marker_keys:
                 self.storage.marker_keys.append(node)
 
+        logger.debug("marker_keys updated {}".format(self.storage.marker_keys))
+
+    def _update_camera_keys(self):
         for f_id, frame in self.storage.keyframes.items():
             if (
                 f_id not in self.storage.camera_keys
@@ -210,8 +208,7 @@ class VisibilityGraphs(Observable):
             ):
                 self.storage.camera_keys.append(f_id)
 
-        logger.debug("marker_keys updated {}".format(self.storage.marker_keys))
-        logger.debug("camera_keys updated {}".format(self.storage.camera_keys))
+        logger.debug("camera_keys updated {}".format(sorted(self.storage.camera_keys)))
 
     def _filter_candidate_nodes(self):
         nodes_enough_viewed = set(

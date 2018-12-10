@@ -21,6 +21,8 @@ class Controller:
 
     def update(self, events):
         frame = events.get("frame")
+        if not frame:
+            return
 
         self.storage.marker_detections = self.marker_detector.detect(frame)
 
@@ -41,4 +43,7 @@ class Controller:
 
     def on_export_data(self):
         self.model_optimizer.storage.export_data()
+        self.model_optimizer.visibility_graphs.save_graph(
+            self.model_optimizer.storage.save_path
+        )
         logger.info("export data at {}".format(self.model_optimizer.storage.save_path))

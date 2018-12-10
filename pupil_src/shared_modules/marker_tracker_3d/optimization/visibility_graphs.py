@@ -5,24 +5,12 @@ import logging
 import networkx as nx
 import numpy as np
 
-from marker_tracker_3d import math
 from marker_tracker_3d import utils
 from observable import Observable
 
 logger = logging.getLogger(__name__)
 
-
-DataForOptimization = collections.namedtuple(
-    "DataForOptimization",
-    [
-        "camera_indices",
-        "marker_indices",
-        "markers_points_2d_detected",
-        "camera_extrinsics_prv",
-        "marker_extrinsics_prv",
-    ],
-)
-MarkerCandidate = collections.namedtuple("MarkerCandidate", ["id", "bin", "normal"])
+MarkerCandidate = collections.namedtuple("MarkerCandidate", ["id", "bin"])
 
 
 class VisibilityGraphs(Observable):
@@ -63,6 +51,7 @@ class VisibilityGraphs(Observable):
         self._n_frames_passed = 0
         self._n_new_keyframe_added = 0
         self.adding_marker_detections = True
+        self.visibility_graph = nx.MultiGraph()
 
     def reset(self):
         self._all_marker_location = {
@@ -71,6 +60,7 @@ class VisibilityGraphs(Observable):
         self._n_frames_passed = 0
         self._n_new_keyframe_added = 0
         self.adding_marker_detections = True
+        self.visibility_graph = nx.MultiGraph()
 
         self.on_update_menu()
 
@@ -80,7 +70,7 @@ class VisibilityGraphs(Observable):
     def on_keyframe_added(self):
         pass
 
-    def on_data_for_optimization_prepared(self, data_for_optimization):
+    def on_ready_for_optimization(self):
         pass
 
     def add_observer_to_keyframe_added(self):
@@ -156,9 +146,13 @@ class VisibilityGraphs(Observable):
     def _add_to_all_marker_location(self, marker_candidates):
         for marker in marker_candidates:
             try:
-                self._all_marker_location[marker.bin][marker.id].append(marker.normal)
+                self._all_marker_location[marker.bin][marker.id].append(
+                    self.storage.frame_id
+                )
             except KeyError:
-                self._all_marker_location[marker.bin][marker.id] = [marker.normal]
+                self._all_marker_location[marker.bin][marker.id] = [
+                    self.storage.frame_id
+                ]
 
     def _add_to_keyframes(self, novel_marker_detections):
         self.storage.keyframes[self.storage.frame_id] = novel_marker_detections
@@ -176,11 +170,11 @@ class VisibilityGraphs(Observable):
 
         # add frame_id as edges in the graph
         for u, v in list(it.combinations(novel_marker_detections.keys(), 2)):
-            self.storage.visibility_graph.add_edge(u, v)
+            self.visibility_graph.add_edge(u, v, key=self.storage.frame_id)
 
         # add frame_id as an attribute of the node
         for marker_id in novel_marker_detections.keys():
-            self.storage.visibility_graph.nodes[marker_id][self.storage.frame_id] = []
+            self.visibility_graph.nodes[marker_id][self.storage.frame_id] = []
 
     def _prepare_for_optimization(self):
         # Do optimization when there are some new keyframes selected
@@ -213,14 +207,13 @@ class VisibilityGraphs(Observable):
     def _filter_candidate_nodes(self):
         nodes_enough_viewed = set(
             node
-            for node in self.storage.visibility_graph.nodes
-            if len(self.storage.visibility_graph.nodes[node])
-            >= self._min_n_frames_per_marker
+            for node in self.visibility_graph.nodes
+            if len(self.visibility_graph.nodes[node]) >= self._min_n_frames_per_marker
         )
         try:
             nodes_connected_to_first_node = set(
                 nx.node_connected_component(
-                    self.storage.visibility_graph, self.storage.marker_keys[0]
+                    self.visibility_graph, self.storage.marker_keys[0]
                 )
             )
         except IndexError:
@@ -250,45 +243,50 @@ class VisibilityGraphs(Observable):
 
         self.on_update_menu()
 
-    def _collect_data_for_optimization(self):
-        camera_indices = []
-        marker_indices = []
-        markers_points_2d_detected = []
-        for f_index, f_id in enumerate(self.storage.camera_keys):
-            for n_index, n_id in enumerate(self.storage.marker_keys):
-                if n_id in self.storage.keyframes[f_id]:
-                    camera_indices.append(f_index)
-                    marker_indices.append(n_index)
-                    markers_points_2d_detected.append(
-                        self.storage.keyframes[f_id][n_id]["verts"]
-                    )
+    # For debug TODO: remove save_graph()
+    def save_graph(self, save_path):
+        import matplotlib.pyplot as plt
+        import os
 
-        camera_indices = np.array(camera_indices)
-        marker_indices = np.array(marker_indices)
-        markers_points_2d_detected = np.array(markers_points_2d_detected)
+        if self.visibility_graph and self.storage.marker_keys:
+            graph_vis = self.visibility_graph.copy()
+            all_nodes = list(graph_vis.nodes)
 
-        try:
-            markers_points_2d_detected = markers_points_2d_detected[:, :, 0, :]
-        except IndexError:
-            return
+            pos = nx.spring_layout(graph_vis, seed=0)  # positions for all nodes
+            pos_label = dict((n, pos[n] + 0.05) for n in pos)
 
-        camera_extrinsics_prv = {
-            i: self.storage.camera_extrinsics_opt[k]
-            for i, k in enumerate(self.storage.camera_keys)
-            if k in self.storage.camera_extrinsics_opt
-        }
+            nx.draw_networkx_nodes(
+                graph_vis, pos, nodelist=all_nodes, node_color="g", node_size=100
+            )
+            nx.draw_networkx_nodes(
+                graph_vis,
+                pos,
+                nodelist=self.storage.marker_keys,
+                node_color="r",
+                node_size=100,
+            )
+            nx.draw_networkx_edges(graph_vis, pos, width=1, alpha=0.1)
+            nx.draw_networkx_labels(graph_vis, pos, font_size=7)
 
-        marker_extrinsics_prv = {
-            i: self.storage.marker_extrinsics_opt[k]
-            for i, k in enumerate(self.storage.marker_keys)
-            if k in self.storage.marker_extrinsics_opt
-        }
+            labels = dict(
+                (
+                    n,
+                    self.storage.marker_keys.index(n)
+                    if n in self.storage.marker_keys
+                    else None,
+                )
+                for n in graph_vis.nodes()
+            )
+            nx.draw_networkx_labels(
+                graph_vis, pos=pos_label, labels=labels, font_size=6, font_color="b"
+            )
 
-        data_for_optimization = DataForOptimization(
-            camera_indices=camera_indices,
-            marker_indices=marker_indices,
-            markers_points_2d_detected=markers_points_2d_detected,
-            camera_extrinsics_prv=camera_extrinsics_prv,
-            marker_extrinsics_prv=marker_extrinsics_prv,
-        )
-        self.on_data_for_optimization_prepared(data_for_optimization)
+            plt.axis("off")
+            save_name = os.path.join(
+                save_path,
+                "visibility_graph-{0}-{1}.png".format(
+                    len(self.visibility_graph), len(self.storage.marker_keys)
+                ),
+            )
+            plt.savefig(save_name)
+            plt.clf()

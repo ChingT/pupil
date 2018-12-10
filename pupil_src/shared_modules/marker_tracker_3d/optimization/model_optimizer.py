@@ -21,11 +21,11 @@ class ModelOptimizer(Observable):
         self.bg_task = None
 
         self.visibility_graphs = VisibilityGraphs(
-            self.storage, self.camera_model, origin_marker_id=16
+            self.storage, self.camera_model, origin_marker_id=None
         )
         self.visibility_graphs.add_observer_to_keyframe_added()
         self.visibility_graphs.add_observer(
-            "on_data_for_optimization_prepared", self._run_optimization
+            "on_ready_for_optimization", self._run_optimization
         )
 
     def add_observations(self, marker_detections, camera_extrinsics):
@@ -41,7 +41,7 @@ class ModelOptimizer(Observable):
                 self.storage.frame_id
             ] = camera_extrinsics
 
-    def _run_optimization(self, data_for_optimization):
+    def _run_optimization(self):
         assert not self.bg_task or not self.bg_task.running
 
         self.visibility_graphs.remove_observer_from_keyframe_added()
@@ -49,7 +49,7 @@ class ModelOptimizer(Observable):
         self.bg_task = self.marker_tracker_3d.task_manager.create_background_task(
             name="optimization_routine",
             routine_or_generator_function=optimization_routine,
-            args=(self.camera_model, data_for_optimization),
+            args=(self.camera_model, self.storage),
         )
         self.bg_task.add_observer("on_completed", self._update_extrinsics_opt)
         self.bg_task.add_observer(
@@ -65,14 +65,12 @@ class ModelOptimizer(Observable):
             return
 
         for i, p in enumerate(optimization_result.camera_extrinsics_opt):
-            if i not in optimization_result.camera_keys_failed:
-                self.storage.camera_extrinsics_opt[self.storage.camera_keys[i]] = p
+            self.storage.camera_extrinsics_opt[self.storage.camera_keys[i]] = p
         for i, p in enumerate(optimization_result.marker_extrinsics_opt):
-            if i not in optimization_result.marker_keys_failed:
-                self.storage.marker_extrinsics_opt[self.storage.marker_keys[i]] = p
-                self.storage.marker_points_3d_opt[
-                    self.storage.marker_keys[i]
-                ] = utils.params_to_points_3d(p)[0]
+            self.storage.marker_extrinsics_opt[self.storage.marker_keys[i]] = p
+            self.storage.marker_points_3d_opt[
+                self.storage.marker_keys[i]
+            ] = utils.params_to_points_3d(p)[0]
 
         logger.info(
             "{} markers have been registered and updated".format(

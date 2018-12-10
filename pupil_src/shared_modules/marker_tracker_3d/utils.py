@@ -1,9 +1,14 @@
+import functools
+import logging
 import os
+import time
 
 import cv2
 import numpy as np
 
 from marker_tracker_3d import math
+
+logger = logging.getLogger(__name__)
 
 
 def get_marker_vertex_coord(marker_extrinsics, camera_model):
@@ -109,3 +114,16 @@ def _save_dict_to_pkl(d, dict_name):
     f = open(dict_name, "wb")
     pickle.dump(d, f)
     f.close()
+
+
+def timer(func):
+    @functools.wraps(func)
+    def wrapper_timer(*args, **kwargs):
+        start_time = time.perf_counter()
+        value = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        run_time = (end_time - start_time) * 1000
+        logger.debug("{0} took {1:.2f} ms".format(func.__name__, run_time))
+        return value
+
+    return wrapper_timer

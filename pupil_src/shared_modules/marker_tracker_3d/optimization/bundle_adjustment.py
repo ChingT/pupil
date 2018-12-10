@@ -1,6 +1,5 @@
 import collections
 import logging
-import time
 
 import numpy as np
 from scipy import misc as scipy_misc
@@ -11,8 +10,8 @@ from marker_tracker_3d import utils
 
 logger = logging.getLogger(__name__)
 
-ResultOfOptimization = collections.namedtuple(
-    "ResultOfOptimization",
+OptimizationResult = collections.namedtuple(
+    "OptimizationResult",
     [
         "camera_extrinsics_opt",
         "marker_extrinsics_opt",
@@ -26,7 +25,7 @@ class BundleAdjustment:
     def __init__(self, camera_model):
         self.camera_model = camera_model
 
-        self.tol = 1e-3
+        self.tol = 1e-5
         self.diff_step = 1e-3
 
     def run(
@@ -84,7 +83,7 @@ class BundleAdjustment:
 
         return initial_guess, bounds, sparsity_matrix
 
-    def _cal_bounds(self, epsilon=1e-8):
+    def _cal_bounds(self, epsilon=1e-16):
         """ calculate the lower and upper bounds on independent variables
             fix the first marker at the origin of the coordinate system
         """
@@ -141,12 +140,12 @@ class BundleAdjustment:
             interp="nearest",
         )
 
-        sparsity_matrix = scipy_sparse.lil_matrix(np.hstack((mat_camera, mat_marker)))
-
+        sparsity_matrix = np.hstack((mat_camera, mat_marker))
+        sparsity_matrix = scipy_sparse.lil_matrix(sparsity_matrix)
         return sparsity_matrix
 
+    @utils.timer
     def _least_squares(self, bounds, initial_guess, sparsity_matrix):
-        s_time = time.time()
         result = scipy_optimize.least_squares(
             fun=self._fun_compute_residuals,
             x0=initial_guess,
@@ -155,12 +154,9 @@ class BundleAdjustment:
             xtol=self.tol,
             gtol=self.tol,
             x_scale="jac",
+            loss="soft_l1",
             diff_step=self.diff_step,
             jac_sparsity=sparsity_matrix,
-        )
-        e_time = time.time()
-        logger.debug(
-            "took {0:.2f}s; shape {1}".format(e_time - s_time, sparsity_matrix.shape)
         )
         return result
 
@@ -171,7 +167,7 @@ class BundleAdjustment:
 
         camera_keys_failed, marker_keys_failed = self._find_failed_keys(result.fun)
 
-        optimization_result = ResultOfOptimization(
+        optimization_result = OptimizationResult(
             camera_extrinsics_opt=camera_extrinsics_opt,
             marker_extrinsics_opt=marker_extrinsics_opt,
             camera_keys_failed=camera_keys_failed,

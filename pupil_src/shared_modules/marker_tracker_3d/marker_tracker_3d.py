@@ -9,16 +9,11 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import logging
-
 from marker_tracker_3d.controller import Controller
 from marker_tracker_3d.user_interface import UserInterface
 from observable import Observable
 from plugin import Plugin
 from tasklib.manager import PluginTaskManager
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.NOTSET)
 
 
 class Marker_Tracker_3D(Plugin, Observable):

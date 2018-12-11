@@ -5,7 +5,7 @@ from marker_tracker_3d import utils
 
 class ControllerStorage:
     def __init__(self):
-        # For drawing in UI window
+        # For drawing in UI window; no need to be exported
         self.marker_detections = {}
         self.camera_pose_matrix = None
         self.camera_trace = collections.deque(maxlen=150)

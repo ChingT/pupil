@@ -46,4 +46,8 @@ class Controller:
         self.model_optimizer.visibility_graphs.save_graph(
             self.model_optimizer.storage.save_path
         )
-        logger.info("export data at {}".format(self.model_optimizer.storage.save_path))
+        logger.info(
+            "data has been exported in {}".format(
+                self.model_optimizer.storage.save_path
+            )
+        )

@@ -1,4 +1,5 @@
 import functools
+import logging
 import os
 import time
 
@@ -6,6 +7,8 @@ import cv2
 import numpy as np
 
 from marker_tracker_3d import math
+
+logger = logging.getLogger(__name__)
 
 
 def get_marker_vertex_coord(marker_extrinsics, camera_model):
@@ -65,6 +68,11 @@ def get_camera_trace(camera_pose_matrix):
     return camera_pose_matrix[0:3, 3]
 
 
+def get_camera_trace_from_camera_extrinsics(camera_extrinsics):
+    rvec, tvec = split_param(camera_extrinsics)
+    return cv2.Rodrigues(rvec)[0].T @ tvec
+
+
 def params_to_points_3d(params):
     params = np.asarray(params).reshape(-1, 6)
     marker_points_3d = []
@@ -102,7 +110,11 @@ def save_params_dicts(save_path, dicts):
         if isinstance(v, dict):
             _save_dict_to_pkl(v, os.path.join(save_path, k))
         elif isinstance(v, np.ndarray) or isinstance(v, list):
-            np.save(os.path.join(save_path, k), v)
+            try:
+                np.save(os.path.join(save_path, k), v)
+            except ValueError:
+                logger.error("cannot save {}".format(k))
+                continue
 
 
 def _save_dict_to_pkl(d, dict_name):
@@ -121,11 +133,11 @@ def timer(func):
         t2 = time.perf_counter()
         run_time = t2 - t1
         if run_time > 1:
-            print("{0} took {1:.2f} s".format(func.__name__, run_time))
+            logger.debug("{0} took {1:.2f} s".format(func.__name__, run_time))
         elif run_time > 1e-3:
-            print("{0} took {1:.2f} ms".format(func.__name__, run_time * 1e3))
+            logger.debug("{0} took {1:.2f} ms".format(func.__name__, run_time * 1e3))
         else:
-            print("{0} took {1:.2f} µs".format(func.__name__, run_time * 1e6))
+            logger.debug("{0} took {1:.2f} µs".format(func.__name__, run_time * 1e6))
 
         return value
 

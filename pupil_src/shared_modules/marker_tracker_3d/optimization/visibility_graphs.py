@@ -47,14 +47,12 @@ class VisibilityGraphs(Observable):
         self._bins_x = np.linspace(0, 1, self._n_bins_x + 1)[1:-1]
         self._bins_y = np.linspace(0, 1, self._n_bins_y + 1)[1:-1]
 
-        self.current_frame_id = 0
         self._n_frames_passed = 0
         self._n_new_novel_markers_added = 0
         self.adding_marker_detections = True
         self.visibility_graph = nx.MultiGraph()
 
     def reset(self):
-        self.current_frame_id = 0
         self._n_frames_passed = 0
         self._n_new_novel_markers_added = 0
         self.adding_marker_detections = True
@@ -85,13 +83,13 @@ class VisibilityGraphs(Observable):
                 self._n_frames_passed = 0
                 self._select_novel_markers(marker_detections)
 
-        self.current_frame_id += 1
+        self.storage.current_frame_id += 1
         self._n_frames_passed += 1
 
     def _save_current_camera_extrinsics(self, camera_extrinsics):
         if camera_extrinsics is not None:
             self.storage.camera_extrinsics_opt[
-                self.current_frame_id
+                self.storage.current_frame_id
             ] = camera_extrinsics
 
     def _select_novel_markers(self, marker_detections):
@@ -127,7 +125,7 @@ class VisibilityGraphs(Observable):
         bins_x, bins_y = self._get_bins(marker_detections)
         novel_marker_candidates = [
             NovelMarker(
-                frame_id=self.current_frame_id,
+                frame_id=self.storage.current_frame_id,
                 marker_id=marker_id,
                 verts=marker_detections[marker_id]["verts"],
                 bin=(x, y),
@@ -168,7 +166,7 @@ class VisibilityGraphs(Observable):
         # the node of visibility_graph: marker_id;
         # the edge of visibility_graph: current_frame_id
         for u, v in list(it.combinations(all_markers, 2)):
-            self.visibility_graph.add_edge(u, v, key=self.current_frame_id)
+            self.visibility_graph.add_edge(u, v, key=self.storage.current_frame_id)
 
         self.storage.all_novel_markers += novel_markers
 

@@ -23,7 +23,7 @@ class InitialGuess:
         """
         calculate initial guess of camera and marker poses
 
-        :param frame_indices: array_like with shape (n, ), camera indices
+        :param frame_indices: array_like with shape (n, ), frame indices
         :param marker_indices: array_like with shape (n, ), marker indices
         :param markers_points_2d_detected: np.ndarray with shape (n x 4 x 2), markers points from image
         :param camera_extrinsics_prv: dict, previous camera extrinsics

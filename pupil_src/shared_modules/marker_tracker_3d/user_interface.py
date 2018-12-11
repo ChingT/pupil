@@ -170,9 +170,9 @@ class UserInterface:
                 gl.glPopMatrix()
 
             # Draw camera trace
-            if self.marker_tracker_3d.controller.storage.camera_trace:
+            if self.marker_tracker_3d.controller.storage.recent_camera_traces:
                 self.draw_camera_trace(
-                    self.marker_tracker_3d.controller.storage.camera_trace
+                    self.marker_tracker_3d.controller.storage.recent_camera_traces
                 )
 
             # Draw the camera frustum and origin

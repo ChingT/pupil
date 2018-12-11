@@ -8,13 +8,13 @@ class ControllerStorage:
         # For drawing in UI window; no need to be exported
         self.marker_detections = {}
         self.camera_pose_matrix = None
-        self.camera_trace = collections.deque(maxlen=150)
+        self.recent_camera_traces = collections.deque(maxlen=150)
         self.camera_extrinsics = None
 
     def reset(self):
         self.marker_detections = {}
         self.camera_pose_matrix = None
-        self.camera_trace = collections.deque(maxlen=150)
+        self.recent_camera_traces = collections.deque(maxlen=150)
         self.camera_extrinsics = None
 
     @property
@@ -29,7 +29,9 @@ class ControllerStorage:
             self.camera_pose_matrix = utils.get_camera_pose_matrix(
                 camera_extrinsics_new
             )
-            self.camera_trace.append(utils.get_camera_trace(self.camera_pose_matrix))
+            self.recent_camera_traces.append(
+                utils.get_camera_trace(self.camera_pose_matrix)
+            )
         else:
             self.camera_pose_matrix = None
-            self.camera_trace.append(None)
+            self.recent_camera_traces.append(None)

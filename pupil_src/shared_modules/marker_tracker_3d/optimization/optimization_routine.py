@@ -2,13 +2,14 @@ import collections
 
 import numpy as np
 
+from marker_tracker_3d import utils
 from marker_tracker_3d.optimization.bundle_adjustment import BundleAdjustment
 from marker_tracker_3d.optimization.initial_guess import InitialGuess
 
 DataForOptimization = collections.namedtuple(
     "DataForOptimization",
     [
-        "camera_indices",
+        "frame_indices",
         "marker_indices",
         "markers_points_2d_detected",
         "camera_extrinsics_prv",
@@ -22,11 +23,11 @@ def optimization_routine(camera_model, storage):
     if not data:
         return
 
-    bundle_adjustment = BundleAdjustment(camera_model)
     initial_guess = InitialGuess(camera_model)
+    bundle_adjustment = BundleAdjustment(camera_model)
 
     camera_extrinsics_init, marker_extrinsics_init = initial_guess.get(
-        data.camera_indices,
+        data.frame_indices,
         data.marker_indices,
         data.markers_points_2d_detected,
         data.camera_extrinsics_prv,
@@ -34,7 +35,7 @@ def optimization_routine(camera_model, storage):
     )
 
     optimization_result = bundle_adjustment.run(
-        data.camera_indices,
+        data.frame_indices,
         data.marker_indices,
         data.markers_points_2d_detected,
         camera_extrinsics_init,
@@ -44,19 +45,20 @@ def optimization_routine(camera_model, storage):
 
 
 def _collect_data_for_optimization(storage):
-    camera_indices = []
+    frame_indices = []
     marker_indices = []
     markers_points_2d_detected = []
-    for f_index, f_id in enumerate(storage.camera_keys):
-        for n_index, n_id in enumerate(storage.marker_keys):
-            if n_id in storage.keyframes[f_id]:
-                camera_indices.append(f_index)
-                marker_indices.append(n_index)
-                markers_points_2d_detected.append(
-                    storage.keyframes[f_id][n_id]["verts"]
-                )
 
-    camera_indices = np.array(camera_indices)
+    for marker in storage.all_novel_markers:
+        if (
+            marker.marker_id in storage.markers_id
+            and marker.frame_id in storage.frames_id
+        ):
+            frame_indices.append(storage.frames_id.index(marker.frame_id))
+            marker_indices.append(storage.markers_id.index(marker.marker_id))
+            markers_points_2d_detected.append(marker.verts)
+
+    frame_indices = np.array(frame_indices)
     marker_indices = np.array(marker_indices)
     markers_points_2d_detected = np.array(markers_points_2d_detected)
 
@@ -67,18 +69,18 @@ def _collect_data_for_optimization(storage):
 
     camera_extrinsics_prv = {
         i: storage.camera_extrinsics_opt[k]
-        for i, k in enumerate(storage.camera_keys)
+        for i, k in enumerate(storage.frames_id)
         if k in storage.camera_extrinsics_opt
     }
 
     marker_extrinsics_prv = {
         i: storage.marker_extrinsics_opt[k]
-        for i, k in enumerate(storage.marker_keys)
+        for i, k in enumerate(storage.markers_id)
         if k in storage.marker_extrinsics_opt
     }
 
     data_for_optimization = DataForOptimization(
-        camera_indices=camera_indices,
+        frame_indices=frame_indices,
         marker_indices=marker_indices,
         markers_points_2d_detected=markers_points_2d_detected,
         camera_extrinsics_prv=camera_extrinsics_prv,

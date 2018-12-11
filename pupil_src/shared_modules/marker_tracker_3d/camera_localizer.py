@@ -47,12 +47,10 @@ class CameraLocalizer:
 
     @staticmethod
     def _prepare_data(markers, marker_extrinsics):
-        marker_keys_available = markers.keys() & set(marker_extrinsics.keys())
+        markers_id_available = markers.keys() & set(marker_extrinsics.keys())
 
         marker_points_3d = utils.params_to_points_3d(
-            [marker_extrinsics[i] for i in marker_keys_available]
+            [marker_extrinsics[i] for i in markers_id_available]
         )
-        marker_points_2d = np.array(
-            [markers[i]["verts"] for i in marker_keys_available]
-        )
+        marker_points_2d = np.array([markers[i]["verts"] for i in markers_id_available])
         return marker_points_3d, marker_points_2d

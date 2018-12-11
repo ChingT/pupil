@@ -6,11 +6,10 @@ from marker_tracker_3d import utils
 
 class ModelOptimizerStorage:
     def __init__(self):
-        self.frame_id = 0
+        self.frames_id = []
+        self.markers_id = []
 
-        self.marker_keys = []
-        self.camera_keys = []
-        self.keyframes = {}
+        self.all_novel_markers = []
         self.camera_extrinsics_opt = {}  # contain camera_extrinsics every frame
         self.marker_extrinsics_opt = {}
         self.marker_points_3d_opt = {}
@@ -29,9 +28,10 @@ class ModelOptimizerStorage:
 
     def export_data(self):
         dicts = {
-            "marker_keys": self.marker_keys,
-            "camera_keys": self.camera_keys,
-            "keyframes": self.keyframes,
+            "all_novel_markers": self.all_novel_markers,
+            "camera_extrinsics_opt": self.camera_extrinsics_opt,
+            "marker_extrinsics_opt": self.marker_extrinsics_opt,
+            "marker_points_3d_opt": self.marker_points_3d_opt,
         }
 
         if not os.path.exists(self.save_path):
@@ -39,9 +39,10 @@ class ModelOptimizerStorage:
         utils.save_params_dicts(save_path=self.save_path, dicts=dicts)
 
     def reset(self):
-        self.marker_keys = []
-        self.camera_keys = []
-        self.keyframes = {}
-        self.camera_extrinsics_opt = {}
+        self.frames_id = []
+        self.markers_id = []
+
+        self.all_novel_markers = []
+        self.camera_extrinsics_opt = {}  # contain camera_extrinsics every frame
         self.marker_extrinsics_opt = {}
         self.marker_points_3d_opt = {}

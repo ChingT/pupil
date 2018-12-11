@@ -10,7 +10,9 @@ from observable import Observable
 
 logger = logging.getLogger(__name__)
 
-MarkerCandidate = collections.namedtuple("MarkerCandidate", ["id", "bin"])
+NovelMarker = collections.namedtuple(
+    "NovelMarker", ["frame_id", "marker_id", "verts", "bin"]
+)
 
 
 class VisibilityGraphs(Observable):
@@ -19,13 +21,13 @@ class VisibilityGraphs(Observable):
         storage,
         camera_model,
         origin_marker_id=None,
-        select_keyframe_interval=6,
+        select_novel_markers_interval=6,
         min_n_markers_per_frame=2,
         max_n_same_markers_per_bin=1,
         optimization_interval=1,
         min_n_frames_per_marker=2,
     ):
-        assert select_keyframe_interval >= 1
+        assert select_novel_markers_interval >= 1
         assert min_n_markers_per_frame >= 2
         assert max_n_same_markers_per_bin >= 1
         assert optimization_interval >= 1
@@ -34,7 +36,7 @@ class VisibilityGraphs(Observable):
         self.storage = storage
         self.camera_model = camera_model
         self._origin_marker_id = origin_marker_id
-        self._select_keyframe_interval = select_keyframe_interval
+        self._select_novel_markers_interval = select_novel_markers_interval
         self._min_n_markers_per_frame = min_n_markers_per_frame
         self._max_n_same_markers_per_bin = max_n_same_markers_per_bin
         self._optimization_interval = optimization_interval
@@ -45,20 +47,16 @@ class VisibilityGraphs(Observable):
         self._bins_x = np.linspace(0, 1, self._n_bins_x + 1)[1:-1]
         self._bins_y = np.linspace(0, 1, self._n_bins_y + 1)[1:-1]
 
-        self._all_marker_location = {
-            (x, y): {} for x in range(self._n_bins_x) for y in range(self._n_bins_y)
-        }
+        self.current_frame_id = 0
         self._n_frames_passed = 0
-        self._n_new_keyframe_added = 0
+        self._n_new_novel_markers_added = 0
         self.adding_marker_detections = True
         self.visibility_graph = nx.MultiGraph()
 
     def reset(self):
-        self._all_marker_location = {
-            (x, y): {} for x in range(self._n_bins_x) for y in range(self._n_bins_y)
-        }
+        self.current_frame_id = 0
         self._n_frames_passed = 0
-        self._n_new_keyframe_added = 0
+        self._n_new_novel_markers_added = 0
         self.adding_marker_detections = True
         self.visibility_graph = nx.MultiGraph()
 
@@ -67,175 +65,176 @@ class VisibilityGraphs(Observable):
     def on_update_menu(self):
         pass
 
-    def on_keyframe_added(self):
+    def on_novel_markers_added(self):
         pass
 
     def on_ready_for_optimization(self):
         pass
 
-    def add_observer_to_keyframe_added(self):
-        self.add_observer("on_keyframe_added", self._prepare_for_optimization)
+    def add_observer_to_novel_markers_added(self):
+        self.add_observer("on_novel_markers_added", self._prepare_for_optimization)
 
-    def remove_observer_from_keyframe_added(self):
-        self.remove_observer("on_keyframe_added", self._prepare_for_optimization)
+    def remove_observer_from_novel_markers_added(self):
+        self.remove_observer("on_novel_markers_added", self._prepare_for_optimization)
 
-    def add_marker_detections(self, marker_detections):
-        if self._n_frames_passed >= self._select_keyframe_interval:
-            self._n_frames_passed = 0
-            if self.adding_marker_detections:
-                self._select_keyframe(marker_detections)
+    def add_observations(self, marker_detections, camera_extrinsics):
+        self._save_current_camera_extrinsics(camera_extrinsics)
 
+        if self.adding_marker_detections:
+            if self._n_frames_passed >= self._select_novel_markers_interval:
+                self._n_frames_passed = 0
+                self._select_novel_markers(marker_detections)
+
+        self.current_frame_id += 1
         self._n_frames_passed += 1
 
-    def _select_keyframe(self, marker_detections):
-        novel_marker_detections = self._filter_novel_marker_detections(
-            marker_detections
-        )
+    def _save_current_camera_extrinsics(self, camera_extrinsics):
+        if camera_extrinsics is not None:
+            self.storage.camera_extrinsics_opt[
+                self.current_frame_id
+            ] = camera_extrinsics
 
-        if novel_marker_detections:
-            self._n_new_keyframe_added += 1
-            self._add_to_keyframes(novel_marker_detections)
-            self._add_to_visibility_graph(novel_marker_detections)
-            self.on_keyframe_added()
+    def _select_novel_markers(self, marker_detections):
+        novel_markers = self._filter_novel_markers(marker_detections)
 
-    def _filter_novel_marker_detections(self, marker_detections):
-        marker_candidates = self._get_marker_candidates(marker_detections)
-        self._add_to_all_marker_location(marker_candidates)
+        if novel_markers:
+            self._n_new_novel_markers_added += 1
+            self._add_to_all_novel_markers(novel_markers)
+            self.on_novel_markers_added()
 
-        novel_marker_detections = {
-            marker.id: marker_detections[marker.id] for marker in marker_candidates
-        }
-        return novel_marker_detections
-
-    def _get_marker_candidates(self, marker_detections):
+    def _filter_novel_markers(self, marker_detections):
         if len(marker_detections) < self._min_n_markers_per_frame:
             return []
 
-        bins_x, bins_y = self._get_bins(marker_detections)
-        no_need_to_check_bin = bool(marker_detections.keys() - self.storage.marker_keys)
+        novel_marker_candidates = self._get_novel_marker_candidates(marker_detections)
+
         # if there are markers which have not yet been optimized,
         # add all markers in this frame and
         # do not need to check if the corresponding bins are available
-        marker_candidates = [
-            MarkerCandidate(id=marker_id, bin=(x, y))
-            for marker_id, x, y in zip(marker_detections.keys(), bins_x, bins_y)
-            if no_need_to_check_bin or self._check_bin_available(marker_id, (x, y))
-        ]
+        if not bool(
+            marker_detections.keys() - self.storage.marker_extrinsics_opt.keys()
+        ):
+            novel_marker_candidates = self._filter_novel_markers_by_bins_availability(
+                novel_marker_candidates
+            )
 
-        if len(marker_candidates) < self._min_n_markers_per_frame:
+        if len(novel_marker_candidates) < self._min_n_markers_per_frame:
             return []
 
-        return marker_candidates
+        return novel_marker_candidates
+
+    def _get_novel_marker_candidates(self, marker_detections):
+        bins_x, bins_y = self._get_bins(marker_detections)
+        novel_marker_candidates = [
+            NovelMarker(
+                frame_id=self.current_frame_id,
+                marker_id=marker_id,
+                verts=marker_detections[marker_id]["verts"],
+                bin=(x, y),
+            )
+            for marker_id, x, y in zip(marker_detections.keys(), bins_x, bins_y)
+        ]
+        return novel_marker_candidates
 
     def _get_bins(self, marker_detections):
-        all_centroids = np.array(
+        centroids = np.array(
             [marker_detections[k]["centroid"] for k in marker_detections.keys()]
         )
-        bins_x = np.digitize(all_centroids[:, 0], self._bins_x)
-        bins_y = np.digitize(all_centroids[:, 1], self._bins_y)
+        bins_x = np.digitize(centroids[:, 0], self._bins_x)
+        bins_y = np.digitize(centroids[:, 1], self._bins_y)
         return bins_x, bins_y
 
-    def _check_bin_available(self, marker_id, marker_bin):
-        try:
-            count = len(self._all_marker_location[marker_bin][marker_id])
-        except KeyError:
-            return True
-
-        return count < self._max_n_same_markers_per_bin
-
-    def _add_to_all_marker_location(self, marker_candidates):
-        for marker in marker_candidates:
-            try:
-                self._all_marker_location[marker.bin][marker.id].append(
-                    self.storage.frame_id
-                )
-            except KeyError:
-                self._all_marker_location[marker.bin][marker.id] = [
-                    self.storage.frame_id
+    def _filter_novel_markers_by_bins_availability(self, novel_marker_candidates):
+        novel_markers = []
+        for candidate in novel_marker_candidates:
+            n_same_markers_in_bin = len(
+                [
+                    marker
+                    for marker in self.storage.all_novel_markers
+                    if marker.marker_id == candidate.marker_id
+                    and marker.bin == candidate.bin
                 ]
-
-    def _add_to_keyframes(self, novel_marker_detections):
-        self.storage.keyframes[self.storage.frame_id] = novel_marker_detections
-        logger.debug(
-            "--> keyframe {0}; markers {1}".format(
-                self.storage.frame_id, list(novel_marker_detections.keys())
             )
+            if n_same_markers_in_bin < self._max_n_same_markers_per_bin:
+                novel_markers.append(candidate)
+
+        return novel_markers
+
+    def _add_to_all_novel_markers(self, novel_markers):
+        all_markers = [marker.marker_id for marker in novel_markers]
+        logger.debug(
+            "frame {0} novel_markers {1}".format(novel_markers[0].frame_id, all_markers)
         )
+        # the node of visibility_graph: marker_id;
+        # the edge of visibility_graph: current_frame_id
+        for u, v in list(it.combinations(all_markers, 2)):
+            self.visibility_graph.add_edge(u, v, key=self.current_frame_id)
 
-    def _add_to_visibility_graph(self, novel_marker_detections):
-        """
-        the node of visibility_graph: marker id; attributes: the keyframe id
-        the edge of visibility_graph: keyframe id, where two markers shown in the same frame
-        """
-
-        # add frame_id as edges in the graph
-        for u, v in list(it.combinations(novel_marker_detections.keys(), 2)):
-            self.visibility_graph.add_edge(u, v, key=self.storage.frame_id)
-
-        # add frame_id as an attribute of the node
-        for marker_id in novel_marker_detections.keys():
-            self.visibility_graph.nodes[marker_id][self.storage.frame_id] = []
+        self.storage.all_novel_markers += novel_markers
 
     def _prepare_for_optimization(self):
-        # Do optimization when there are some new keyframes selected
-        if self._n_new_keyframe_added >= self._optimization_interval:
-            self._n_new_keyframe_added = 0
+        # Do optimization when there are some new novel_markers selected
+        if self._n_new_novel_markers_added >= self._optimization_interval:
+            self._n_new_novel_markers_added = 0
 
-            self._update_marker_keys()
-            self._update_camera_keys()
+            self._update_markers_id()
+            self._update_frames_id()
             self.on_ready_for_optimization()
 
-    def _update_marker_keys(self):
-        candidate_nodes = self._filter_candidate_nodes()
-        for node in candidate_nodes:
-            if node not in self.storage.marker_keys:
-                self.storage.marker_keys.append(node)
+    def _update_markers_id(self):
+        marker_id_candidates = self._filter_markers_id_by_visibility_graph()
 
-        logger.debug("marker_keys updated {}".format(self.storage.marker_keys))
+        try:
+            markers_id = [self.storage.markers_id[0]] + [
+                marker_id
+                for marker_id in marker_id_candidates
+                if marker_id != self.storage.markers_id[0]
+            ]
+        except IndexError:
+            return
 
-    def _update_camera_keys(self):
-        for f_id, frame in self.storage.keyframes.items():
-            if (
-                f_id not in self.storage.camera_keys
-                and len(frame.keys() & self.storage.marker_keys)
-                >= self._min_n_markers_per_frame
-            ):
-                self.storage.camera_keys.append(f_id)
+        self.storage.markers_id = markers_id
+        logger.debug("markers_id updated {}".format(self.storage.markers_id))
 
-        logger.debug("camera_keys updated {}".format(sorted(self.storage.camera_keys)))
-
-    def _filter_candidate_nodes(self):
-        nodes_enough_viewed = set(
+    def _filter_markers_id_by_visibility_graph(self):
+        markers_enough_viewed = set(
             node
             for node in self.visibility_graph.nodes
-            if len(self.visibility_graph.nodes[node]) >= self._min_n_frames_per_marker
+            if len(
+                [
+                    marker
+                    for marker in self.storage.all_novel_markers
+                    if marker.marker_id == node
+                ]
+            )
+            >= self._min_n_frames_per_marker
         )
         try:
-            nodes_connected_to_first_node = set(
+            markers_connected_to_first_marker = set(
                 nx.node_connected_component(
-                    self.visibility_graph, self.storage.marker_keys[0]
+                    self.visibility_graph, self.storage.markers_id[0]
                 )
             )
         except IndexError:
-            # when self.storage.marker_keys == []
-            self._set_coordinate_system(nodes_enough_viewed)
+            # when self.storage.markers_id == []
+            self._set_coordinate_system(markers_enough_viewed)
             return set()
         except KeyError:
-            # self.storage.marker_keys[0] not in visibility_graph
+            # self.storage.markers_id[0] not in visibility_graph
             return set()
         else:
-            return nodes_enough_viewed & nodes_connected_to_first_node
+            return markers_enough_viewed & markers_connected_to_first_marker
 
-    def _set_coordinate_system(self, nodes_enough_viewed):
+    def _set_coordinate_system(self, markers_enough_viewed):
         if self._origin_marker_id:
             origin_marker_id = self._origin_marker_id
         else:
             try:
-                origin_marker_id = list(nodes_enough_viewed)[0]
+                origin_marker_id = list(markers_enough_viewed)[0]
             except IndexError:
                 return
 
-        self.storage.marker_keys = [origin_marker_id]
+        self.storage.markers_id = [origin_marker_id]
         self.storage.marker_extrinsics_opt = {
             origin_marker_id: utils.marker_extrinsics_origin
         }
@@ -243,12 +242,80 @@ class VisibilityGraphs(Observable):
 
         self.on_update_menu()
 
+    def _update_frames_id(self):
+        frames_id = []
+        frame_id_candidates = set(
+            marker_candidate.frame_id
+            for marker_candidate in self.storage.all_novel_markers
+        )
+
+        for frame_id in frame_id_candidates:
+            optimized_markers_in_frame = set(
+                marker.marker_id
+                for marker in self.storage.all_novel_markers
+                if marker.frame_id == frame_id
+                and marker.marker_id in self.storage.markers_id
+            )
+            if len(optimized_markers_in_frame) >= self._min_n_markers_per_frame:
+                frames_id.append(frame_id)
+
+        self.storage.frames_id = sorted(frames_id)
+        logger.debug("frames_id updated {}".format(self.storage.frames_id))
+
+    def process_optimization_results(self, optimization_result):
+        """ process the results of optimization; update camera_extrinsics_opt,
+        marker_extrinsics_opt and marker_points_3d_opt """
+
+        if optimization_result:
+            self._update_extrinsics_opt(optimization_result)
+            self.discard_failed_frames(optimization_result)
+        self.add_observer_to_novel_markers_added()
+
+    def _update_extrinsics_opt(self, optimization_result):
+        for i, p in enumerate(optimization_result.camera_extrinsics_opt):
+            self.storage.camera_extrinsics_opt[self.storage.frames_id[i]] = p
+
+        for i, p in enumerate(optimization_result.marker_extrinsics_opt):
+            if i not in optimization_result.marker_indices_failed:
+                self.storage.marker_extrinsics_opt[self.storage.markers_id[i]] = p
+                self.storage.marker_points_3d_opt[
+                    self.storage.markers_id[i]
+                ] = utils.params_to_points_3d(p)[0]
+
+        logger.info(
+            "{0} markers have been registered and updated {1} {2}".format(
+                len(self.storage.marker_extrinsics_opt),
+                len(optimization_result.marker_indices_failed),
+                len(optimization_result.marker_extrinsics_opt),
+            )
+        )
+
+    def discard_failed_frames(self, optimization_result):
+        frames_id_failed = list(
+            self.storage.frames_id[i] for i in optimization_result.frame_indices_failed
+        )
+        logger.debug("discard_failed_frames {0}".format(frames_id_failed))
+
+        if frames_id_failed:
+            redundant_edges = [
+                (node, neighbor, frame_id)
+                for node, neighbor, frame_id in self.visibility_graph.edges(keys=True)
+                if frame_id in frames_id_failed
+            ]
+            self.visibility_graph.remove_edges_from(redundant_edges)
+
+            self.storage.all_novel_markers = [
+                marker
+                for marker in self.storage.all_novel_markers
+                if marker.frame_id not in frames_id_failed
+            ]
+
     # For debug TODO: remove save_graph()
     def save_graph(self, save_path):
         import matplotlib.pyplot as plt
         import os
 
-        if self.visibility_graph and self.storage.marker_keys:
+        if self.visibility_graph and self.storage.markers_id:
             graph_vis = self.visibility_graph.copy()
             all_nodes = list(graph_vis.nodes)
 
@@ -261,7 +328,7 @@ class VisibilityGraphs(Observable):
             nx.draw_networkx_nodes(
                 graph_vis,
                 pos,
-                nodelist=self.storage.marker_keys,
+                nodelist=self.storage.markers_id,
                 node_color="r",
                 node_size=100,
             )
@@ -271,8 +338,8 @@ class VisibilityGraphs(Observable):
             labels = dict(
                 (
                     n,
-                    self.storage.marker_keys.index(n)
-                    if n in self.storage.marker_keys
+                    self.storage.markers_id.index(n)
+                    if n in self.storage.markers_id
                     else None,
                 )
                 for n in graph_vis.nodes()
@@ -285,7 +352,7 @@ class VisibilityGraphs(Observable):
             save_name = os.path.join(
                 save_path,
                 "visibility_graph-{0}-{1}.png".format(
-                    len(self.visibility_graph), len(self.storage.marker_keys)
+                    len(self.visibility_graph), len(self.storage.markers_id)
                 ),
             )
             plt.savefig(save_name)

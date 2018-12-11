@@ -1,5 +1,4 @@
 import collections
-import logging
 
 import numpy as np
 from scipy import misc as scipy_misc
@@ -8,15 +7,13 @@ from scipy import sparse as scipy_sparse
 
 from marker_tracker_3d import utils
 
-logger = logging.getLogger(__name__)
-
 OptimizationResult = collections.namedtuple(
     "OptimizationResult",
     [
         "camera_extrinsics_opt",
         "marker_extrinsics_opt",
-        "camera_keys_failed",
-        "marker_keys_failed",
+        "frame_indices_failed",
+        "marker_indices_failed",
     ],
 )
 
@@ -25,12 +22,12 @@ class BundleAdjustment:
     def __init__(self, camera_model):
         self.camera_model = camera_model
 
-        self.tol = 1e-5
+        self.tol = 1e-4
         self.diff_step = 1e-3
 
     def run(
         self,
-        camera_indices,
+        frame_indices,
         marker_indices,
         markers_points_2d_detected,
         camera_extrinsics_init,
@@ -42,7 +39,7 @@ class BundleAdjustment:
             return
 
         self._update_data(
-            camera_indices,
+            frame_indices,
             marker_indices,
             markers_points_2d_detected,
             camera_extrinsics_init,
@@ -59,13 +56,13 @@ class BundleAdjustment:
 
     def _update_data(
         self,
-        camera_indices,
+        frame_indices,
         marker_indices,
         markers_points_2d_detected,
         camera_extrinsics_init,
         marker_extrinsics_init,
     ):
-        self.camera_indices = camera_indices
+        self.frame_indices = frame_indices
         self.marker_indices = marker_indices
         self.markers_points_2d_detected = markers_points_2d_detected
 
@@ -116,10 +113,10 @@ class BundleAdjustment:
         n_variables = camera_extrinsics.size + marker_extrinsics.size
         """
 
-        n_samples = len(self.camera_indices)
+        n_samples = len(self.frame_indices)
 
         mat_camera = np.zeros((n_samples, self.camera_extrinsics_shape[0]), dtype=int)
-        mat_camera[np.arange(n_samples), self.camera_indices] = 1
+        mat_camera[np.arange(n_samples), self.frame_indices] = 1
         mat_camera = scipy_misc.imresize(
             mat_camera,
             size=(
@@ -144,7 +141,6 @@ class BundleAdjustment:
         sparsity_matrix = scipy_sparse.lil_matrix(sparsity_matrix)
         return sparsity_matrix
 
-    @utils.timer
     def _least_squares(self, bounds, initial_guess, sparsity_matrix):
         result = scipy_optimize.least_squares(
             fun=self._fun_compute_residuals,
@@ -165,13 +161,15 @@ class BundleAdjustment:
             result.x
         )
 
-        camera_keys_failed, marker_keys_failed = self._find_failed_keys(result.fun)
+        frame_indices_failed, marker_indices_failed = self._find_failed_indices(
+            result.fun
+        )
 
         optimization_result = OptimizationResult(
             camera_extrinsics_opt=camera_extrinsics_opt,
             marker_extrinsics_opt=marker_extrinsics_opt,
-            camera_keys_failed=camera_keys_failed,
-            marker_keys_failed=marker_keys_failed,
+            frame_indices_failed=frame_indices_failed,
+            marker_indices_failed=marker_indices_failed,
         )
         return optimization_result
 
@@ -207,18 +205,18 @@ class BundleAdjustment:
         markers_points_2d_projected = [
             self.camera_model.projectPoints(points, cam[0:3], cam[3:6])
             for cam, points in zip(
-                camera_extrinsics[self.camera_indices],
+                camera_extrinsics[self.frame_indices],
                 markers_points_3d[self.marker_indices],
             )
         ]
         markers_points_2d_projected = np.array(markers_points_2d_projected)
         return markers_points_2d_projected
 
-    def _find_failed_keys(self, residuals, thres=6):
-        """ find out those camera_keys and marker_keys which causes large reprojection errors """
+    def _find_failed_indices(self, residuals, thres=20):
+        """ find out those frames_id and markers_id which causes large reprojection errors """
 
         residuals.shape = -1, 4, 2
         reprojection_errors = np.linalg.norm(residuals, axis=2).sum(axis=1)
-        camera_keys_failed = set(self.camera_indices[reprojection_errors > thres])
-        marker_keys_failed = set(self.marker_indices[reprojection_errors > thres])
-        return camera_keys_failed, marker_keys_failed
+        frame_indices_failed = set(self.frame_indices[reprojection_errors > thres])
+        marker_indices_failed = set(self.marker_indices[reprojection_errors > thres])
+        return frame_indices_failed, marker_indices_failed

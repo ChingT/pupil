@@ -38,6 +38,7 @@ def to_camera_coordinate(pts_3d_world, rvec, tvec):
 
 
 def check_camera_extrinsics(pts_3d_world, rvec, tvec):
+    assert rvec.size == 3 and tvec.size == 3
     if (np.abs(rvec) > np.pi * 2).any():
         return False
 
@@ -70,7 +71,11 @@ def get_camera_trace(camera_pose_matrix):
 
 def get_camera_trace_from_camera_extrinsics(camera_extrinsics):
     rvec, tvec = split_param(camera_extrinsics)
-    return cv2.Rodrigues(rvec)[0].T @ tvec
+    return -cv2.Rodrigues(rvec)[0].T @ tvec
+
+
+def compute_camera_trace_distance(previous_camera_trace, current_camera_trace):
+    return np.linalg.norm(current_camera_trace - previous_camera_trace)
 
 
 def params_to_points_3d(params):

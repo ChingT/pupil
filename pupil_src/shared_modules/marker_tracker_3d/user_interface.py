@@ -49,6 +49,7 @@ class UserInterface:
             self.close_window()
 
         self.scale = 1.0
+        self.max_camera_traces_len = 150
 
     def init_ui(self):
         self.marker_tracker_3d.add_menu()
@@ -170,9 +171,11 @@ class UserInterface:
                 gl.glPopMatrix()
 
             # Draw camera trace
-            if self.marker_tracker_3d.controller.storage.recent_camera_traces:
+            if self.marker_tracker_3d.controller.storage.all_camera_traces:
                 self.draw_camera_trace(
-                    self.marker_tracker_3d.controller.storage.recent_camera_traces
+                    self.marker_tracker_3d.controller.storage.all_camera_traces[
+                        -self.max_camera_traces_len :
+                    ]
                 )
 
             # Draw the camera frustum and origin

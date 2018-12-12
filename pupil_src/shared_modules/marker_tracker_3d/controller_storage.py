@@ -4,10 +4,14 @@ import numpy as np
 
 from marker_tracker_3d import utils
 
+logger = logging.getLogger(__name__)
+
 
 class ControllerStorage:
-    def __init__(self):
-        # For drawing in UI window; no need to be exported
+    def __init__(self, save_path):
+        self.save_path = save_path
+
+        # For drawing in UI window
         self.marker_detections = {}
         self.camera_pose_matrix = None
         self.all_camera_traces = []
@@ -18,6 +22,10 @@ class ControllerStorage:
         self.camera_pose_matrix = None
         self.all_camera_traces = []
         self.camera_extrinsics = None
+
+    def export_data(self):
+        utils.save_array(self.save_path, "all_camera_traces", self.all_camera_traces)
+        logger.info("camera trace has been exported to {}".format(self.save_path))
 
     @property
     def camera_extrinsics(self):

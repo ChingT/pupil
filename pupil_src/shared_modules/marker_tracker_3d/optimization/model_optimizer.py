@@ -5,12 +5,12 @@ from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 
 
 class ModelOptimizer:
-    def __init__(self, marker_tracker_3d, camera_model):
+    def __init__(self, marker_tracker_3d, camera_model, save_path):
         self.marker_tracker_3d = marker_tracker_3d
 
         self.camera_model = camera_model
 
-        self.storage = ModelOptimizerStorage()
+        self.storage = ModelOptimizerStorage(save_path=save_path)
 
         self.bg_task = None
 

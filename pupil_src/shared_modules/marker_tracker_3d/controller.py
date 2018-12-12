@@ -1,5 +1,7 @@
 import logging
+import os
 
+from marker_tracker_3d import utils
 from marker_tracker_3d.camera_localizer import CameraLocalizer
 from marker_tracker_3d.controller_storage import ControllerStorage
 from marker_tracker_3d.marker_detector import MarkerDetector
@@ -11,13 +13,19 @@ logger = logging.getLogger(__name__)
 class Controller:
     def __init__(self, marker_tracker_3d, camera_model, min_marker_perimeter):
         self.marker_tracker_3d = marker_tracker_3d
-        self.storage = ControllerStorage()
-
-        self.marker_detector = MarkerDetector(min_marker_perimeter)
-        self.model_optimizer = ModelOptimizer(self.marker_tracker_3d, camera_model)
-        self.camera_localizer = CameraLocalizer(camera_model)
-
         self.marker_tracker_3d.add_observer("recent_events", self.update)
+
+        root = os.path.join(
+            self.marker_tracker_3d.g_pool.user_dir, "plugins", "marker_tracker_3d"
+        )
+        self.save_path = utils.get_save_path(root)
+
+        self.storage = ControllerStorage(save_path=root)
+        self.marker_detector = MarkerDetector(min_marker_perimeter)
+        self.model_optimizer = ModelOptimizer(
+            self.marker_tracker_3d, camera_model, save_path=self.save_path
+        )
+        self.camera_localizer = CameraLocalizer(camera_model)
 
     def update(self, events):
         frame = events.get("frame")
@@ -43,11 +51,4 @@ class Controller:
 
     def on_export_data(self):
         self.model_optimizer.storage.export_data()
-        self.model_optimizer.visibility_graphs.save_graph(
-            self.model_optimizer.storage.save_path
-        )
-        logger.info(
-            "data has been exported in {}".format(
-                self.model_optimizer.storage.save_path
-            )
-        )
+        self.storage.export_data()

@@ -280,11 +280,9 @@ class VisibilityGraphs(Observable):
                     self.storage.markers_id[i]
                 ] = utils.params_to_points_3d(p)[0]
 
-        logger.info(
-            "{0} markers have been registered and updated {1} {2}".format(
-                len(self.storage.marker_extrinsics_opt),
-                len(optimization_result.marker_indices_failed),
-                len(optimization_result.marker_extrinsics_opt),
+        logger.debug(
+            "{} markers have been registered and updated".format(
+                len(self.storage.marker_extrinsics_opt)
             )
         )
 
@@ -307,51 +305,3 @@ class VisibilityGraphs(Observable):
                 for marker in self.storage.all_novel_markers
                 if marker.frame_id not in frames_id_failed
             ]
-
-    # For debug TODO: remove save_graph()
-    def save_graph(self, save_path):
-        import matplotlib.pyplot as plt
-        import os
-
-        if self.visibility_graph and self.storage.markers_id:
-            graph_vis = self.visibility_graph.copy()
-            all_nodes = list(graph_vis.nodes)
-
-            pos = nx.spring_layout(graph_vis, seed=0)  # positions for all nodes
-            pos_label = dict((n, pos[n] + 0.05) for n in pos)
-
-            nx.draw_networkx_nodes(
-                graph_vis, pos, nodelist=all_nodes, node_color="g", node_size=100
-            )
-            nx.draw_networkx_nodes(
-                graph_vis,
-                pos,
-                nodelist=self.storage.markers_id,
-                node_color="r",
-                node_size=100,
-            )
-            nx.draw_networkx_edges(graph_vis, pos, width=1, alpha=0.1)
-            nx.draw_networkx_labels(graph_vis, pos, font_size=7)
-
-            labels = dict(
-                (
-                    n,
-                    self.storage.markers_id.index(n)
-                    if n in self.storage.markers_id
-                    else None,
-                )
-                for n in graph_vis.nodes()
-            )
-            nx.draw_networkx_labels(
-                graph_vis, pos=pos_label, labels=labels, font_size=6, font_color="b"
-            )
-
-            plt.axis("off")
-            save_name = os.path.join(
-                save_path,
-                "visibility_graph-{0}-{1}.png".format(
-                    len(self.visibility_graph), len(self.storage.markers_id)
-                ),
-            )
-            plt.savefig(save_name)
-            plt.clf()

@@ -18,6 +18,7 @@ DataForOptimization = collections.namedtuple(
 )
 
 
+@utils.timer
 def optimization_routine(camera_model, storage):
     data = _collect_data_for_optimization(storage)
     if not data:

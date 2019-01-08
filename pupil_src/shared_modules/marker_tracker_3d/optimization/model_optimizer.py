@@ -1,5 +1,5 @@
 import tasklib
-from marker_tracker_3d.optimization.model_optimizer_storage import ModelOptimizerStorage
+from marker_tracker_3d.optimization.model_optimizer_storage import ModelState
 from marker_tracker_3d.optimization.optimization_routine import optimization_routine
 from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 
@@ -9,12 +9,12 @@ class ModelOptimizer:
         self.plugin_task_manager = plugin_task_manager
         self.camera_model = camera_model
 
-        self.storage = ModelOptimizerStorage(save_path=save_path)
+        self.model_state = ModelState(save_path=save_path)
 
         self.bg_task = None
 
         self.visibility_graphs = VisibilityGraphs(
-            self.storage, self.camera_model, origin_marker_id=None
+            self.model_state, self.camera_model, origin_marker_id=None
         )
         self.visibility_graphs.add_observer_to_novel_markers_added()
         self.visibility_graphs.add_observer(
@@ -32,7 +32,7 @@ class ModelOptimizer:
         self.bg_task = self.plugin_task_manager.create_background_task(
             name="optimization_routine",
             routine_or_generator_function=optimization_routine,
-            args=(self.camera_model, self.storage),
+            args=(self.camera_model, self.model_state),
         )
         self.bg_task.add_observer(
             "on_completed", self.visibility_graphs.process_optimization_results
@@ -48,5 +48,6 @@ class ModelOptimizer:
             if self.bg_task.running:
                 self.bg_task.kill(grace_period=None)
             self.bg_task = None
-        self.storage.reset()
+
+        self.model_state.reset()
         self.visibility_graphs.reset()

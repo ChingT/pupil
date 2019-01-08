@@ -111,7 +111,9 @@ class UserInterface:
     def _get_text_for_origin_marker(self):
         try:
             text = "The marker with id {} is defined as the origin of the coordinate system".format(
-                self.marker_tracker_3d.controller.model_optimizer.storage.markers_id[0]
+                self.marker_tracker_3d.controller.model_optimizer.model_state.markers_id[
+                    0
+                ]
             )
             logger.info(text)
         except IndexError:
@@ -157,7 +159,7 @@ class UserInterface:
                 idx,
                 verts,
             ) in (
-                self.marker_tracker_3d.controller.model_optimizer.storage.marker_points_3d_opt.items()
+                self.marker_tracker_3d.controller.model_optimizer.model_state.marker_points_3d_opt.items()
             ):
                 if (
                     idx

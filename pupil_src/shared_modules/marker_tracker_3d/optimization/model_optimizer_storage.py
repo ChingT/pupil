@@ -5,7 +5,7 @@ from marker_tracker_3d import utils
 logger = logging.getLogger(__name__)
 
 
-class ModelOptimizerStorage:
+class ModelState:
     def __init__(self, save_path):
         self.save_path = save_path
 

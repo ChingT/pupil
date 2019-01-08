@@ -38,7 +38,7 @@ class Controller:
 
         self.storage.camera_extrinsics = self.camera_localizer.get_camera_extrinsics(
             self.storage.marker_detections,
-            self.model_optimizer.storage.marker_extrinsics_opt,
+            self.model_optimizer.model_state.marker_extrinsics_opt,
         )
 
         self.model_optimizer.add_observations(
@@ -52,5 +52,5 @@ class Controller:
         logger.info("Restart!")
 
     def on_export_data(self):
-        self.model_optimizer.storage.export_data()
+        self.model_optimizer.model_state.export_data()
         self.storage.export_data()

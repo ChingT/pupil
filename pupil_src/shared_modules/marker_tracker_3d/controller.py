@@ -23,7 +23,9 @@ class Controller:
         self.storage = ControllerStorage(save_path=root)
         self.marker_detector = MarkerDetector(min_marker_perimeter)
         self.model_optimizer = ModelOptimizer(
-            self.marker_tracker_3d, camera_model, save_path=self.save_path
+            self.marker_tracker_3d.plugin_task_manager,
+            camera_model,
+            save_path=self.save_path,
         )
         self.camera_localizer = CameraLocalizer(camera_model)
 

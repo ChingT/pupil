@@ -5,9 +5,8 @@ from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 
 
 class ModelOptimizer:
-    def __init__(self, marker_tracker_3d, camera_model, save_path):
-        self.marker_tracker_3d = marker_tracker_3d
-
+    def __init__(self, plugin_task_manager, camera_model, save_path):
+        self.plugin_task_manager = plugin_task_manager
         self.camera_model = camera_model
 
         self.storage = ModelOptimizerStorage(save_path=save_path)
@@ -30,7 +29,7 @@ class ModelOptimizer:
 
         self.visibility_graphs.remove_observer_from_novel_markers_added()
 
-        self.bg_task = self.marker_tracker_3d.task_manager.create_background_task(
+        self.bg_task = self.plugin_task_manager.create_background_task(
             name="optimization_routine",
             routine_or_generator_function=optimization_routine,
             args=(self.camera_model, self.storage),

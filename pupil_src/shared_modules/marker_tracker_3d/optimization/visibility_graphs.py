@@ -52,28 +52,23 @@ class VisibilityGraphs(Observable):
         self.adding_marker_detections = True
         self.visibility_graph = nx.MultiGraph()
 
+        self.optimization_requested = True
+
     def reset(self):
         self._n_frames_passed = 0
         self._n_new_novel_markers_added = 0
         self.adding_marker_detections = True
         self.visibility_graph = nx.MultiGraph()
 
+        self.optimization_requested = True
+
         self.on_update_menu()
 
     def on_update_menu(self):
         pass
 
-    def on_novel_markers_added(self):
-        pass
-
     def on_ready_for_optimization(self):
         pass
-
-    def add_observer_to_novel_markers_added(self):
-        self.add_observer("on_novel_markers_added", self._prepare_for_optimization)
-
-    def remove_observer_from_novel_markers_added(self):
-        self.remove_observer("on_novel_markers_added", self._prepare_for_optimization)
 
     def add_observations(self, marker_detections, camera_extrinsics):
         self._save_current_camera_extrinsics(camera_extrinsics)
@@ -96,9 +91,10 @@ class VisibilityGraphs(Observable):
         novel_markers = self._filter_novel_markers(marker_detections)
 
         if novel_markers:
-            self._n_new_novel_markers_added += 1
             self._add_to_all_novel_markers(novel_markers)
-            self.on_novel_markers_added()
+            self._n_new_novel_markers_added += 1
+
+            self._prepare_for_optimization()
 
     def _filter_novel_markers(self, marker_detections):
         if len(marker_detections) < self._min_n_markers_per_frame:
@@ -172,11 +168,16 @@ class VisibilityGraphs(Observable):
 
     def _prepare_for_optimization(self):
         # Do optimization when there are some new novel_markers selected
-        if self._n_new_novel_markers_added >= self._optimization_interval:
+        if (
+            self.optimization_requested
+            and self._n_new_novel_markers_added >= self._optimization_interval
+        ):
+            self.optimization_requested = False
             self._n_new_novel_markers_added = 0
 
             self._update_markers_id()
             self._update_frames_id()
+
             self.on_ready_for_optimization()
 
     def _update_markers_id(self):
@@ -267,7 +268,7 @@ class VisibilityGraphs(Observable):
         if optimization_result:
             self._update_extrinsics_opt(optimization_result)
             self.discard_failed_frames(optimization_result)
-        self.add_observer_to_novel_markers_added()
+        self.optimization_requested = True
 
     def _update_extrinsics_opt(self, optimization_result):
         for i, p in enumerate(optimization_result.camera_extrinsics_opt):

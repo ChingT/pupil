@@ -16,7 +16,6 @@ class ModelOptimizer:
         self.visibility_graphs = VisibilityGraphs(
             self.model_state, self.camera_model, origin_marker_id=None
         )
-        self.visibility_graphs.add_observer_to_novel_markers_added()
         self.visibility_graphs.add_observer(
             "on_ready_for_optimization", self._run_optimization
         )
@@ -27,8 +26,6 @@ class ModelOptimizer:
     def _run_optimization(self):
         assert not self.bg_task or not self.bg_task.running
 
-        self.visibility_graphs.remove_observer_from_novel_markers_added()
-
         self.bg_task = self.plugin_task_manager.create_background_task(
             name="optimization_routine",
             routine_or_generator_function=optimization_routine,
@@ -36,10 +33,6 @@ class ModelOptimizer:
         )
         self.bg_task.add_observer(
             "on_completed", self.visibility_graphs.process_optimization_results
-        )
-        self.bg_task.add_observer(
-            "on_canceled_or_killed",
-            self.visibility_graphs.add_observer_to_novel_markers_added,
         )
         self.bg_task.add_observer("on_exception", tasklib.raise_exception)
 

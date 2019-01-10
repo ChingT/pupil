@@ -1,12 +1,10 @@
 import functools
 import logging
-import os
 import time
 
 import cv2
 import numpy as np
 
-import recorder
 from marker_tracker_3d import math
 
 logger = logging.getLogger(__name__)
@@ -108,27 +106,6 @@ marker_df_h = cv2.convertPointsToHomogeneous(marker_df).reshape(4, 4)
 marker_extrinsics_origin = point_3d_to_param(marker_df)
 
 
-def save_array(path, file_name, data):
-    try:
-        np.save(os.path.join(path, file_name), data)
-    except FileNotFoundError:
-        os.makedirs(path)
-        np.save(os.path.join(path, file_name), data)
-
-
-def save_dict_to_pkl(path, file_name, data):
-    import pickle
-
-    try:
-        f = open(os.path.join(path, file_name), "wb")
-    except FileNotFoundError:
-        os.makedirs(path)
-        f = open(os.path.join(path, file_name), "wb")
-
-    pickle.dump(data, f)
-    f.close()
-
-
 def timer(func):
     @functools.wraps(func)
     def wrapper_timer(*args, **kwargs):
@@ -146,15 +123,3 @@ def timer(func):
         return value
 
     return wrapper_timer
-
-
-def get_save_path(root):
-    now = recorder.get_auto_name()
-    counter = 0
-    while True:
-        save_path = os.path.join(root, now, "{:03d}".format(counter))
-        if os.path.exists(save_path):
-            counter += 1
-        else:
-            break
-    return save_path

@@ -97,15 +97,19 @@ class UserInterface:
         text = self._get_text_for_origin_marker()
         self.menu.append(ui.Info_Text(text))
 
-        self.menu.append(
-            ui.Button(
-                "restart markers registration",
-                self.marker_tracker_3d.controller.on_restart,
-            )
-        )
+        self.menu.append(ui.Button("reset", self.marker_tracker_3d.controller.on_reset))
 
         self.menu.append(
-            ui.Button("export data", self.marker_tracker_3d.controller.on_export_data)
+            ui.Button(
+                "export marker tracker 3d model",
+                self.marker_tracker_3d.controller.on_export_marker_tracker_3d_model,
+            )
+        )
+        self.menu.append(
+            ui.Button(
+                "export camera traces",
+                self.marker_tracker_3d.controller.on_export_camera_traces,
+            )
         )
 
     def _get_text_for_origin_marker(self):
@@ -121,7 +125,11 @@ class UserInterface:
         return text
 
     def gl_display(self):
-        for m in self.marker_tracker_3d.controller.storage.marker_detections.values():
+        for (
+            m
+        ) in (
+            self.marker_tracker_3d.controller.storage.current_marker_detections.values()
+        ):
             hat = np.array(
                 [[[0, 0], [0, 1], [0.5, 1.3], [1, 1], [1, 0], [0, 0]]], dtype=np.float32
             )
@@ -163,7 +171,7 @@ class UserInterface:
             ):
                 if (
                     idx
-                    in self.marker_tracker_3d.controller.storage.marker_detections.keys()
+                    in self.marker_tracker_3d.controller.storage.current_marker_detections.keys()
                 ):
                     color = (1, 0, 0, 0.8)
                 else:
@@ -181,10 +189,13 @@ class UserInterface:
                 )
 
             # Draw the camera frustum and origin
-            if self.marker_tracker_3d.controller.storage.camera_pose_matrix is not None:
+            if (
+                self.marker_tracker_3d.controller.storage.current_camera_pose_matrix
+                is not None
+            ):
                 gl.glPushMatrix()
                 gl.glMultMatrixf(
-                    self.marker_tracker_3d.controller.storage.camera_pose_matrix.T.flatten()
+                    self.marker_tracker_3d.controller.storage.current_camera_pose_matrix.T.flatten()
                 )
                 self.draw_frustum(self.intrinsics.resolution, self.intrinsics.K, 500)
                 gl.glLineWidth(1)

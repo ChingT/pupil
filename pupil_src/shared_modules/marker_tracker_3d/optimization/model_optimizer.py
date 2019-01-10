@@ -1,5 +1,5 @@
 import tasklib
-from marker_tracker_3d.optimization.model_optimizer_storage import ModelState
+from marker_tracker_3d.optimization.model_state import ModelState
 from marker_tracker_3d.optimization.optimization_routine import optimization_routine
 from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 
@@ -36,7 +36,7 @@ class ModelOptimizer:
         )
         self.bg_task.add_observer("on_exception", tasklib.raise_exception)
 
-    def restart(self):
+    def reset(self):
         if self.bg_task:
             if self.bg_task.running:
                 self.bg_task.kill(grace_period=None)

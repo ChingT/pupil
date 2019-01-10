@@ -1,4 +1,5 @@
 import logging
+import os
 
 import numpy as np
 
@@ -12,35 +13,46 @@ class ControllerStorage:
         self.save_path = save_path
 
         # For drawing in UI window
-        self.marker_detections = {}
-        self.camera_pose_matrix = None
+        self.current_marker_detections = {}
+        self.current_camera_pose_matrix = None
+        self.current_camera_extrinsics = None
         self.all_camera_traces = []
-        self.camera_extrinsics = None
 
     def reset(self):
-        self.marker_detections = {}
-        self.camera_pose_matrix = None
+        self.current_marker_detections = {}
+        self.current_camera_pose_matrix = None
+        self.current_camera_extrinsics = None
         self.all_camera_traces = []
-        self.camera_extrinsics = None
 
-    def export_data(self):
-        utils.save_array(self.save_path, "all_camera_traces", self.all_camera_traces)
-        logger.info("camera trace has been exported to {}".format(self.save_path))
+    def export_camera_traces(self):
+        np.save(
+            os.path.join(self.save_path, "all_camera_traces"), self.all_camera_traces
+        )
+
+        logger.info(
+            "camera trace from {0} frames has been exported to {1}".format(
+                len(self.all_camera_traces),
+                os.path.join(self.save_path, "all_camera_traces"),
+            )
+        )
 
     @property
-    def camera_extrinsics(self):
+    def current_camera_extrinsics(self):
         return self.__camera_extrinsics
 
-    @camera_extrinsics.setter
-    def camera_extrinsics(self, camera_extrinsics_new):
+    @current_camera_extrinsics.setter
+    def current_camera_extrinsics(self, camera_extrinsics_new):
         self.__camera_extrinsics = camera_extrinsics_new
         if camera_extrinsics_new is not None:
-            self.camera_pose_matrix = utils.get_camera_pose_matrix(
+            self.current_camera_pose_matrix = utils.get_camera_pose_matrix(
                 camera_extrinsics_new
             )
             self.all_camera_traces.append(
-                utils.get_camera_trace(self.camera_pose_matrix)
+                utils.get_camera_trace(self.current_camera_pose_matrix)
             )
         else:
-            self.camera_pose_matrix = None
-            self.all_camera_traces.append(np.full((3,), np.nan))
+            self.current_camera_pose_matrix = None
+            try:
+                self.all_camera_traces.append(np.full((3,), np.nan))
+            except AttributeError:
+                return

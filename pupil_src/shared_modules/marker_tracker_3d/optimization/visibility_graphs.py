@@ -276,7 +276,9 @@ class VisibilityGraphs(Observable):
 
         for i, p in enumerate(optimization_result.marker_extrinsics_opt):
             if i not in optimization_result.marker_indices_failed:
-                self.model_state.marker_extrinsics_opt[self.model_state.markers_id[i]] = p
+                self.model_state.marker_extrinsics_opt[
+                    self.model_state.markers_id[i]
+                ] = p
                 self.model_state.marker_points_3d_opt[
                     self.model_state.markers_id[i]
                 ] = utils.params_to_points_3d(p)[0]
@@ -289,7 +291,8 @@ class VisibilityGraphs(Observable):
 
     def discard_failed_frames(self, optimization_result):
         frames_id_failed = list(
-            self.model_state.frames_id[i] for i in optimization_result.frame_indices_failed
+            self.model_state.frames_id[i]
+            for i in optimization_result.frame_indices_failed
         )
         logger.debug("discard_failed_frames {0}".format(frames_id_failed))
 

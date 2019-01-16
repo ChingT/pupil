@@ -1,30 +1,6 @@
 import numpy as np
 
 
-def closest_angle_diff(vec_1, vec_2):
-    vec_1 = np.array(vec_1).reshape(-1, 3)
-    vec_2 = np.array(vec_2).reshape(-1, 3)
-    diff = angle_between(vec_1, vec_2)
-    diff_min = np.min(diff)
-
-    return diff_min
-
-
-def angle_between(v1, v2):
-    """
-    Returns the angle in radians between vectors 'v1' and 'v2'
-    Source: https://stackoverflow.com/questions/2827393/
-    """
-    v1_u = unit_vector(v1)
-    v2_u = unit_vector(v2)
-    return np.arccos(np.clip(np.dot(v1_u, v2_u.T), -1.0, 1.0))
-
-
-def unit_vector(vector):
-    """ Returns the unit vector of the vector. """
-    return vector / np.linalg.norm(vector, axis=1)[:, np.newaxis]
-
-
 def svdt(A, B, order="row"):
     """Calculates the transformation between two coordinate systems using SVD.
     This function determines the rotation matrix (R) and the translation vector

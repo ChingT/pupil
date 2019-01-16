@@ -3,8 +3,8 @@ import collections
 import numpy as np
 
 from marker_tracker_3d import utils
+from marker_tracker_3d.optimization import initial_guess
 from marker_tracker_3d.optimization.bundle_adjustment import BundleAdjustment
-from marker_tracker_3d.optimization.initial_guess import InitialGuess
 
 DataForOptimization = collections.namedtuple(
     "DataForOptimization",
@@ -12,8 +12,8 @@ DataForOptimization = collections.namedtuple(
         "frame_indices",
         "marker_indices",
         "markers_points_2d_detected",
-        "camera_extrinsics_prv",
-        "marker_extrinsics_prv",
+        "camera_extrinsics_prv_dict",
+        "marker_extrinsics_prv_dict",
     ],
 )
 
@@ -22,25 +22,24 @@ DataForOptimization = collections.namedtuple(
 def optimization_routine(camera_model, storage):
     data = _collect_data_for_optimization(storage)
     if not data:
-        return
+        return None
 
-    initial_guess = InitialGuess(camera_model)
-    bundle_adjustment = BundleAdjustment(camera_model)
-
-    camera_extrinsics_init, marker_extrinsics_init = initial_guess.get(
+    camera_extrinsics_init_array, marker_extrinsics_init_array = initial_guess.get(
+        camera_model,
         data.frame_indices,
         data.marker_indices,
         data.markers_points_2d_detected,
-        data.camera_extrinsics_prv,
-        data.marker_extrinsics_prv,
+        data.camera_extrinsics_prv_dict,
+        data.marker_extrinsics_prv_dict,
     )
 
+    bundle_adjustment = BundleAdjustment(camera_model)
     optimization_result = bundle_adjustment.run(
         data.frame_indices,
         data.marker_indices,
         data.markers_points_2d_detected,
-        camera_extrinsics_init,
-        marker_extrinsics_init,
+        camera_extrinsics_init_array,
+        marker_extrinsics_init_array,
     )
     return optimization_result
 
@@ -52,11 +51,11 @@ def _collect_data_for_optimization(storage):
 
     for marker in storage.all_novel_markers:
         if (
-            marker.marker_id in storage.markers_id
-            and marker.frame_id in storage.frames_id
+            marker.marker_id in storage.marker_ids
+            and marker.frame_id in storage.frame_ids
         ):
-            frame_indices.append(storage.frames_id.index(marker.frame_id))
-            marker_indices.append(storage.markers_id.index(marker.marker_id))
+            frame_indices.append(storage.frame_ids.index(marker.frame_id))
+            marker_indices.append(storage.marker_ids.index(marker.marker_id))
             markers_points_2d_detected.append(marker.verts)
 
     frame_indices = np.array(frame_indices)
@@ -66,25 +65,25 @@ def _collect_data_for_optimization(storage):
     try:
         markers_points_2d_detected = markers_points_2d_detected[:, :, 0, :]
     except IndexError:
-        return
+        return None
 
-    camera_extrinsics_prv = {
-        i: storage.camera_extrinsics_opt[k]
-        for i, k in enumerate(storage.frames_id)
-        if k in storage.camera_extrinsics_opt
+    camera_extrinsics_prv_dict = {
+        i: storage.camera_extrinsics_opt_array[frame_id]
+        for i, frame_id in enumerate(storage.frame_ids)
+        if frame_id in storage.camera_extrinsics_opt_array
     }
 
-    marker_extrinsics_prv = {
-        i: storage.marker_extrinsics_opt[k]
-        for i, k in enumerate(storage.markers_id)
-        if k in storage.marker_extrinsics_opt
+    marker_extrinsics_prv_dict = {
+        i: storage.marker_extrinsics_opt_array[marker_id]
+        for i, marker_id in enumerate(storage.marker_ids)
+        if marker_id in storage.marker_extrinsics_opt_array
     }
 
     data_for_optimization = DataForOptimization(
         frame_indices=frame_indices,
         marker_indices=marker_indices,
         markers_points_2d_detected=markers_points_2d_detected,
-        camera_extrinsics_prv=camera_extrinsics_prv,
-        marker_extrinsics_prv=marker_extrinsics_prv,
+        camera_extrinsics_prv_dict=camera_extrinsics_prv_dict,
+        marker_extrinsics_prv_dict=marker_extrinsics_prv_dict,
     )
     return data_for_optimization

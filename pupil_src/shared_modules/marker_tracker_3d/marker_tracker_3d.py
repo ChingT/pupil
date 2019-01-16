@@ -18,7 +18,8 @@ from tasklib.manager import PluginTaskManager
 
 class Marker_Tracker_3D(Plugin, Observable):
     """
-    This plugin tracks the pose of the scene camera based on fiducial markers in the environment.
+    This plugin tracks the pose of the scene camera based on fiducial markers in the
+    environment.
     """
 
     icon_chr = chr(0xEC07)
@@ -35,7 +36,4 @@ class Marker_Tracker_3D(Plugin, Observable):
         self.ui = UserInterface(self, self.g_pool.capture.intrinsics)
 
     def get_init_dict(self):
-        d = {
-            "min_marker_perimeter": self.controller.marker_detector.min_marker_perimeter
-        }
-        return d
+        return self.controller.get_init_dict()

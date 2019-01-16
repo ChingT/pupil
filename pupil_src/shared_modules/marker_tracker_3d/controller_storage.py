@@ -12,17 +12,23 @@ class ControllerStorage:
     def __init__(self, save_path):
         self.save_path = save_path
 
-        # For drawing in UI window
-        self.current_marker_detections = {}
+        self._set_to_default_values()
+
+    def _set_to_default_values(self):
+        # Following attributes are for drawing in 3d window
+        self.marker_id_to_detections = {}
+
+        # Define all_camera_traces and current_camera_pose_matrix
+        # before the initialization of current_camera_extrinsics
+        self.all_camera_traces = []
         self.current_camera_pose_matrix = None
         self.current_camera_extrinsics = None
+
+        # Clear all_camera_traces after initialization of current_camera_extrinsics
         self.all_camera_traces = []
 
     def reset(self):
-        self.current_marker_detections = {}
-        self.current_camera_pose_matrix = None
-        self.current_camera_extrinsics = None
-        self.all_camera_traces = []
+        self._set_to_default_values()
 
     def export_camera_traces(self):
         np.save(
@@ -38,11 +44,11 @@ class ControllerStorage:
 
     @property
     def current_camera_extrinsics(self):
-        return self.__camera_extrinsics
+        return self._camera_extrinsics
 
     @current_camera_extrinsics.setter
     def current_camera_extrinsics(self, camera_extrinsics_new):
-        self.__camera_extrinsics = camera_extrinsics_new
+        self._camera_extrinsics = camera_extrinsics_new
         if camera_extrinsics_new is not None:
             self.current_camera_pose_matrix = utils.get_camera_pose_matrix(
                 camera_extrinsics_new
@@ -52,7 +58,4 @@ class ControllerStorage:
             )
         else:
             self.current_camera_pose_matrix = None
-            try:
-                self.all_camera_traces.append(np.full((3,), np.nan))
-            except AttributeError:
-                return
+            self.all_camera_traces.append(np.full((3,), np.nan))

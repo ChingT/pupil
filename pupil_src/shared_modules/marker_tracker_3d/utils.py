@@ -10,57 +10,64 @@ from marker_tracker_3d import math
 logger = logging.getLogger(__name__)
 
 
-def get_marker_vertex_coord(marker_extrinsics, camera_model):
-    marker_extrinsics = np.array(marker_extrinsics)
-    marker_points_3d = camera_model.params_to_points_3d(marker_extrinsics)
-    marker_points_3d.shape = 4, 3
-    return marker_points_3d
+def split_extrinsics(extrinsics):
+    assert extrinsics.size == 6
+    # extrinsics could be of shape (6,) or (1, 6), so ravel() is needed.
+    rotation = extrinsics.ravel()[0:3]
+    translation = extrinsics.ravel()[3:6]
+    return rotation, translation
 
 
-def split_param(param):
-    assert param.size == 6
-    return param.ravel()[0:3], param.ravel()[3:6]
+def merge_extrinsics(rotation, translation):
+    assert rotation.size == 3 and translation.size == 3
+    # rotation and translation could be of shape (3,) or (1, 3), so ravel() is needed.
+    extrinsics = np.concatenate((rotation.ravel(), translation.ravel()))
+    return extrinsics
 
 
-def merge_param(rvec, tvec):
-    assert rvec.size == 3 and tvec.size == 3
-    return np.concatenate((rvec.ravel(), tvec.ravel()))
+def check_solvepnp_output(pts_3d_world, rotation, translation):
+    # solvePnP outputs wrong pose estimations sometimes, so it is necessary to check
+    # if the rotation and translation from the output of solvePnP is reasonable.
+
+    assert rotation.size == 3 and translation.size == 3
+
+    # the absolute values of rotation should be less than 2*pi
+    if (np.abs(rotation) > np.pi * 2).any():
+        return False
+
+    # the depth of the markers in the camera coordinate system should be positive,
+    # i.e. all seen markers in the frame should be in front of the camera;
+    # if not, that implies the output of solvePnP is wrong.
+    pts_3d_camera = to_camera_coordinate(pts_3d_world, rotation, translation)
+    if (pts_3d_camera.reshape(-1, 3)[:, 2] < 0).any():
+        return False
+
+    return True
 
 
-def to_camera_coordinate(pts_3d_world, rvec, tvec):
+def to_camera_coordinate(pts_3d_world, rotation, translation):
     pts_3d_cam = [
-        cv2.Rodrigues(rvec)[0] @ p + tvec.ravel() for p in pts_3d_world.reshape(-1, 3)
+        cv2.Rodrigues(rotation)[0] @ p + translation.ravel()
+        for p in pts_3d_world.reshape(-1, 3)
     ]
     pts_3d_cam = np.array(pts_3d_cam)
 
     return pts_3d_cam
 
 
-def check_camera_extrinsics(pts_3d_world, rvec, tvec):
-    assert rvec.size == 3 and tvec.size == 3
-    if (np.abs(rvec) > np.pi * 2).any():
-        return False
-
-    pts_3d_camera = to_camera_coordinate(pts_3d_world, rvec, tvec)
-    if (pts_3d_camera.reshape(-1, 3)[:, 2] < 1).any():
-        return False
-
-    return True
-
-
 def get_extrinsic_matrix(camera_extrinsics):
-    rvec, tvec = split_param(camera_extrinsics)
+    rotation, translation = split_extrinsics(camera_extrinsics)
     extrinsic_matrix = np.eye(4, dtype=np.float32)
-    extrinsic_matrix[0:3, 0:3] = cv2.Rodrigues(rvec)[0]
-    extrinsic_matrix[0:3, 3] = tvec
+    extrinsic_matrix[0:3, 0:3] = cv2.Rodrigues(rotation)[0]
+    extrinsic_matrix[0:3, 3] = translation
     return extrinsic_matrix
 
 
 def get_camera_pose_matrix(camera_extrinsics):
-    rvec, tvec = split_param(camera_extrinsics)
+    rotation, translation = split_extrinsics(camera_extrinsics)
     camera_pose_matrix = np.eye(4, dtype=np.float32)
-    camera_pose_matrix[0:3, 0:3] = cv2.Rodrigues(rvec)[0].T
-    camera_pose_matrix[0:3, 3] = -camera_pose_matrix[0:3, 0:3] @ tvec
+    camera_pose_matrix[0:3, 0:3] = cv2.Rodrigues(rotation)[0].T
+    camera_pose_matrix[0:3, 3] = -camera_pose_matrix[0:3, 0:3] @ translation
     return camera_pose_matrix
 
 
@@ -69,20 +76,20 @@ def get_camera_trace(camera_pose_matrix):
 
 
 def get_camera_trace_from_camera_extrinsics(camera_extrinsics):
-    rvec, tvec = split_param(camera_extrinsics)
-    return -cv2.Rodrigues(rvec)[0].T @ tvec
+    rotation, translation = split_extrinsics(camera_extrinsics)
+    return -cv2.Rodrigues(rotation)[0].T @ translation
 
 
-def compute_camera_trace_distance(previous_camera_trace, current_camera_trace):
-    return np.linalg.norm(current_camera_trace - previous_camera_trace)
+def extrinsics_to_marker_points_3d(marker_extrinsics):
+    marker_extrinsics = np.asarray(marker_extrinsics).reshape(-1, 6)
+    marker_points_4d_origin = cv2.convertPointsToHomogeneous(
+        get_marker_points_3d_origin()
+    ).reshape(4, 4)
 
-
-def params_to_points_3d(params):
-    params = np.asarray(params).reshape(-1, 6)
     marker_points_3d = []
-    for param in params:
-        mat = get_extrinsic_matrix(param)
-        marker_transformed_h = mat @ marker_df_h.T
+    for extrinsics in marker_extrinsics:
+        mat = get_extrinsic_matrix(extrinsics)
+        marker_transformed_h = mat @ marker_points_4d_origin.T
         marker_transformed = cv2.convertPointsFromHomogeneous(
             marker_transformed_h.T
         ).reshape(4, 3)
@@ -92,18 +99,27 @@ def params_to_points_3d(params):
     return marker_points_3d
 
 
-def point_3d_to_param(marker_points_3d):
-    rotation_matrix, translation_vector, _ = math.svdt(A=marker_df, B=marker_points_3d)
-
-    rvec = cv2.Rodrigues(rotation_matrix)[0]
-    tvec = translation_vector
-    marker_extrinsics = merge_param(rvec, tvec)
+def marker_points_3d_to_extrinsics(marker_points_3d):
+    rotation_matrix, translation, _ = math.svdt(
+        A=get_marker_points_3d_origin(), B=marker_points_3d
+    )
+    rotation = cv2.Rodrigues(rotation_matrix)[0]
+    marker_extrinsics = merge_extrinsics(rotation, translation)
     return marker_extrinsics
 
 
-marker_df = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float32)
-marker_df_h = cv2.convertPointsToHomogeneous(marker_df).reshape(4, 4)
-marker_extrinsics_origin = point_3d_to_param(marker_df)
+def get_marker_points_3d_origin():
+    marker_points_3d_origin = np.array(
+        [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float32
+    )
+    return marker_points_3d_origin
+
+
+def get_marker_extrinsics_origin():
+    marker_extrinsics_origin = marker_points_3d_to_extrinsics(
+        get_marker_points_3d_origin()
+    )
+    return marker_extrinsics_origin
 
 
 def timer(func):

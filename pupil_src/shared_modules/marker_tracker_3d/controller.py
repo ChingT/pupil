@@ -11,42 +11,45 @@ logger = logging.getLogger(__name__)
 class Controller:
     def __init__(self, marker_tracker_3d, camera_model, min_marker_perimeter):
         self.marker_tracker_3d = marker_tracker_3d
-        self.marker_tracker_3d.add_observer("recent_events", self.update)
+        self.marker_tracker_3d.add_observer("recent_events", self._on_recent_events)
 
-        root = self.marker_tracker_3d.g_pool.user_dir
+        user_dir = self.marker_tracker_3d.g_pool.user_dir
 
-        self.storage = ControllerStorage(save_path=root)
+        self.storage = ControllerStorage(save_path=user_dir)
         self.marker_detector = MarkerDetector(min_marker_perimeter)
         self.model_optimizer = ModelOptimizer(
-            self.marker_tracker_3d.plugin_task_manager, camera_model, save_path=root
+            self.marker_tracker_3d.plugin_task_manager, camera_model, save_path=user_dir
         )
         self.camera_localizer = CameraLocalizer(camera_model)
 
-    def update(self, events):
-        frame = events.get("frame")
-        if not frame:
-            return
+    def _on_recent_events(self, events):
+        if "frame" in events:
+            self._update(events["frame"])
 
-        self.storage.current_marker_detections = self.marker_detector.detect(frame)
+    def get_init_dict(self):
+        d = {"min_marker_perimeter": self.marker_detector.min_marker_perimeter}
+        return d
 
-        self.storage.current_camera_extrinsics = self.camera_localizer.get_camera_extrinsics(
-            self.storage.current_marker_detections,
-            self.model_optimizer.model_state.marker_extrinsics_opt,
+    def _update(self, frame):
+        self.storage.marker_id_to_detections = self.marker_detector.detect(frame)
+
+        self.storage.current_camera_extrinsics = self.camera_localizer.get_current_camera_extrinsics(
+            self.storage.marker_id_to_detections,
+            self.model_optimizer.model_state.marker_extrinsics_opt_array,
         )
 
         self.model_optimizer.add_observations(
-            self.storage.current_marker_detections,
-            self.storage.current_camera_extrinsics,
+            self.storage.marker_id_to_detections, self.storage.current_camera_extrinsics
         )
 
-    def on_reset(self):
+    def reset(self):
         self.storage.reset()
         self.model_optimizer.reset()
         self.camera_localizer.reset()
-        logger.info("reset!")
+        logger.info("Reset 3D Marker Tracker!")
 
-    def on_export_marker_tracker_3d_model(self):
+    def export_marker_tracker_3d_model(self):
         self.model_optimizer.model_state.export_marker_tracker_3d_model()
 
-    def on_export_camera_traces(self):
+    def export_camera_traces(self):
         self.storage.export_camera_traces()

@@ -10,14 +10,17 @@ from marker_tracker_3d import utils
 OptimizationResult = collections.namedtuple(
     "OptimizationResult",
     [
-        "camera_extrinsics_opt",
-        "marker_extrinsics_opt",
+        "camera_extrinsics_opt_array",
+        "marker_extrinsics_opt_array",
         "frame_indices_failed",
         "marker_indices_failed",
     ],
 )
 
 
+# BundleAdjustment is a class instead of functions, since passing all the parameters
+# would be inefficient.
+# (especially true for _function_compute_residuals as a callback)
 class BundleAdjustment:
     def __init__(self, camera_model):
         self.camera_model = camera_model
@@ -30,28 +33,30 @@ class BundleAdjustment:
         frame_indices,
         marker_indices,
         markers_points_2d_detected,
-        camera_extrinsics_init,
-        marker_extrinsics_init,
+        camera_extrinsics_init_array,
+        marker_extrinsics_init_array,
     ):
-        """ run bundle adjustment given the initial guess and then check the result of optimization """
+        """ run bundle adjustment given the initial guess and then check the result of
+        optimization
+        """
 
-        if marker_extrinsics_init is None:
-            return
+        if marker_extrinsics_init_array is None:
+            return None
 
         self._update_data(
             frame_indices,
             marker_indices,
             markers_points_2d_detected,
-            camera_extrinsics_init,
-            marker_extrinsics_init,
+            camera_extrinsics_init_array,
+            marker_extrinsics_init_array,
         )
 
         initial_guess, bounds, sparsity_matrix = self._prepare_parameters(
-            camera_extrinsics_init, marker_extrinsics_init
+            camera_extrinsics_init_array, marker_extrinsics_init_array
         )
-        result = self._least_squares(bounds, initial_guess, sparsity_matrix)
+        least_sq_result = self._least_squares(bounds, initial_guess, sparsity_matrix)
 
-        optimization_result = self._get_optimization_result(result)
+        optimization_result = self._get_optimization_result(least_sq_result)
         return optimization_result
 
     def _update_data(
@@ -59,28 +64,30 @@ class BundleAdjustment:
         frame_indices,
         marker_indices,
         markers_points_2d_detected,
-        camera_extrinsics_init,
-        marker_extrinsics_init,
+        camera_extrinsics_init_array,
+        marker_extrinsics_init_array,
     ):
         self.frame_indices = frame_indices
         self.marker_indices = marker_indices
         self.markers_points_2d_detected = markers_points_2d_detected
 
-        self.camera_extrinsics_shape = camera_extrinsics_init.shape
-        self.marker_extrinsics_shape = marker_extrinsics_init.shape
+        self.camera_extrinsics_shape = camera_extrinsics_init_array.shape
+        self.marker_extrinsics_shape = marker_extrinsics_init_array.shape
 
-    def _prepare_parameters(self, camera_extrinsics_init, marker_extrinsics_init):
+    def _prepare_parameters(
+        self, camera_extrinsics_init_array, marker_extrinsics_init_array
+    ):
         initial_guess = np.vstack(
-            (camera_extrinsics_init, marker_extrinsics_init)
+            (camera_extrinsics_init_array, marker_extrinsics_init_array)
         ).ravel()
 
-        bounds = self._cal_bounds()
+        bounds = self._calculate_bounds()
 
         sparsity_matrix = self._construct_sparsity_matrix()
 
         return initial_guess, bounds, sparsity_matrix
 
-    def _cal_bounds(self, epsilon=1e-16):
+    def _calculate_bounds(self, eps=1e-16):
         """ calculate the lower and upper bounds on independent variables
             fix the first marker at the origin of the coordinate system
         """
@@ -90,8 +97,8 @@ class BundleAdjustment:
 
         marker_extrinsics_lower_bound = np.full(self.marker_extrinsics_shape, -np.inf)
         marker_extrinsics_upper_bound = np.full(self.marker_extrinsics_shape, np.inf)
-        marker_extrinsics_lower_bound[0] = utils.marker_extrinsics_origin - epsilon
-        marker_extrinsics_upper_bound[0] = utils.marker_extrinsics_origin + epsilon
+        marker_extrinsics_lower_bound[0] = utils.get_marker_extrinsics_origin() - eps
+        marker_extrinsics_upper_bound[0] = utils.get_marker_extrinsics_origin() + eps
 
         lower_bound = np.vstack(
             (camera_extrinsics_lower_bound, marker_extrinsics_lower_bound)
@@ -104,9 +111,10 @@ class BundleAdjustment:
 
     def _construct_sparsity_matrix(self):
         """
-        Construct the sparsity structure of the Jacobian matrix for finite difference estimation.
-        If the Jacobian has only few non-zero elements in each row, providing the sparsity structure will greatly speed
-        up the computations. A zero entry means that a corresponding element in the Jacobian is identically zero.
+        Construct the sparsity structure of the Jacobian matrix for finite difference
+        estimation. If the Jacobian has only few non-zero elements in each row,
+        providing the sparsity structure will greatly speed up the computations. A zero
+        entry means that a corresponding element in the Jacobian is identically zero.
 
         :return: scipy.sparse.lil_matrix, with shape (n_residuals, n_variables), where
         n_residuals = markers_points_2d_detected.size,
@@ -143,7 +151,7 @@ class BundleAdjustment:
 
     def _least_squares(self, bounds, initial_guess, sparsity_matrix):
         result = scipy_optimize.least_squares(
-            fun=self._fun_compute_residuals,
+            fun=self._function_compute_residuals,
             x0=initial_guess,
             bounds=bounds,
             ftol=self.tol,
@@ -156,24 +164,24 @@ class BundleAdjustment:
         )
         return result
 
-    def _get_optimization_result(self, result):
-        camera_extrinsics_opt, marker_extrinsics_opt = self._reshape_variables_to_extrinsics(
-            result.x
+    def _get_optimization_result(self, least_sq_result):
+        camera_extrinsics_opt_array, marker_extrinsics_opt_array = self._reshape_variables_to_extrinsics(
+            least_sq_result.x
         )
 
         frame_indices_failed, marker_indices_failed = self._find_failed_indices(
-            result.fun
+            least_sq_result.fun
         )
 
         optimization_result = OptimizationResult(
-            camera_extrinsics_opt=camera_extrinsics_opt,
-            marker_extrinsics_opt=marker_extrinsics_opt,
+            camera_extrinsics_opt_array=camera_extrinsics_opt_array,
+            marker_extrinsics_opt_array=marker_extrinsics_opt_array,
             frame_indices_failed=frame_indices_failed,
             marker_indices_failed=marker_indices_failed,
         )
         return optimization_result
 
-    def _fun_compute_residuals(self, variables):
+    def _function_compute_residuals(self, variables):
         """ Function which computes the vector of residuals,
         i.e., the minimization proceeds with respect to params
         """
@@ -189,7 +197,9 @@ class BundleAdjustment:
         return residuals.ravel()
 
     def _reshape_variables_to_extrinsics(self, variables):
-        """ reshape 1-dimensional vector into the original shape of camera_extrinsics and marker_extrinsics """
+        """ reshape 1-dimensional vector into the original shape of camera_extrinsics
+        and marker_extrinsics
+        """
 
         camera_extrinsics = variables[: np.prod(self.camera_extrinsics_shape)]
         camera_extrinsics.shape = self.camera_extrinsics_shape
@@ -200,7 +210,7 @@ class BundleAdjustment:
         return camera_extrinsics, marker_extrinsics
 
     def _project_markers(self, camera_extrinsics, marker_extrinsics):
-        markers_points_3d = utils.params_to_points_3d(marker_extrinsics)
+        markers_points_3d = utils.extrinsics_to_marker_points_3d(marker_extrinsics)
 
         markers_points_2d_projected = [
             self.camera_model.projectPoints(points, cam[0:3], cam[3:6])
@@ -213,7 +223,9 @@ class BundleAdjustment:
         return markers_points_2d_projected
 
     def _find_failed_indices(self, residuals, thres=20):
-        """ find out those frames_id and markers_id which causes large reprojection errors """
+        """ find out those frames_id and markers_id which causes large reprojection
+        errors
+        """
 
         residuals.shape = -1, 4, 2
         reprojection_errors = np.linalg.norm(residuals, axis=2).sum(axis=1)

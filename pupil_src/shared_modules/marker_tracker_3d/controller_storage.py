@@ -9,7 +9,9 @@ logger = logging.getLogger(__name__)
 
 
 class ControllerStorage:
-    def __init__(self, save_path):
+    def __init__(self, min_marker_perimeter, save_path):
+        self.min_marker_perimeter = min_marker_perimeter  # adjustable in UI
+
         self.save_path = save_path
 
         self._set_to_default_values()
@@ -59,3 +61,7 @@ class ControllerStorage:
         else:
             self.current_camera_pose_matrix = None
             self.all_camera_traces.append(np.full((3,), np.nan))
+
+    def get_init_dict(self):
+        d = {"min_marker_perimeter": self.min_marker_perimeter}
+        return d

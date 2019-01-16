@@ -3,7 +3,7 @@ import numpy as np
 from marker_tracker_3d import utils
 
 
-class CameraLocalizer:
+class CameraLocalizationController:
     def __init__(
         self,
         camera_model,

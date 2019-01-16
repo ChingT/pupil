@@ -18,7 +18,7 @@ NovelMarker = collections.namedtuple(
 class VisibilityGraphs(Observable):
     def __init__(
         self,
-        model_state,
+        model_optimization_storage,
         camera_model,
         predetermined_origin_marker_id=None,
         select_novel_markers_interval=6,
@@ -33,7 +33,7 @@ class VisibilityGraphs(Observable):
         assert optimization_interval >= 1
         assert min_n_frames_per_marker >= 2
 
-        self._model_state = model_state
+        self._model_optimization_storage = model_optimization_storage
         self._camera_model = camera_model
         self._predetermined_origin_marker_id = predetermined_origin_marker_id
         self._select_novel_markers_interval = select_novel_markers_interval
@@ -53,7 +53,6 @@ class VisibilityGraphs(Observable):
         self._origin_marker_id = None
         self._n_frames_passed = 0
         self._n_new_novel_markers_added = 0
-        self.adding_marker_detections = True
         self._visibility_graph = nx.MultiGraph()
 
         self._optimization_requested = True
@@ -67,18 +66,18 @@ class VisibilityGraphs(Observable):
     def add_observations(self, marker_detections, camera_extrinsics):
         self._save_current_camera_extrinsics(camera_extrinsics)
 
-        if self.adding_marker_detections:
+        if self._model_optimization_storage.adding_marker_detections:
             if self._n_frames_passed >= self._select_novel_markers_interval:
                 self._n_frames_passed = 0
                 self._select_novel_markers(marker_detections)
 
-        self._model_state.current_frame_id += 1
+        self._model_optimization_storage.current_frame_id += 1
         self._n_frames_passed += 1
 
     def _save_current_camera_extrinsics(self, camera_extrinsics):
         if camera_extrinsics is not None:
-            self._model_state.camera_extrinsics_opt_array[
-                self._model_state.current_frame_id
+            self._model_optimization_storage.camera_extrinsics_opt_array[
+                self._model_optimization_storage.current_frame_id
             ] = camera_extrinsics
 
     def _select_novel_markers(self, marker_detections):
@@ -101,7 +100,7 @@ class VisibilityGraphs(Observable):
         # do not need to check if the corresponding bins are available
         if not bool(
             marker_detections.keys()
-            - self._model_state.marker_extrinsics_opt_array.keys()
+            - self._model_optimization_storage.marker_extrinsics_opt_array.keys()
         ):
             novel_marker_candidates = self._filter_novel_markers_by_bins_availability(
                 novel_marker_candidates
@@ -116,7 +115,7 @@ class VisibilityGraphs(Observable):
         bins_x, bins_y = self._get_bins(marker_detections)
         novel_marker_candidates = [
             NovelMarker(
-                frame_id=self._model_state.current_frame_id,
+                frame_id=self._model_optimization_storage.current_frame_id,
                 marker_id=marker_id,
                 verts=marker_detections[marker_id]["verts"],
                 bin=(x, y),
@@ -139,7 +138,7 @@ class VisibilityGraphs(Observable):
             n_same_markers_in_bin = len(
                 [
                     marker
-                    for marker in self._model_state.all_novel_markers
+                    for marker in self._model_optimization_storage.all_novel_markers
                     if marker.marker_id == candidate.marker_id
                     and marker.bin == candidate.bin
                 ]
@@ -158,10 +157,10 @@ class VisibilityGraphs(Observable):
         # the edge of visibility_graph: current_frame_id
         for u, v in list(it.combinations(all_markers, 2)):
             self._visibility_graph.add_edge(
-                u, v, key=self._model_state.current_frame_id
+                u, v, key=self._model_optimization_storage.current_frame_id
             )
 
-        self._model_state.all_novel_markers += novel_markers
+        self._model_optimization_storage.all_novel_markers += novel_markers
 
     def _prepare_for_optimization(self):
         # Do optimization when there are some new novel_markers selected
@@ -181,16 +180,20 @@ class VisibilityGraphs(Observable):
         marker_id_candidates = self._filter_marker_ids_by_visibility_graph()
 
         try:
-            marker_ids = [self._model_state.marker_ids[0]] + [
+            marker_ids = [self._model_optimization_storage.marker_ids[0]] + [
                 marker_id
                 for marker_id in marker_id_candidates
-                if marker_id != self._model_state.marker_ids[0]
+                if marker_id != self._model_optimization_storage.marker_ids[0]
             ]
         except IndexError:
             pass
         else:
-            self._model_state.marker_ids = marker_ids
-            logger.debug("marker_ids updated {}".format(self._model_state.marker_ids))
+            self._model_optimization_storage.marker_ids = marker_ids
+            logger.debug(
+                "marker_ids updated {}".format(
+                    self._model_optimization_storage.marker_ids
+                )
+            )
 
     def _filter_marker_ids_by_visibility_graph(self):
         markers_enough_viewed = set(
@@ -199,7 +202,7 @@ class VisibilityGraphs(Observable):
             if len(
                 [
                     marker
-                    for marker in self._model_state.all_novel_markers
+                    for marker in self._model_optimization_storage.all_novel_markers
                     if marker.marker_id == node
                 ]
             )
@@ -208,7 +211,8 @@ class VisibilityGraphs(Observable):
         try:
             markers_connected_to_first_marker = set(
                 nx.node_connected_component(
-                    self._visibility_graph, self._model_state.marker_ids[0]
+                    self._visibility_graph,
+                    self._model_optimization_storage.marker_ids[0],
                 )
             )
         except IndexError:
@@ -238,11 +242,11 @@ class VisibilityGraphs(Observable):
         return origin_marker_id
 
     def set_up_origin_marker(self):
-        self._model_state.marker_ids = [self._origin_marker_id]
-        self._model_state.marker_extrinsics_opt_array = {
+        self._model_optimization_storage.marker_ids = [self._origin_marker_id]
+        self._model_optimization_storage.marker_extrinsics_opt_array = {
             self._origin_marker_id: utils.get_marker_extrinsics_origin()
         }
-        self._model_state.marker_points_3d_opt = {
+        self._model_optimization_storage.marker_points_3d_opt = {
             self._origin_marker_id: utils.get_marker_points_3d_origin()
         }
 
@@ -250,21 +254,23 @@ class VisibilityGraphs(Observable):
         frame_ids = []
         frame_id_candidates = set(
             marker_candidate.frame_id
-            for marker_candidate in self._model_state.all_novel_markers
+            for marker_candidate in self._model_optimization_storage.all_novel_markers
         )
 
         for frame_id in frame_id_candidates:
             optimized_markers_in_frame = set(
                 marker.marker_id
-                for marker in self._model_state.all_novel_markers
+                for marker in self._model_optimization_storage.all_novel_markers
                 if marker.frame_id == frame_id
-                and marker.marker_id in self._model_state.marker_ids
+                and marker.marker_id in self._model_optimization_storage.marker_ids
             )
             if len(optimized_markers_in_frame) >= self._min_n_markers_per_frame:
                 frame_ids.append(frame_id)
 
-        self._model_state.frame_ids = sorted(frame_ids)
-        logger.debug("frame_ids updated {}".format(self._model_state.frame_ids))
+        self._model_optimization_storage.frame_ids = sorted(frame_ids)
+        logger.debug(
+            "frame_ids updated {}".format(self._model_optimization_storage.frame_ids)
+        )
 
     def process_optimization_results(self, optimization_result):
         """ process the results of optimization; update camera_extrinsics_opt_array,
@@ -277,28 +283,28 @@ class VisibilityGraphs(Observable):
 
     def _update_extrinsics_opt_array(self, optimization_result):
         for i, p in enumerate(optimization_result.camera_extrinsics_opt_array):
-            self._model_state.camera_extrinsics_opt_array[
-                self._model_state.frame_ids[i]
+            self._model_optimization_storage.camera_extrinsics_opt_array[
+                self._model_optimization_storage.frame_ids[i]
             ] = p
 
         for i, p in enumerate(optimization_result.marker_extrinsics_opt_array):
             if i not in optimization_result.marker_indices_failed:
-                self._model_state.marker_extrinsics_opt_array[
-                    self._model_state.marker_ids[i]
+                self._model_optimization_storage.marker_extrinsics_opt_array[
+                    self._model_optimization_storage.marker_ids[i]
                 ] = p
-                self._model_state.marker_points_3d_opt[
-                    self._model_state.marker_ids[i]
+                self._model_optimization_storage.marker_points_3d_opt[
+                    self._model_optimization_storage.marker_ids[i]
                 ] = utils.extrinsics_to_marker_points_3d(p)[0]
 
         logger.debug(
             "{} markers have been registered and updated".format(
-                len(self._model_state.marker_extrinsics_opt_array)
+                len(self._model_optimization_storage.marker_extrinsics_opt_array)
             )
         )
 
     def discard_failed_frames(self, optimization_result):
         frame_ids_failed = list(
-            self._model_state.frame_ids[i]
+            self._model_optimization_storage.frame_ids[i]
             for i in optimization_result.frame_indices_failed
         )
         logger.debug("discard_failed_frames {0}".format(frame_ids_failed))
@@ -311,8 +317,8 @@ class VisibilityGraphs(Observable):
             ]
             self._visibility_graph.remove_edges_from(redundant_edges)
 
-            self._model_state.all_novel_markers = [
+            self._model_optimization_storage.all_novel_markers = [
                 marker
-                for marker in self._model_state.all_novel_markers
+                for marker in self._model_optimization_storage.all_novel_markers
                 if marker.frame_id not in frame_ids_failed
             ]

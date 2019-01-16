@@ -14,11 +14,17 @@ logger = logging.getLogger(__name__)
 
 
 class UserInterface:
-    def __init__(self, marker_tracker_3d, intrinsics):
-        self._marker_tracker_3d = marker_tracker_3d
+    def __init__(
+        self,
+        plugin,
+        intrinsics,
+        model_optimization_controller,
+        model_optimization_storage,
+        controller,
+        controller_storage,
+    ):
+        self._plugin = plugin
         self._intrinsics = intrinsics
-
-        self._marker_tracker_3d.menu = None
 
         self._max_camera_traces_len = 200
         self._input = {"down": False, "mouse": (0, 0)}
@@ -31,33 +37,29 @@ class UserInterface:
         self._window_size = 1280, 1335
         self._open_close_window(self._open_3d_window)
 
-        self._register_observers()
+        self._model_optimization_storage = model_optimization_storage
+        self._controller_storage = controller_storage
+        self._controller = controller
 
-        self.model_state = (
-            self._marker_tracker_3d.controller.model_optimizer.model_state
+        self._plugin.add_observer("init_ui", self._on_init_ui)
+        self._plugin.add_observer("deinit_ui", self._on_deinit_ui)
+        self._plugin.add_observer("gl_display", self._on_gl_display)
+        model_optimization_controller.visibility_graphs.add_observer(
+            "set_up_origin_marker", self._on_update_menu
         )
-        self.controller_storage = self._marker_tracker_3d.controller.storage
+        self._plugin.add_observer("cleanup", self._on_close_window)
 
     def _init_trackball(self):
         self._trackball = gl_utils.trackball.Trackball()
         self._trackball.zoom_to(-100)
 
-    def _register_observers(self):
-        self._marker_tracker_3d.add_observer("init_ui", self._on_init_ui)
-        self._marker_tracker_3d.add_observer("deinit_ui", self._on_deinit_ui)
-        self._marker_tracker_3d.add_observer("gl_display", self._on_gl_display)
-        self._marker_tracker_3d.controller.model_optimizer.visibility_graphs.add_observer(
-            "set_up_origin_marker", self._on_update_menu
-        )
-        self._marker_tracker_3d.add_observer("cleanup", self._on_close_window)
-
     def _on_init_ui(self):
-        self._marker_tracker_3d.add_menu()
-        self._marker_tracker_3d.menu.label = "Head Pose Tracker"
+        self._plugin.add_menu()
+        self._plugin.menu.label = "Head Pose Tracker"
         self._update_menu()
 
     def _on_deinit_ui(self):
-        self._marker_tracker_3d.remove_menu()
+        self._plugin.remove_menu()
 
     def _on_gl_display(self):
         self._display_2d_marker_detection()
@@ -71,7 +73,7 @@ class UserInterface:
 
     def _display_2d_marker_detection(self):
         hat = np.array([[[0, 0], [0, 1], [0.5, 1.3], [1, 1], [1, 0], [0, 0]]])
-        for marker in self.controller_storage.marker_id_to_detections.values():
+        for marker in self._controller_storage.marker_id_to_detections.values():
             hat_perspective = cv2.perspectiveTransform(
                 hat, square_marker_detect.m_marker_to_screen(marker)
             )
@@ -120,8 +122,11 @@ class UserInterface:
         self._draw_line_in_3d_window((0, 0, 0), (0, 0, 1))
 
     def _draw_markers_in_3d_window(self):
-        for idx, vertices in self.model_state.marker_points_3d_opt.items():
-            if idx in self.controller_storage.marker_id_to_detections:
+        for (
+            idx,
+            vertices,
+        ) in self._model_optimization_storage.marker_points_3d_opt.items():
+            if idx in self._controller_storage.marker_id_to_detections:
                 color = (1, 0, 0, 0.8)
             else:
                 color = (1, 0.4, 0, 0.6)
@@ -130,7 +135,7 @@ class UserInterface:
             self._draw_polygon_in_3d_window(vertices)
 
     def _draw_camera_trace_in_3d_window(self):
-        trace = self.controller_storage.all_camera_traces[
+        trace = self._controller_storage.all_camera_traces[
             -self._max_camera_traces_len :
         ]
         gl.glColor4f(0, 0, 0.8, 0.2)
@@ -140,7 +145,7 @@ class UserInterface:
     def _draw_camera_in_3d_window(self):
         try:
             camera_pose_matrix_flatten = (
-                self.controller_storage.current_camera_pose_matrix.T.flatten()
+                self._controller_storage.current_camera_pose_matrix.T.flatten()
             )
         except AttributeError:
             pass
@@ -221,11 +226,6 @@ class UserInterface:
         self._trackball.zoom_to(y)
 
     def _update_menu(self):
-        self._marker_tracker_3d.menu.elements[:] = []
-        # self._marker_tracker_3d.menu.append()
-        self._marker_tracker_3d.menu.extend(self._render_menu())
-
-    def _render_menu(self):
         menu = [
             self._create_intro_text(),
             self._create_origin_marker_text(),
@@ -236,7 +236,8 @@ class UserInterface:
             self._create_export_model_button(),
             self._create_export_camera_traces_button(),
         ]
-        return menu
+        self._plugin.menu.elements[:] = []
+        self._plugin.menu.extend(menu)
 
     def _create_intro_text(self):
         return ui.Info_Text(
@@ -251,7 +252,7 @@ class UserInterface:
     def _create_min_marker_perimeter_slider(self):
         return ui.Slider(
             "min_marker_perimeter",
-            self._marker_tracker_3d.controller.marker_detector,
+            self._controller_storage,
             step=1,
             min=30,
             max=100,
@@ -269,7 +270,7 @@ class UserInterface:
     def _create_adding_marker_detections_switch(self):
         return ui.Switch(
             "adding_marker_detections",
-            self._marker_tracker_3d.controller.model_optimizer.visibility_graphs,
+            self._model_optimization_storage,
             label="Adding observations",
         )
 
@@ -278,19 +279,21 @@ class UserInterface:
 
     def _create_export_model_button(self):
         return ui.Button(
-            label="export marker tracker 3d model",
+            outer_label="export",
+            label="marker tracker 3d model",
             function=self._on_export_marker_tracker_3d_model_button_click,
         )
 
     def _create_export_camera_traces_button(self):
         return ui.Button(
-            label="export camera traces",
+            outer_label="export",
+            label="camera traces",
             function=self._on_export_camera_traces_button_click,
         )
 
     def _get_text_for_origin_marker(self):
         try:
-            _origin_marker_id = self.model_state.marker_ids[0]
+            _origin_marker_id = self._model_optimization_storage.marker_ids[0]
         except IndexError:
             text = "The coordinate system has not yet been built up"
         else:
@@ -303,14 +306,14 @@ class UserInterface:
         return text
 
     def _on_reset_button_click(self):
-        self._marker_tracker_3d.controller.reset()
+        self._controller.reset()
         self._update_menu()
 
     def _on_export_marker_tracker_3d_model_button_click(self):
-        self._marker_tracker_3d.controller.export_marker_tracker_3d_model()
+        self._controller.export_marker_tracker_3d_model()
 
     def _on_export_camera_traces_button_click(self):
-        self._marker_tracker_3d.controller.export_camera_traces()
+        self._controller.export_camera_traces()
 
     def _open_close_window(self, open_3d_window):
         self._open_3d_window = open_3d_window

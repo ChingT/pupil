@@ -9,7 +9,7 @@ from marker_tracker_3d import utils
 logger = logging.getLogger(__name__)
 
 
-class ModelState:
+class ModelOptimizationStorage:
     def __init__(self, save_path):
         self._model_save_path = os.path.join(save_path, "marker_tracker_3d_model")
 
@@ -18,6 +18,7 @@ class ModelState:
         self._load_marker_tracker_3d_model_from_file()
 
     def _set_to_default_values(self):
+        self.adding_marker_detections = True
         self.current_frame_id = 0
 
         self.frame_ids = []

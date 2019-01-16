@@ -7,9 +7,9 @@ import square_marker_detect
 logger = logging.getLogger(__name__)
 
 
-class MarkerDetector:
-    def __init__(self, min_marker_perimeter):
-        self.min_marker_perimeter = min_marker_perimeter  # adjustable in UI
+class MarkerDetectionController:
+    def __init__(self, controller_storage):
+        self._controller_storage = controller_storage
 
     def detect(self, frame):
         # not use detect_markers_robust to avoid cv2.calcOpticalFlowPyrLK for
@@ -19,7 +19,7 @@ class MarkerDetector:
                 frame.gray,
                 grid_size=5,
                 aperture=13,
-                min_marker_perimeter=self.min_marker_perimeter,
+                min_marker_perimeter=self._controller_storage.min_marker_perimeter,
             )
         except AttributeError:
             return {}

@@ -10,15 +10,15 @@ class CameraLocalizer:
         min_n_markers_per_frame_for_loc=1,
         max_camera_trace_distance=10.0,
     ):
-        self.camera_model = camera_model
+        self._camera_model = camera_model
         self._min_n_markers_per_frame_for_loc = min_n_markers_per_frame_for_loc
         self._max_camera_trace_distance = max_camera_trace_distance
 
         self._set_to_default_values()
 
     def _set_to_default_values(self):
-        self.previous_camera_extrinsics = None
-        self.previous_camera_trace = np.full((3,), np.nan)
+        self._previous_camera_extrinsics = None
+        self._previous_camera_trace = np.full((3,), np.nan)
 
     def reset(self):
         self._set_to_default_values()
@@ -45,13 +45,13 @@ class CameraLocalizer:
             current_camera_trace = np.full((3,), np.nan)
 
         if self._check_camera_trace_distance(current_camera_trace):
-            self.previous_camera_extrinsics = current_camera_extrinsics
-            self.previous_camera_trace = current_camera_trace
+            self._previous_camera_extrinsics = current_camera_extrinsics
+            self._previous_camera_trace = current_camera_trace
             return current_camera_extrinsics
         else:
             # Do not set previous_camera_extrinsics to None to ensure
             # a decent initial guess for the next solvePnP call
-            self.previous_camera_trace = np.full((3,), np.nan)
+            self._previous_camera_trace = np.full((3,), np.nan)
             return None
 
     @staticmethod
@@ -67,14 +67,14 @@ class CameraLocalizer:
     def _run_solvepnp(self, marker_points_2d, marker_points_3d):
         try:
             rotation_prv, translation_prv = utils.split_extrinsics(
-                self.previous_camera_extrinsics
+                self._previous_camera_extrinsics
             )
         except AttributeError:
-            retval, rotation, translation = self.camera_model.solvePnP(
+            retval, rotation, translation = self._camera_model.solvePnP(
                 marker_points_3d, marker_points_2d
             )
         else:
-            retval, rotation, translation = self.camera_model.solvePnP(
+            retval, rotation, translation = self._camera_model.solvePnP(
                 marker_points_3d,
                 marker_points_2d,
                 useExtrinsicGuess=True,
@@ -92,7 +92,7 @@ class CameraLocalizer:
 
     def _check_camera_trace_distance(self, current_camera_trace):
         camera_trace_distance = np.linalg.norm(
-            current_camera_trace - self.previous_camera_trace
+            current_camera_trace - self._previous_camera_trace
         )
         if camera_trace_distance > self._max_camera_trace_distance:
             return False

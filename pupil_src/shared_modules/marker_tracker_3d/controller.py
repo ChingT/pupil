@@ -9,18 +9,15 @@ logger = logging.getLogger(__name__)
 
 
 class Controller:
-    def __init__(self, marker_tracker_3d, camera_model, min_marker_perimeter):
-        self.marker_tracker_3d = marker_tracker_3d
-        self.marker_tracker_3d.add_observer("recent_events", self._on_recent_events)
-
-        user_dir = self.marker_tracker_3d.g_pool.user_dir
-
+    def __init__(self, camera_model, min_marker_perimeter, task_manager, plugin):
+        user_dir = plugin.g_pool.user_dir
         self.storage = ControllerStorage(save_path=user_dir)
         self.marker_detector = MarkerDetector(min_marker_perimeter)
         self.model_optimizer = ModelOptimizer(
-            self.marker_tracker_3d.plugin_task_manager, camera_model, save_path=user_dir
+            task_manager, camera_model, save_path=user_dir
         )
-        self.camera_localizer = CameraLocalizer(camera_model)
+        self._camera_localizer = CameraLocalizer(camera_model)
+        plugin.add_observer("recent_events", self._on_recent_events)
 
     def _on_recent_events(self, events):
         if "frame" in events:
@@ -33,7 +30,7 @@ class Controller:
     def _update(self, frame):
         self.storage.marker_id_to_detections = self.marker_detector.detect(frame)
 
-        self.storage.current_camera_extrinsics = self.camera_localizer.get_current_camera_extrinsics(
+        self.storage.current_camera_extrinsics = self._camera_localizer.get_current_camera_extrinsics(
             self.storage.marker_id_to_detections,
             self.model_optimizer.model_state.marker_extrinsics_opt_array,
         )
@@ -45,7 +42,7 @@ class Controller:
     def reset(self):
         self.storage.reset()
         self.model_optimizer.reset()
-        self.camera_localizer.reset()
+        self._camera_localizer.reset()
         logger.info("Reset 3D Marker Tracker!")
 
     def export_marker_tracker_3d_model(self):

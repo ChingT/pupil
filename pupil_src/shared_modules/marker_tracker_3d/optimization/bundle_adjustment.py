@@ -23,10 +23,10 @@ OptimizationResult = collections.namedtuple(
 # (especially true for _function_compute_residuals as a callback)
 class BundleAdjustment:
     def __init__(self, camera_model):
-        self.camera_model = camera_model
+        self._camera_model = camera_model
 
-        self.tol = 1e-4
-        self.diff_step = 1e-3
+        self._tol = 1e-4
+        self._diff_step = 1e-3
 
     def run(
         self,
@@ -67,12 +67,12 @@ class BundleAdjustment:
         camera_extrinsics_init_array,
         marker_extrinsics_init_array,
     ):
-        self.frame_indices = frame_indices
-        self.marker_indices = marker_indices
-        self.markers_points_2d_detected = markers_points_2d_detected
+        self._frame_indices = frame_indices
+        self._marker_indices = marker_indices
+        self._markers_points_2d_detected = markers_points_2d_detected
 
-        self.camera_extrinsics_shape = camera_extrinsics_init_array.shape
-        self.marker_extrinsics_shape = marker_extrinsics_init_array.shape
+        self._camera_extrinsics_shape = camera_extrinsics_init_array.shape
+        self._marker_extrinsics_shape = marker_extrinsics_init_array.shape
 
     def _prepare_parameters(
         self, camera_extrinsics_init_array, marker_extrinsics_init_array
@@ -92,11 +92,11 @@ class BundleAdjustment:
             fix the first marker at the origin of the coordinate system
         """
 
-        camera_extrinsics_lower_bound = np.full(self.camera_extrinsics_shape, -np.inf)
-        camera_extrinsics_upper_bound = np.full(self.camera_extrinsics_shape, np.inf)
+        camera_extrinsics_lower_bound = np.full(self._camera_extrinsics_shape, -np.inf)
+        camera_extrinsics_upper_bound = np.full(self._camera_extrinsics_shape, np.inf)
 
-        marker_extrinsics_lower_bound = np.full(self.marker_extrinsics_shape, -np.inf)
-        marker_extrinsics_upper_bound = np.full(self.marker_extrinsics_shape, np.inf)
+        marker_extrinsics_lower_bound = np.full(self._marker_extrinsics_shape, -np.inf)
+        marker_extrinsics_upper_bound = np.full(self._marker_extrinsics_shape, np.inf)
         marker_extrinsics_lower_bound[0] = utils.get_marker_extrinsics_origin() - eps
         marker_extrinsics_upper_bound[0] = utils.get_marker_extrinsics_origin() + eps
 
@@ -121,26 +121,26 @@ class BundleAdjustment:
         n_variables = camera_extrinsics.size + marker_extrinsics.size
         """
 
-        n_samples = len(self.frame_indices)
+        n_samples = len(self._frame_indices)
 
-        mat_camera = np.zeros((n_samples, self.camera_extrinsics_shape[0]), dtype=int)
-        mat_camera[np.arange(n_samples), self.frame_indices] = 1
+        mat_camera = np.zeros((n_samples, self._camera_extrinsics_shape[0]), dtype=int)
+        mat_camera[np.arange(n_samples), self._frame_indices] = 1
         mat_camera = scipy_misc.imresize(
             mat_camera,
             size=(
-                self.markers_points_2d_detected.size,
-                np.prod(self.camera_extrinsics_shape),
+                self._markers_points_2d_detected.size,
+                np.prod(self._camera_extrinsics_shape),
             ),
             interp="nearest",
         )
 
-        mat_marker = np.zeros((n_samples, self.marker_extrinsics_shape[0]), dtype=int)
-        mat_marker[np.arange(n_samples), self.marker_indices] = 1
+        mat_marker = np.zeros((n_samples, self._marker_extrinsics_shape[0]), dtype=int)
+        mat_marker[np.arange(n_samples), self._marker_indices] = 1
         mat_marker = scipy_misc.imresize(
             mat_marker,
             size=(
-                self.markers_points_2d_detected.size,
-                np.prod(self.marker_extrinsics_shape),
+                self._markers_points_2d_detected.size,
+                np.prod(self._marker_extrinsics_shape),
             ),
             interp="nearest",
         )
@@ -154,12 +154,12 @@ class BundleAdjustment:
             fun=self._function_compute_residuals,
             x0=initial_guess,
             bounds=bounds,
-            ftol=self.tol,
-            xtol=self.tol,
-            gtol=self.tol,
+            ftol=self._tol,
+            xtol=self._tol,
+            gtol=self._tol,
             x_scale="jac",
             loss="soft_l1",
-            diff_step=self.diff_step,
+            diff_step=self._diff_step,
             jac_sparsity=sparsity_matrix,
         )
         return result
@@ -193,7 +193,7 @@ class BundleAdjustment:
         markers_points_2d_projected = self._project_markers(
             camera_extrinsics, marker_extrinsics
         )
-        residuals = markers_points_2d_projected - self.markers_points_2d_detected
+        residuals = markers_points_2d_projected - self._markers_points_2d_detected
         return residuals.ravel()
 
     def _reshape_variables_to_extrinsics(self, variables):
@@ -201,11 +201,11 @@ class BundleAdjustment:
         and marker_extrinsics
         """
 
-        camera_extrinsics = variables[: np.prod(self.camera_extrinsics_shape)]
-        camera_extrinsics.shape = self.camera_extrinsics_shape
+        camera_extrinsics = variables[: np.prod(self._camera_extrinsics_shape)]
+        camera_extrinsics.shape = self._camera_extrinsics_shape
 
-        marker_extrinsics = variables[np.prod(self.camera_extrinsics_shape) :]
-        marker_extrinsics.shape = self.marker_extrinsics_shape
+        marker_extrinsics = variables[np.prod(self._camera_extrinsics_shape) :]
+        marker_extrinsics.shape = self._marker_extrinsics_shape
 
         return camera_extrinsics, marker_extrinsics
 
@@ -213,10 +213,10 @@ class BundleAdjustment:
         markers_points_3d = utils.extrinsics_to_marker_points_3d(marker_extrinsics)
 
         markers_points_2d_projected = [
-            self.camera_model.projectPoints(points, cam[0:3], cam[3:6])
+            self._camera_model.projectPoints(points, cam[0:3], cam[3:6])
             for cam, points in zip(
-                camera_extrinsics[self.frame_indices],
-                markers_points_3d[self.marker_indices],
+                camera_extrinsics[self._frame_indices],
+                markers_points_3d[self._marker_indices],
             )
         ]
         markers_points_2d_projected = np.array(markers_points_2d_projected)
@@ -229,6 +229,6 @@ class BundleAdjustment:
 
         residuals.shape = -1, 4, 2
         reprojection_errors = np.linalg.norm(residuals, axis=2).sum(axis=1)
-        frame_indices_failed = set(self.frame_indices[reprojection_errors > thres])
-        marker_indices_failed = set(self.marker_indices[reprojection_errors > thres])
+        frame_indices_failed = set(self._frame_indices[reprojection_errors > thres])
+        marker_indices_failed = set(self._marker_indices[reprojection_errors > thres])
         return frame_indices_failed, marker_indices_failed

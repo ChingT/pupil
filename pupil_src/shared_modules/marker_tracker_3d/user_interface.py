@@ -47,7 +47,7 @@ class UserInterface:
         self._marker_tracker_3d.add_observer("deinit_ui", self._on_deinit_ui)
         self._marker_tracker_3d.add_observer("gl_display", self._on_gl_display)
         self._marker_tracker_3d.controller.model_optimizer.visibility_graphs.add_observer(
-            "update_menu", self._on_update_menu
+            "set_up_origin_marker", self._on_update_menu
         )
         self._marker_tracker_3d.add_observer("cleanup", self._on_close_window)
 
@@ -304,6 +304,7 @@ class UserInterface:
 
     def _on_reset_button_click(self):
         self._marker_tracker_3d.controller.reset()
+        self._update_menu()
 
     def _on_export_marker_tracker_3d_model_button_click(self):
         self._marker_tracker_3d.controller.export_marker_tracker_3d_model()

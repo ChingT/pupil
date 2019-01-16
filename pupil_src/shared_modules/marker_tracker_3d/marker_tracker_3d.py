@@ -28,10 +28,12 @@ class Marker_Tracker_3D(Plugin, Observable):
     def __init__(self, g_pool, min_marker_perimeter=100):
         super().__init__(g_pool)
 
-        self.plugin_task_manager = PluginTaskManager(plugin=self)
-
+        self._task_manager = PluginTaskManager(plugin=self)
         self.controller = Controller(
-            self, self.g_pool.capture.intrinsics, min_marker_perimeter
+            self.g_pool.capture.intrinsics,
+            min_marker_perimeter=min_marker_perimeter,
+            task_manager=self._task_manager,
+            plugin=self,
         )
         self.ui = UserInterface(self, self.g_pool.capture.intrinsics)
 

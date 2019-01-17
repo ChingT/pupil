@@ -76,7 +76,7 @@ class VisibilityGraphs(Observable):
 
     def _save_current_camera_extrinsics(self, camera_extrinsics):
         if camera_extrinsics is not None:
-            self._model_optimization_storage.camera_extrinsics_opt_array[
+            self._model_optimization_storage.camera_extrinsics_opt_dict[
                 self._model_optimization_storage.current_frame_id
             ] = camera_extrinsics
 
@@ -100,7 +100,7 @@ class VisibilityGraphs(Observable):
         # do not need to check if the corresponding bins are available
         if not bool(
             marker_detections.keys()
-            - self._model_optimization_storage.marker_extrinsics_opt_array.keys()
+            - self._model_optimization_storage.marker_extrinsics_opt_dict.keys()
         ):
             novel_marker_candidates = self._filter_novel_markers_by_bins_availability(
                 novel_marker_candidates
@@ -243,7 +243,7 @@ class VisibilityGraphs(Observable):
 
     def set_up_origin_marker(self):
         self._model_optimization_storage.marker_ids = [self._origin_marker_id]
-        self._model_optimization_storage.marker_extrinsics_opt_array = {
+        self._model_optimization_storage.marker_extrinsics_opt_dict = {
             self._origin_marker_id: utils.get_marker_extrinsics_origin()
         }
         self._model_optimization_storage.marker_points_3d_opt = {
@@ -283,13 +283,13 @@ class VisibilityGraphs(Observable):
 
     def _update_extrinsics_opt_array(self, optimization_result):
         for i, p in enumerate(optimization_result.camera_extrinsics_opt_array):
-            self._model_optimization_storage.camera_extrinsics_opt_array[
+            self._model_optimization_storage.camera_extrinsics_opt_dict[
                 self._model_optimization_storage.frame_ids[i]
             ] = p
 
         for i, p in enumerate(optimization_result.marker_extrinsics_opt_array):
             if i not in optimization_result.marker_indices_failed:
-                self._model_optimization_storage.marker_extrinsics_opt_array[
+                self._model_optimization_storage.marker_extrinsics_opt_dict[
                     self._model_optimization_storage.marker_ids[i]
                 ] = p
                 self._model_optimization_storage.marker_points_3d_opt[
@@ -298,7 +298,7 @@ class VisibilityGraphs(Observable):
 
         logger.debug(
             "{} markers have been registered and updated".format(
-                len(self._model_optimization_storage.marker_extrinsics_opt_array)
+                len(self._model_optimization_storage.marker_extrinsics_opt_dict)
             )
         )
 

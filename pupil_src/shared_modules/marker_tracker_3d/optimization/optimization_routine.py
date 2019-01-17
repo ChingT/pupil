@@ -68,15 +68,15 @@ def _collect_data_for_optimization(storage):
         return None
 
     camera_extrinsics_prv_dict = {
-        i: storage.camera_extrinsics_opt_array[frame_id]
+        i: storage.camera_extrinsics_opt_dict[frame_id]
         for i, frame_id in enumerate(storage.frame_ids)
-        if frame_id in storage.camera_extrinsics_opt_array
+        if frame_id in storage.camera_extrinsics_opt_dict
     }
 
     marker_extrinsics_prv_dict = {
-        i: storage.marker_extrinsics_opt_array[marker_id]
+        i: storage.marker_extrinsics_opt_dict[marker_id]
         for i, marker_id in enumerate(storage.marker_ids)
-        if marker_id in storage.marker_extrinsics_opt_array
+        if marker_id in storage.marker_extrinsics_opt_dict
     }
 
     data_for_optimization = DataForOptimization(

@@ -58,14 +58,12 @@ def _collect_data_for_optimization(storage):
             marker_indices.append(storage.marker_ids.index(marker.marker_id))
             markers_points_2d_detected.append(marker.verts)
 
+    if not markers_points_2d_detected:
+        return None
+
     frame_indices = np.array(frame_indices)
     marker_indices = np.array(marker_indices)
     markers_points_2d_detected = np.array(markers_points_2d_detected)
-
-    try:
-        markers_points_2d_detected = markers_points_2d_detected[:, :, 0, :]
-    except IndexError:
-        return None
 
     camera_extrinsics_prv_dict = {
         i: storage.camera_extrinsics_opt_dict[frame_id]

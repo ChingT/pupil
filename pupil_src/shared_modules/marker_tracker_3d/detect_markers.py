@@ -23,7 +23,7 @@ def detect(frame, min_marker_perimeter):
         marker_list = _filter_markers(marker_list)
         marker_detections = {
             m["id"]: {
-                "verts": m["verts"],
+                "verts": np.array(m["verts"])[:, 0, :],
                 "centroid": np.array(m["centroid"]) / [frame.width, frame.height],
             }
             for m in marker_list

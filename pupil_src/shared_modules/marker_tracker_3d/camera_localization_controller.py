@@ -23,31 +23,29 @@ class CameraLocalizationController:
     def reset(self):
         self._set_to_default_values()
 
-    def get_current_camera_extrinsics(self, markers, marker_extrinsics):
+    def estimate(self, markers, marker_extrinsics):
         marker_points_3d, marker_points_2d = self._prepare_marker_points(
             markers, marker_extrinsics
         )
 
-        # calculate current_camera_extrinsics only when the number of markers is
+        # calculate camera_extrinsics only when the number of markers is
         # greater than or equal to self._min_n_markers_per_frame_for_loc
         if len(marker_points_3d) >= self._min_n_markers_per_frame_for_loc:
-            current_camera_extrinsics = self._run_solvepnp(
-                marker_points_2d, marker_points_3d
+            camera_extrinsics = self._run_solvepnp(marker_points_2d, marker_points_3d)
+        else:
+            camera_extrinsics = None
+
+        if camera_extrinsics is not None:
+            camera_trace = utils.get_camera_trace_from_camera_extrinsics(
+                camera_extrinsics
             )
         else:
-            current_camera_extrinsics = None
+            camera_trace = np.full((3,), np.nan)
 
-        if current_camera_extrinsics is not None:
-            current_camera_trace = utils.get_camera_trace_from_camera_extrinsics(
-                current_camera_extrinsics
-            )
-        else:
-            current_camera_trace = np.full((3,), np.nan)
-
-        if self._check_camera_trace_distance(current_camera_trace):
-            self._previous_camera_extrinsics = current_camera_extrinsics
-            self._previous_camera_trace = current_camera_trace
-            return current_camera_extrinsics
+        if self._check_camera_trace_distance(camera_trace):
+            self._previous_camera_extrinsics = camera_extrinsics
+            self._previous_camera_trace = camera_trace
+            return camera_extrinsics
         else:
             # Do not set previous_camera_extrinsics to None to ensure
             # a decent initial guess for the next solvePnP call
@@ -90,9 +88,9 @@ class CameraLocalizationController:
         else:
             return None
 
-    def _check_camera_trace_distance(self, current_camera_trace):
+    def _check_camera_trace_distance(self, camera_trace):
         camera_trace_distance = np.linalg.norm(
-            current_camera_trace - self._previous_camera_trace
+            camera_trace - self._previous_camera_trace
         )
         if camera_trace_distance > self._max_camera_trace_distance:
             return False

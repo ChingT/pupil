@@ -165,7 +165,7 @@ class BundleAdjustment:
         return result
 
     def _get_optimization_result(self, least_sq_result):
-        camera_extrinsics_opt_array, marker_extrinsics_opt_array = self._reshape_variables_to_extrinsics(
+        camera_extrinsics, marker_extrinsics = self._reshape_variables_to_extrinsics(
             least_sq_result.x
         )
 
@@ -174,8 +174,8 @@ class BundleAdjustment:
         )
 
         optimization_result = OptimizationResult(
-            camera_extrinsics_opt_array=camera_extrinsics_opt_array,
-            marker_extrinsics_opt_array=marker_extrinsics_opt_array,
+            camera_extrinsics_opt_array=camera_extrinsics,
+            marker_extrinsics_opt_array=marker_extrinsics,
             frame_indices_failed=frame_indices_failed,
             marker_indices_failed=marker_indices_failed,
         )

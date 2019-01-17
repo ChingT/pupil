@@ -30,20 +30,20 @@ class Controller:
     def _update(self, frame):
         marker_id_to_detections = self._marker_detection_controller.detect(frame)
 
-        current_camera_extrinsics = self._camera_localization_controller.get_current_camera_extrinsics(
+        camera_extrinsics = self._camera_localization_controller.estimate(
             marker_id_to_detections,
             self._model_optimization_storage.marker_extrinsics_opt_array,
         )
 
         self._model_optimization_controller.add_observations(
-            marker_id_to_detections, current_camera_extrinsics
+            marker_id_to_detections, camera_extrinsics
         )
 
-        self._update_storage(marker_id_to_detections, current_camera_extrinsics)
+        self._update_storage(marker_id_to_detections, camera_extrinsics)
 
-    def _update_storage(self, marker_id_to_detections, current_camera_extrinsics):
+    def _update_storage(self, marker_id_to_detections, camera_extrinsics):
         self._controller_storage.marker_id_to_detections = marker_id_to_detections
-        self._controller_storage.current_camera_extrinsics = current_camera_extrinsics
+        self._controller_storage.current_camera_extrinsics = camera_extrinsics
 
     def reset(self):
         self._controller_storage.reset()

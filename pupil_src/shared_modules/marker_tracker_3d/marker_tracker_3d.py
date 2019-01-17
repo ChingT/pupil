@@ -14,7 +14,6 @@ from marker_tracker_3d.camera_localization_controller import (
 )
 from marker_tracker_3d.controller import Controller
 from marker_tracker_3d.controller_storage import ControllerStorage
-from marker_tracker_3d.marker_detection_controller import MarkerDetectionController
 from marker_tracker_3d.optimization.model_optimization_controller import (
     ModelOptimizationController,
 )
@@ -54,10 +53,6 @@ class Marker_Tracker_3D(Plugin, Observable):
         )
 
     def _setup_controllers(self):
-        self._marker_detection_controller = MarkerDetectionController(
-            self._controller_storage
-        )
-
         self._model_optimization_controller = ModelOptimizationController(
             self._model_optimization_storage,
             camera_model=self.g_pool.capture.intrinsics,
@@ -68,7 +63,6 @@ class Marker_Tracker_3D(Plugin, Observable):
             camera_model=self.g_pool.capture.intrinsics
         )
         self._controller = Controller(
-            self._marker_detection_controller,
             self._model_optimization_controller,
             self._model_optimization_storage,
             self._camera_localization_controller,

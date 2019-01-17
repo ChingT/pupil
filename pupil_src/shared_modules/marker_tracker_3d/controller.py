@@ -1,5 +1,6 @@
 import logging
 
+from marker_tracker_3d import detect_markers
 
 logger = logging.getLogger(__name__)
 
@@ -7,14 +8,12 @@ logger = logging.getLogger(__name__)
 class Controller:
     def __init__(
         self,
-        marker_detection_controller,
         model_optimization_controller,
         model_optimization_storage,
         camera_localization_controller,
         controller_storage,
         plugin,
     ):
-        self._marker_detection_controller = marker_detection_controller
         self._model_optimization_controller = model_optimization_controller
         self._camera_localization_controller = camera_localization_controller
 
@@ -28,7 +27,9 @@ class Controller:
             self._update(events["frame"])
 
     def _update(self, frame):
-        marker_id_to_detections = self._marker_detection_controller.detect(frame)
+        marker_id_to_detections = detect_markers.detect(
+            frame, self._controller_storage.min_marker_perimeter
+        )
 
         camera_extrinsics = self._camera_localization_controller.estimate(
             marker_id_to_detections,

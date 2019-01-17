@@ -3,6 +3,7 @@ import random
 import cv2
 import numpy as np
 
+from marker_tracker_3d import localize_camera
 from marker_tracker_3d import utils
 
 
@@ -104,33 +105,17 @@ def _get_camera_extrinsics_init_dict(
     )
 
     for frame_index in frames_index_not_computed:
-        markers_index_available = list(
-            set(marker_extrinsics_init_dict.keys())
-            & set(marker_indices[frame_indices == frame_index])
+        data = (
+            frame_index,
+            frame_indices,
+            marker_indices,
+            markers_points_2d_detected,
+            marker_extrinsics_init_dict,
         )
-        try:
-            marker_index = markers_index_available[0]
-        except IndexError:
-            pass
-        else:
-            marker_points_3d = utils.extrinsics_to_marker_points_3d(
-                marker_extrinsics_init_dict[marker_index]
-            )
-            marker_points_2d = markers_points_2d_detected[
-                np.bitwise_and(
-                    frame_indices == frame_index, marker_indices == marker_index
-                )
-            ]
+        camera_extrinsics = localize_camera.get(camera_model, data)
 
-            retval, rotation, translation = camera_model.solvePnP(
-                marker_points_3d, marker_points_2d
-            )
-            if retval and utils.check_solvepnp_output(
-                marker_points_3d, rotation, translation
-            ):
-                camera_extrinsics_init_dict[frame_index] = utils.merge_extrinsics(
-                    rotation, translation
-                )
+        if camera_extrinsics is not None:
+            camera_extrinsics_init_dict[frame_index] = camera_extrinsics
 
     return camera_extrinsics_init_dict
 

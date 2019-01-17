@@ -20,14 +20,12 @@ class ControllerStorage:
         # Following attributes are for drawing in 3d window
         self.marker_id_to_detections = {}
 
-        # Define all_camera_traces and current_camera_pose_matrix
-        # before the initialization of current_camera_extrinsics
+        # Define all_camera_traces and camera_pose_matrix
+        # before the initialization of camera_extrinsics
         self.all_camera_traces = []
-        self.current_camera_pose_matrix = None
-        self.current_camera_extrinsics = None
-
-        # Clear all_camera_traces after initialization of current_camera_extrinsics
-        self.all_camera_traces = []
+        self.camera_extrinsics = None
+        self._camera_extrinsics = None
+        self.camera_pose_matrix = None
 
     def reset(self):
         self._set_to_default_values()
@@ -45,21 +43,23 @@ class ControllerStorage:
         )
 
     @property
-    def current_camera_extrinsics(self):
+    def camera_extrinsics(self):
         return self._camera_extrinsics
 
-    @current_camera_extrinsics.setter
-    def current_camera_extrinsics(self, camera_extrinsics_new):
-        self._camera_extrinsics = camera_extrinsics_new
+    @camera_extrinsics.setter
+    def camera_extrinsics(self, camera_extrinsics_new):
         if camera_extrinsics_new is not None:
-            self.current_camera_pose_matrix = utils.get_camera_pose_matrix(
+            self._camera_extrinsics = camera_extrinsics_new
+            self.camera_pose_matrix = utils.get_camera_pose_matrix(
                 camera_extrinsics_new
             )
             self.all_camera_traces.append(
-                utils.get_camera_trace(self.current_camera_pose_matrix)
+                utils.get_camera_trace(self.camera_pose_matrix)
             )
         else:
-            self.current_camera_pose_matrix = None
+            # Do not set previous_camera_extrinsics to None to ensure
+            # a decent initial guess for the next solvePnP call
+            self.camera_pose_matrix = None
             self.all_camera_traces.append(np.full((3,), np.nan))
 
     def get_init_dict(self):

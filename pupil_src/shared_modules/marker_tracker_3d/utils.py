@@ -25,26 +25,6 @@ def merge_extrinsics(rotation, translation):
     return extrinsics
 
 
-def check_solvepnp_output(pts_3d_world, rotation, translation):
-    # solvePnP outputs wrong pose estimations sometimes, so it is necessary to check
-    # if the rotation and translation from the output of solvePnP is reasonable.
-
-    assert rotation.size == 3 and translation.size == 3
-
-    # the absolute values of rotation should be less than 2*pi
-    if (np.abs(rotation) > np.pi * 2).any():
-        return False
-
-    # the depth of the markers in the camera coordinate system should be positive,
-    # i.e. all seen markers in the frame should be in front of the camera;
-    # if not, that implies the output of solvePnP is wrong.
-    pts_3d_camera = to_camera_coordinate(pts_3d_world, rotation, translation)
-    if (pts_3d_camera.reshape(-1, 3)[:, 2] < 0).any():
-        return False
-
-    return True
-
-
 def to_camera_coordinate(pts_3d_world, rotation, translation):
     pts_3d_cam = [
         cv2.Rodrigues(rotation)[0] @ p + translation.ravel()
@@ -77,7 +57,8 @@ def get_camera_trace(camera_pose_matrix):
 
 def get_camera_trace_from_camera_extrinsics(camera_extrinsics):
     rotation, translation = split_extrinsics(camera_extrinsics)
-    return -cv2.Rodrigues(rotation)[0].T @ translation
+    camera_trace = -cv2.Rodrigues(rotation)[0].T @ translation
+    return camera_trace
 
 
 def extrinsics_to_marker_points_3d(marker_extrinsics):

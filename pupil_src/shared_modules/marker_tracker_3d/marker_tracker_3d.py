@@ -9,9 +9,6 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from marker_tracker_3d.camera_localization_controller import (
-    CameraLocalizationController,
-)
 from marker_tracker_3d.controller import Controller
 from marker_tracker_3d.controller_storage import ControllerStorage
 from marker_tracker_3d.optimization.model_optimization_controller import (
@@ -59,14 +56,11 @@ class Marker_Tracker_3D(Plugin, Observable):
             task_manager=self._task_manager,
         )
 
-        self._camera_localization_controller = CameraLocalizationController(
-            camera_model=self.g_pool.capture.intrinsics
-        )
         self._controller = Controller(
             self._model_optimization_controller,
             self._model_optimization_storage,
-            self._camera_localization_controller,
             self._controller_storage,
+            camera_model=self.g_pool.capture.intrinsics,
             plugin=self,
         )
 

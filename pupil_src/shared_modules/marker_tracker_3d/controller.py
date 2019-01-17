@@ -1,6 +1,7 @@
 import logging
 
 from marker_tracker_3d import detect_markers
+from marker_tracker_3d import localize_camera
 
 logger = logging.getLogger(__name__)
 
@@ -10,15 +11,14 @@ class Controller:
         self,
         model_optimization_controller,
         model_optimization_storage,
-        camera_localization_controller,
         controller_storage,
+        camera_model,
         plugin,
     ):
         self._model_optimization_controller = model_optimization_controller
-        self._camera_localization_controller = camera_localization_controller
-
         self._model_optimization_storage = model_optimization_storage
         self._controller_storage = controller_storage
+        self._camera_model = camera_model
 
         plugin.add_observer("recent_events", self._on_recent_events)
 
@@ -31,9 +31,14 @@ class Controller:
             frame, self._controller_storage.min_marker_perimeter
         )
 
-        camera_extrinsics = self._camera_localization_controller.estimate(
+        data = (
             marker_id_to_detections,
-            self._model_optimization_storage.marker_extrinsics_opt_array,
+            self._model_optimization_storage.marker_extrinsics_opt_dict,
+        )
+        camera_extrinsics = localize_camera.get(
+            self._camera_model,
+            data,
+            camera_extrinsics_prv=self._controller_storage.camera_extrinsics,
         )
 
         self._model_optimization_controller.add_observations(
@@ -44,12 +49,11 @@ class Controller:
 
     def _update_storage(self, marker_id_to_detections, camera_extrinsics):
         self._controller_storage.marker_id_to_detections = marker_id_to_detections
-        self._controller_storage.current_camera_extrinsics = camera_extrinsics
+        self._controller_storage.camera_extrinsics = camera_extrinsics
 
     def reset(self):
         self._controller_storage.reset()
         self._model_optimization_controller.reset()
-        self._camera_localization_controller.reset()
         logger.info("Reset 3D Marker Tracker!")
 
     def export_marker_tracker_3d_model(self):

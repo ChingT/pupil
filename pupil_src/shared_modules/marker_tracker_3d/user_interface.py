@@ -145,7 +145,7 @@ class UserInterface:
     def _draw_camera_in_3d_window(self):
         try:
             camera_pose_matrix_flatten = (
-                self._controller_storage.current_camera_pose_matrix.T.flatten()
+                self._controller_storage.camera_pose_matrix.T.flatten()
             )
         except AttributeError:
             pass

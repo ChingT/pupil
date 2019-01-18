@@ -23,9 +23,9 @@ class ControllerStorage:
         # Define all_camera_traces and camera_pose_matrix
         # before the initialization of camera_extrinsics
         self.all_camera_traces = []
-        self.camera_extrinsics = None
-        self._camera_extrinsics = None
         self.camera_pose_matrix = None
+        self._camera_extrinsics = None
+        self.camera_extrinsics = None
 
     def reset(self):
         self._set_to_default_values()
@@ -57,7 +57,7 @@ class ControllerStorage:
                 utils.get_camera_trace(self.camera_pose_matrix)
             )
         else:
-            # Do not set previous_camera_extrinsics to None to ensure
+            # Do not set camera_extrinsics to None to ensure
             # a decent initial guess for the next solvePnP call
             self.camera_pose_matrix = None
             self.all_camera_traces.append(np.full((3,), np.nan))

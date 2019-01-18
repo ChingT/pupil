@@ -17,8 +17,8 @@ class UserInterface:
     def __init__(
         self,
         plugin,
+        visibility_graphs,
         intrinsics,
-        model_optimization_controller,
         model_optimization_storage,
         controller,
         controller_storage,
@@ -44,9 +44,8 @@ class UserInterface:
         self._plugin.add_observer("init_ui", self._on_init_ui)
         self._plugin.add_observer("deinit_ui", self._on_deinit_ui)
         self._plugin.add_observer("gl_display", self._on_gl_display)
-        model_optimization_controller.visibility_graphs.add_observer(
-            "set_up_origin_marker", self._on_update_menu
-        )
+
+        visibility_graphs.add_observer("set_up_origin_marker", self._on_update_menu)
         self._plugin.add_observer("cleanup", self._on_close_window)
 
     def _init_trackball(self):
@@ -150,12 +149,12 @@ class UserInterface:
         except AttributeError:
             pass
         else:
-            self._draw_coordinate_in_3d_window()
             self._draw_frustum_in_3d_window(
                 camera_pose_matrix_flatten,
                 self._intrinsics.resolution,
                 self._intrinsics.K,
             )
+            self._draw_coordinate_in_3d_window()
 
     def _draw_frustum_in_3d_window(
         self, matrix_flatten, img_size, camera_intrinsics, scale=1000

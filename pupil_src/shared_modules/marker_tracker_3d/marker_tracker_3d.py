@@ -8,15 +8,16 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
-
 from marker_tracker_3d.controller import Controller
 from marker_tracker_3d.controller_storage import ControllerStorage
+from marker_tracker_3d.initial_guess_controller import InitialGuessController
 from marker_tracker_3d.optimization.model_optimization_controller import (
     ModelOptimizationController,
 )
 from marker_tracker_3d.optimization.model_optimization_storage import (
     ModelOptimizationStorage,
 )
+from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
 from marker_tracker_3d.user_interface import UserInterface
 from observable import Observable
 from plugin import Plugin
@@ -50,6 +51,18 @@ class Marker_Tracker_3D(Plugin, Observable):
         )
 
     def _setup_controllers(self):
+        self._visibility_graphs = VisibilityGraphs(
+            self._model_optimization_storage,
+            camera_model=self.g_pool.capture.intrinsics,
+            predetermined_origin_marker_id=None,
+        )
+
+        self._initial_guess_controller = InitialGuessController(
+            self._model_optimization_storage,
+            camera_model=self.g_pool.capture.intrinsics,
+            task_manager=self._task_manager,
+        )
+
         self._model_optimization_controller = ModelOptimizationController(
             self._model_optimization_storage,
             camera_model=self.g_pool.capture.intrinsics,
@@ -57,6 +70,8 @@ class Marker_Tracker_3D(Plugin, Observable):
         )
 
         self._controller = Controller(
+            self._visibility_graphs,
+            self._initial_guess_controller,
             self._model_optimization_controller,
             self._model_optimization_storage,
             self._controller_storage,
@@ -67,8 +82,8 @@ class Marker_Tracker_3D(Plugin, Observable):
     def _setup_ui(self):
         self._ui = UserInterface(
             self,
+            self._visibility_graphs,
             self.g_pool.capture.intrinsics,
-            self._model_optimization_controller,
             self._model_optimization_storage,
             self._controller,
             self._controller_storage,

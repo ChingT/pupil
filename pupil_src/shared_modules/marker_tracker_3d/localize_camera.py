@@ -6,26 +6,40 @@ min_n_markers_per_frame = 1
 max_camera_trace_distance = 10
 
 
-def get(camera_model, data, camera_extrinsics_prv=None):
-    if len(data) == 2:
-        marker_points_3d, marker_points_2d = _prepare_marker_points_for_loc(*data)
-    else:
-        marker_points_3d, marker_points_2d = _prepare_marker_points(*data)
+def localize(
+    camera_model, marker_id_to_detections, marker_points_3d, camera_extrinsics_prv=None
+):
+    data_for_solvepnp = _prepare_data_for_solvepnp(
+        marker_id_to_detections, marker_points_3d
+    )
+    if not data_for_solvepnp:
+        return None
 
-    camera_extrinsics = _estimate(
-        camera_model, marker_points_3d, marker_points_2d, camera_extrinsics_prv
+    camera_extrinsics = _calculate(
+        camera_model, data_for_solvepnp, camera_extrinsics_prv
     )
     return camera_extrinsics
 
 
-def _estimate(
-    camera_model, marker_points_3d, marker_points_2d, camera_extrinsics_prv=None
-):
-    # calculate camera_extrinsics only when the number of markers is
-    # greater than or equal to _min_n_markers_per_frame
-    if len(marker_points_3d) < min_n_markers_per_frame:
+def _prepare_data_for_solvepnp(marker_id_to_detections, marker_points_3d):
+    # markers_id_available are the id of the markers which have been known
+    # and are detected in this frame.
+    markers_id_available = list(
+        set(marker_points_3d.keys() & set(marker_id_to_detections.keys()))
+    )
+    if len(markers_id_available) < min_n_markers_per_frame:
         return None
 
+    marker_points_3d = np.array([marker_points_3d[i] for i in markers_id_available])
+    marker_points_2d = np.array(
+        [marker_id_to_detections[i]["verts"] for i in markers_id_available]
+    )
+    data_for_solvepnp = marker_points_3d, marker_points_2d
+    return data_for_solvepnp
+
+
+def _calculate(camera_model, data_for_solvepnp, camera_extrinsics_prv):
+    marker_points_3d, marker_points_2d = data_for_solvepnp
     retval, rotation, translation = _run_solvepnp(
         camera_model, marker_points_3d, marker_points_2d, camera_extrinsics_prv
     )
@@ -38,51 +52,6 @@ def _estimate(
             return camera_extrinsics
 
     return None
-
-
-def _prepare_marker_points_for_loc(marker_id_to_detections, marker_extrinsics_opt_dict):
-    markers_id_available = marker_id_to_detections.keys() & set(
-        marker_extrinsics_opt_dict.keys()
-    )
-
-    marker_points_3d = utils.extrinsics_to_marker_points_3d(
-        [marker_extrinsics_opt_dict[i] for i in markers_id_available]
-    )
-    marker_points_2d = np.array(
-        [marker_id_to_detections[i]["verts"] for i in markers_id_available]
-    )
-
-    return marker_points_3d, marker_points_2d
-
-
-def _prepare_marker_points(
-    frame_index,
-    frame_indices,
-    marker_indices,
-    markers_points_2d_detected,
-    marker_extrinsics_dict,
-):
-    markers_index_available = list(
-        set(marker_extrinsics_dict.keys())
-        & set(marker_indices[frame_indices == frame_index])
-    )
-
-    marker_points_3d = np.array(
-        [
-            utils.extrinsics_to_marker_points_3d(marker_extrinsics_dict[i])[0]
-            for i in markers_index_available
-        ]
-    )
-
-    marker_points_2d = np.array(
-        [
-            markers_points_2d_detected[
-                np.bitwise_and(frame_indices == frame_index, marker_indices == i)
-            ][0]
-            for i in markers_index_available
-        ]
-    )
-    return marker_points_3d, marker_points_2d
 
 
 def _run_solvepnp(
@@ -108,11 +77,10 @@ def _run_solvepnp(
 
 
 def _check_solvepnp_output_reasonable(retval, rotation, translation, pts_3d_world):
-    if not retval:
-        return False
-
     # solvePnP outputs wrong pose estimations sometimes, so it is necessary to check
     # if the rotation and translation from the output of solvePnP is reasonable.
+    if not retval:
+        return False
 
     assert rotation.size == 3 and translation.size == 3
 
@@ -124,7 +92,7 @@ def _check_solvepnp_output_reasonable(retval, rotation, translation, pts_3d_worl
     # i.e. all seen markers in the frame should be in front of the camera;
     # if not, that implies the output of solvePnP is wrong.
     pts_3d_camera = utils.to_camera_coordinate(pts_3d_world, rotation, translation)
-    if (pts_3d_camera.reshape(-1, 3)[:, 2] < 0).any():
+    if (pts_3d_camera[:, 2] < 0).any():
         return False
 
     return True

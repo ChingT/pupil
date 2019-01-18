@@ -35,7 +35,9 @@ class ModelOptimizationStorage:
         self.marker_extrinsics_opt_dict = {}
 
         # marker_points_3d_opt: {marker id: 3d points of 4 vertices of the marker
-        # in the world coordinate system}
+        # in the world coordinate system}.
+        # it is updated according to marker_extrinsics_opt_dict by the function
+        # extrinsics_to_marker_points_3d
         self.marker_points_3d_opt = {}
 
     def reset(self):
@@ -55,7 +57,7 @@ class ModelOptimizationStorage:
             for marker_id, extrinsics in self.marker_extrinsics_opt_dict.items()
         }
 
-        origin_marker_id = self._find_origin_marker_id()
+        origin_marker_id = utils.find_origin_marker_id(self.marker_extrinsics_opt_dict)
         if origin_marker_id is not None:
             self.marker_ids = [origin_marker_id]
 
@@ -65,12 +67,6 @@ class ModelOptimizationStorage:
                     len(self.marker_extrinsics_opt_dict), self._model_save_path
                 )
             )
-
-    def _find_origin_marker_id(self):
-        for marker_id, extrinsics in self.marker_extrinsics_opt_dict.items():
-            if np.allclose(extrinsics, utils.get_marker_extrinsics_origin()):
-                return marker_id
-        return None
 
     def export_marker_tracker_3d_model(self):
         marker_tracker_3d_model = file_methods.Persistent_Dict(self._model_save_path)

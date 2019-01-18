@@ -9,12 +9,7 @@ from marker_tracker_3d import utils
 
 OptimizationResult = collections.namedtuple(
     "OptimizationResult",
-    [
-        "camera_extrinsics_opt_array",
-        "marker_extrinsics_opt_array",
-        "frame_indices_failed",
-        "marker_indices_failed",
-    ],
+    ["camera_extrinsics_opt", "marker_extrinsics_opt", "frame_ids_failed"],
 )
 
 
@@ -30,25 +25,20 @@ class BundleAdjustment:
 
     def run(
         self,
-        frame_indices,
-        marker_indices,
-        markers_points_2d_detected,
-        camera_extrinsics_init_array,
-        marker_extrinsics_init_array,
+        all_novel_markers,
+        camera_extrinsics_init_dict,
+        marker_extrinsics_init_dict,
     ):
         """ run bundle adjustment given the initial guess and then check the result of
         optimization
         """
+        self._set_ids(camera_extrinsics_init_dict, marker_extrinsics_init_dict)
 
-        if marker_extrinsics_init_array is None:
-            return None
+        if not self._check_enoug_data(all_novel_markers):
+            return
 
-        self._update_data(
-            frame_indices,
-            marker_indices,
-            markers_points_2d_detected,
-            camera_extrinsics_init_array,
-            marker_extrinsics_init_array,
+        camera_extrinsics_init_array, marker_extrinsics_init_array = self._update_init_array(
+            camera_extrinsics_init_dict, marker_extrinsics_init_dict
         )
 
         initial_guess, bounds, sparsity_matrix = self._prepare_parameters(
@@ -59,20 +49,49 @@ class BundleAdjustment:
         optimization_result = self._get_optimization_result(least_sq_result)
         return optimization_result
 
-    def _update_data(
-        self,
-        frame_indices,
-        marker_indices,
-        markers_points_2d_detected,
-        camera_extrinsics_init_array,
-        marker_extrinsics_init_array,
+    def _set_ids(self, camera_extrinsics_init_dict, marker_extrinsics_init_dict):
+        origin_marker_id = utils.find_origin_marker_id(marker_extrinsics_init_dict)
+        self._marker_ids = [origin_marker_id] + list(
+            set(marker_extrinsics_init_dict.keys()) - {origin_marker_id}
+        )
+        self._frame_ids = list(camera_extrinsics_init_dict.keys())
+
+    def _check_enoug_data(self, all_novel_markers):
+        frame_indices = []
+        marker_indices = []
+        markers_points_2d_detected = []
+
+        for marker in all_novel_markers:
+            if (
+                marker.frame_id in self._frame_ids
+                and marker.marker_id in self._marker_ids
+            ):
+                frame_indices.append(self._frame_ids.index(marker.frame_id))
+                marker_indices.append(self._marker_ids.index(marker.marker_id))
+                markers_points_2d_detected.append(marker.verts)
+
+        if not markers_points_2d_detected:
+            return False
+
+        self._frame_indices = np.array(frame_indices)
+        self._marker_indices = np.array(marker_indices)
+        self._markers_points_2d_detected = np.array(markers_points_2d_detected)
+        return True
+
+    def _update_init_array(
+        self, camera_extrinsics_init_dict, marker_extrinsics_init_dict
     ):
-        self._frame_indices = frame_indices
-        self._marker_indices = marker_indices
-        self._markers_points_2d_detected = markers_points_2d_detected
+        camera_extrinsics_init_array = np.array(
+            [camera_extrinsics_init_dict[frame_id] for frame_id in self._frame_ids]
+        )
+        marker_extrinsics_init_array = np.array(
+            [marker_extrinsics_init_dict[marker_id] for marker_id in self._marker_ids]
+        )
 
         self._camera_extrinsics_shape = camera_extrinsics_init_array.shape
         self._marker_extrinsics_shape = marker_extrinsics_init_array.shape
+
+        return camera_extrinsics_init_array, marker_extrinsics_init_array
 
     def _prepare_parameters(
         self, camera_extrinsics_init_array, marker_extrinsics_init_array
@@ -165,7 +184,7 @@ class BundleAdjustment:
         return result
 
     def _get_optimization_result(self, least_sq_result):
-        camera_extrinsics, marker_extrinsics = self._reshape_variables_to_extrinsics(
+        camera_extrinsics_opt_array, marker_extrinsics_opt_array = self._reshape_variables_to_extrinsics(
             least_sq_result.x
         )
 
@@ -173,11 +192,22 @@ class BundleAdjustment:
             least_sq_result.fun
         )
 
+        camera_extrinsics_opt = {
+            self._frame_ids[i]: camera_extrinsics
+            for i, camera_extrinsics in enumerate(camera_extrinsics_opt_array)
+            if i not in frame_indices_failed
+        }
+        marker_extrinsics_opt = {
+            self._marker_ids[i]: marker_extrinsics
+            for i, marker_extrinsics in enumerate(marker_extrinsics_opt_array)
+            if i not in marker_indices_failed
+        }
+        frame_ids_failed = [self._frame_ids[i] for i in frame_indices_failed]
+
         optimization_result = OptimizationResult(
-            camera_extrinsics_opt_array=camera_extrinsics,
-            marker_extrinsics_opt_array=marker_extrinsics,
-            frame_indices_failed=frame_indices_failed,
-            marker_indices_failed=marker_indices_failed,
+            camera_extrinsics_opt=camera_extrinsics_opt,
+            marker_extrinsics_opt=marker_extrinsics_opt,
+            frame_ids_failed=frame_ids_failed,
         )
         return optimization_result
 

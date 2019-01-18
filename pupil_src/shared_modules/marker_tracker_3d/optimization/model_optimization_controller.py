@@ -1,46 +1,33 @@
 import tasklib
-from marker_tracker_3d.optimization.optimization_routine import optimization_routine
-from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
+from marker_tracker_3d.optimization.bundle_adjustment import BundleAdjustment
+from observable import Observable
 
 
-class ModelOptimizationController:
+class ModelOptimizationController(Observable):
     def __init__(self, model_optimization_storage, camera_model, task_manager):
         self._model_optimization_storage = model_optimization_storage
-        self._task_manager = task_manager
         self._camera_model = camera_model
+        self._task_manager = task_manager
+        self._bundle_adjustment = BundleAdjustment(camera_model)
 
         self._bg_task = None
 
-        self.visibility_graphs = VisibilityGraphs(
-            self._model_optimization_storage,
-            camera_model=self._camera_model,
-            predetermined_origin_marker_id=None,
-        )
-        self.visibility_graphs.add_observer(
-            "on_ready_for_optimization", self._run_optimization
-        )
-
-    def add_observations(self, marker_detections, camera_extrinsics):
-        self.visibility_graphs.add_observations(marker_detections, camera_extrinsics)
-
-    def _run_optimization(self):
+    def run(self, data_for_opt):
         assert not self._bg_task or not self._bg_task.running
 
         self._bg_task = self._task_manager.create_background_task(
             name="optimization_routine",
-            routine_or_generator_function=optimization_routine,
-            args=(self._camera_model, self._model_optimization_storage),
+            routine_or_generator_function=self._bundle_adjustment.run,
+            args=data_for_opt,
         )
-        self._bg_task.add_observer(
-            "on_completed", self.visibility_graphs.process_optimization_results
-        )
+        self._bg_task.add_observer("on_completed", self.on_optimization_done)
         self._bg_task.add_observer("on_exception", tasklib.raise_exception)
+
+    def on_optimization_done(self, optimization_results):
+        pass
 
     def reset(self):
         if self._bg_task:
             if self._bg_task.running:
                 self._bg_task.kill(grace_period=None)
             self._bg_task = None
-
-        self._model_optimization_storage.reset()
-        self.visibility_graphs.reset()

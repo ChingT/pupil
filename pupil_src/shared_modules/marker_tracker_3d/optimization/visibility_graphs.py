@@ -60,7 +60,10 @@ class VisibilityGraphs(Observable):
     def reset(self):
         self._set_to_default_values()
 
-    def on_ready_for_optimization(self):
+    def switch_on_optimization_requested(self):
+        self._optimization_requested = True
+
+    def on_ready_for_initial_guess(self):
         pass
 
     def add_observations(self, marker_detections, camera_extrinsics):
@@ -174,7 +177,7 @@ class VisibilityGraphs(Observable):
             self._update_marker_ids()
             self._update_frame_ids()
 
-            self.on_ready_for_optimization()
+            self.on_ready_for_initial_guess()
 
     def _update_marker_ids(self):
         marker_id_candidates = self._filter_marker_ids_by_visibility_graph()
@@ -226,11 +229,11 @@ class VisibilityGraphs(Observable):
             return markers_enough_viewed & markers_connected_to_first_marker
 
     def _set_coordinate_system(self, markers_enough_viewed):
-        self._origin_marker_id = self._find_origin_marker_id(markers_enough_viewed)
+        self._origin_marker_id = self._determine_origin_marker_id(markers_enough_viewed)
         if self._origin_marker_id is not None:
             self.set_up_origin_marker()
 
-    def _find_origin_marker_id(self, markers_enough_viewed):
+    def _determine_origin_marker_id(self, markers_enough_viewed):
         if self._predetermined_origin_marker_id:
             origin_marker_id = self._predetermined_origin_marker_id
         else:
@@ -279,22 +282,20 @@ class VisibilityGraphs(Observable):
         if optimization_result:
             self._update_extrinsics_opt_array(optimization_result)
             self.discard_failed_frames(optimization_result)
-        self._optimization_requested = True
+        self.switch_on_optimization_requested()
 
     def _update_extrinsics_opt_array(self, optimization_result):
-        for i, p in enumerate(optimization_result.camera_extrinsics_opt_array):
-            self._model_optimization_storage.camera_extrinsics_opt_dict[
-                self._model_optimization_storage.frame_ids[i]
-            ] = p
+        self._model_optimization_storage.camera_extrinsics_opt_dict = (
+            optimization_result.camera_extrinsics_opt
+        )
 
-        for i, p in enumerate(optimization_result.marker_extrinsics_opt_array):
-            if i not in optimization_result.marker_indices_failed:
-                self._model_optimization_storage.marker_extrinsics_opt_dict[
-                    self._model_optimization_storage.marker_ids[i]
-                ] = p
-                self._model_optimization_storage.marker_points_3d_opt[
-                    self._model_optimization_storage.marker_ids[i]
-                ] = utils.extrinsics_to_marker_points_3d(p)[0]
+        for marker_id, extrinsics in optimization_result.marker_extrinsics_opt.items():
+            self._model_optimization_storage.marker_extrinsics_opt_dict[
+                marker_id
+            ] = extrinsics
+            self._model_optimization_storage.marker_points_3d_opt[
+                marker_id
+            ] = utils.extrinsics_to_marker_points_3d(extrinsics)[0]
 
         logger.debug(
             "{} markers have been registered and updated".format(
@@ -303,10 +304,7 @@ class VisibilityGraphs(Observable):
         )
 
     def discard_failed_frames(self, optimization_result):
-        frame_ids_failed = list(
-            self._model_optimization_storage.frame_ids[i]
-            for i in optimization_result.frame_indices_failed
-        )
+        frame_ids_failed = optimization_result.frame_ids_failed
         logger.debug("discard_failed_frames {0}".format(frame_ids_failed))
 
         if frame_ids_failed:

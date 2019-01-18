@@ -5,8 +5,6 @@ import time
 import cv2
 import numpy as np
 
-from marker_tracker_3d import math
-
 logger = logging.getLogger(__name__)
 
 
@@ -63,9 +61,7 @@ def get_camera_trace_from_camera_extrinsics(camera_extrinsics):
 
 def extrinsics_to_marker_points_3d(marker_extrinsics):
     marker_extrinsics = np.asarray(marker_extrinsics).reshape(-1, 6)
-    marker_points_4d_origin = cv2.convertPointsToHomogeneous(
-        get_marker_points_3d_origin()
-    ).reshape(4, 4)
+    marker_points_4d_origin = get_marker_points_4d_origin()
 
     marker_points_3d = []
     for extrinsics in marker_extrinsics:
@@ -80,27 +76,25 @@ def extrinsics_to_marker_points_3d(marker_extrinsics):
     return marker_points_3d
 
 
-def marker_points_3d_to_extrinsics(marker_points_3d):
-    rotation_matrix, translation, _ = math.svdt(
-        A=get_marker_points_3d_origin(), B=marker_points_3d
-    )
-    rotation = cv2.Rodrigues(rotation_matrix)[0]
-    marker_extrinsics = merge_extrinsics(rotation, translation)
-    return marker_extrinsics
+def find_origin_marker_id(marker_extrinsics_opt_dict):
+    for marker_id, extrinsics in marker_extrinsics_opt_dict.items():
+        if np.allclose(extrinsics, get_marker_extrinsics_origin()):
+            return marker_id
+    return None
 
 
 def get_marker_points_3d_origin():
-    marker_points_3d_origin = np.array(
-        [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float32
+    return np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float32)
+
+
+def get_marker_points_4d_origin():
+    return np.array(
+        [[0, 0, 0, 1], [1, 0, 0, 1], [1, 1, 0, 1], [0, 1, 0, 1]], dtype=np.float32
     )
-    return marker_points_3d_origin
 
 
 def get_marker_extrinsics_origin():
-    marker_extrinsics_origin = marker_points_3d_to_extrinsics(
-        get_marker_points_3d_origin()
-    )
-    return marker_extrinsics_origin
+    return np.array([0, 0, 0, 0, 0, 0.0], dtype=np.float32)
 
 
 def timer(func):

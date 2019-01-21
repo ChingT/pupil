@@ -26,19 +26,19 @@ class ModelOptimizationStorage:
 
         self.all_novel_markers = []
 
-        # camera_extrinsics_opt_dict: {frame id: optimized camera extrinsics (which is
+        # frame_id_to_extrinsics_opt: {frame id: optimized camera extrinsics (which is
         # composed of Rodrigues rotation vector and translation vector, which brings
         # points from the world coordinate system to the camera coordinate system)}
-        self.camera_extrinsics_opt_dict = {}
+        self.frame_id_to_extrinsics_opt = {}
 
-        # marker_extrinsics_opt_dict: {marker id: optimized marker extrinsics}
-        self.marker_extrinsics_opt_dict = {}
+        # marker_id_to_extrinsics_opt: {marker id: optimized marker extrinsics}
+        self.marker_id_to_extrinsics_opt = {}
 
-        # marker_points_3d_opt: {marker id: 3d points of 4 vertices of the marker
+        # marker_id_to_points_3d_opt: {marker id: 3d points of 4 vertices of the marker
         # in the world coordinate system}.
-        # it is updated according to marker_extrinsics_opt_dict by the function
-        # extrinsics_to_marker_points_3d
-        self.marker_points_3d_opt = {}
+        # it is updated according to marker_id_to_extrinsics_opt by the function
+        # extrinsics_to_marker_id_to_points_3d
+        self.marker_id_to_points_3d_opt = {}
 
     def reset(self):
         self._set_to_default_values()
@@ -46,38 +46,38 @@ class ModelOptimizationStorage:
     def _load_marker_tracker_3d_model_from_file(self):
         marker_tracker_3d_model = file_methods.Persistent_Dict(self._model_save_path)
 
-        self.marker_extrinsics_opt_dict = {
+        self.marker_id_to_extrinsics_opt = {
             marker_id: np.array(extrinsics)
             for marker_id, extrinsics in marker_tracker_3d_model.get(
-                "marker_extrinsics_opt_dict", {}
+                "marker_id_to_extrinsics_opt", {}
             ).items()
         }
-        self.marker_points_3d_opt = {
-            marker_id: utils.extrinsics_to_marker_points_3d(extrinsics)[0]
-            for marker_id, extrinsics in self.marker_extrinsics_opt_dict.items()
+        self.marker_id_to_points_3d_opt = {
+            marker_id: utils.convert_marker_extrinsics_to_points_3d(extrinsics)
+            for marker_id, extrinsics in self.marker_id_to_extrinsics_opt.items()
         }
 
-        origin_marker_id = utils.find_origin_marker_id(self.marker_extrinsics_opt_dict)
+        origin_marker_id = utils.find_origin_marker_id(self.marker_id_to_extrinsics_opt)
         if origin_marker_id is not None:
             self.marker_ids = [origin_marker_id]
 
             logger.info(
                 "marker tracker 3d model with {0} markers has been loaded from "
                 "{1}".format(
-                    len(self.marker_extrinsics_opt_dict), self._model_save_path
+                    len(self.marker_id_to_extrinsics_opt), self._model_save_path
                 )
             )
 
     def export_marker_tracker_3d_model(self):
         marker_tracker_3d_model = file_methods.Persistent_Dict(self._model_save_path)
-        marker_tracker_3d_model["marker_extrinsics_opt_dict"] = {
+        marker_tracker_3d_model["marker_id_to_extrinsics_opt"] = {
             marker_id: extrinsics.tolist()
-            for marker_id, extrinsics in self.marker_extrinsics_opt_dict.items()
+            for marker_id, extrinsics in self.marker_id_to_extrinsics_opt.items()
         }
         marker_tracker_3d_model.save()
 
         logger.info(
             "marker tracker 3d model with {0} markers has been exported to {1}".format(
-                len(self.marker_extrinsics_opt_dict), self._model_save_path
+                len(self.marker_id_to_extrinsics_opt), self._model_save_path
             )
         )

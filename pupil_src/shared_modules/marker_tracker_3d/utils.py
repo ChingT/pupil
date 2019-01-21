@@ -33,8 +33,8 @@ def to_camera_coordinate(pts_3d_world, rotation, translation):
     return pts_3d_cam
 
 
-def get_extrinsic_matrix(camera_extrinsics):
-    rotation, translation = split_extrinsics(camera_extrinsics)
+def get_extrinsic_matrix(extrinsics):
+    rotation, translation = split_extrinsics(extrinsics)
     extrinsic_matrix = np.eye(4, dtype=np.float32)
     extrinsic_matrix[0:3, 0:3] = cv2.Rodrigues(rotation)[0]
     extrinsic_matrix[0:3, 3] = translation
@@ -53,31 +53,23 @@ def get_camera_trace(camera_pose_matrix):
     return camera_pose_matrix[0:3, 3]
 
 
-def get_camera_trace_from_camera_extrinsics(camera_extrinsics):
+def get_camera_trace_from_extrinsics(camera_extrinsics):
     rotation, translation = split_extrinsics(camera_extrinsics)
     camera_trace = -cv2.Rodrigues(rotation)[0].T @ translation
     return camera_trace
 
 
-def extrinsics_to_marker_points_3d(marker_extrinsics):
-    marker_extrinsics = np.asarray(marker_extrinsics).reshape(-1, 6)
-    marker_points_4d_origin = get_marker_points_4d_origin()
+def convert_marker_extrinsics_to_points_3d(marker_extrinsics):
+    mat = get_extrinsic_matrix(marker_extrinsics)
+    marker_transformed_h = mat @ get_marker_points_4d_origin().T
+    marker_points_3d = cv2.convertPointsFromHomogeneous(marker_transformed_h.T)
+    marker_points_3d.shape = 4, 3
 
-    marker_points_3d = []
-    for extrinsics in marker_extrinsics:
-        mat = get_extrinsic_matrix(extrinsics)
-        marker_transformed_h = mat @ marker_points_4d_origin.T
-        marker_transformed = cv2.convertPointsFromHomogeneous(
-            marker_transformed_h.T
-        ).reshape(4, 3)
-        marker_points_3d.append(marker_transformed)
-
-    marker_points_3d = np.array(marker_points_3d)
     return marker_points_3d
 
 
-def find_origin_marker_id(marker_extrinsics_opt_dict):
-    for marker_id, extrinsics in marker_extrinsics_opt_dict.items():
+def find_origin_marker_id(marker_id_to_extrinsics):
+    for marker_id, extrinsics in marker_id_to_extrinsics.items():
         if np.allclose(extrinsics, get_marker_extrinsics_origin()):
             return marker_id
     return None

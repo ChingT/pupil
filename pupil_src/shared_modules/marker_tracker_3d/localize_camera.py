@@ -7,10 +7,13 @@ max_camera_trace_distance = 10
 
 
 def localize(
-    camera_model, marker_id_to_detections, marker_points_3d, camera_extrinsics_prv=None
+    camera_model,
+    marker_id_to_detections,
+    marker_id_to_extrinsics_prv,
+    camera_extrinsics_prv=None,
 ):
     data_for_solvepnp = _prepare_data_for_solvepnp(
-        marker_id_to_detections, marker_points_3d
+        marker_id_to_detections, marker_id_to_extrinsics_prv
     )
     if not data_for_solvepnp:
         return None
@@ -21,31 +24,36 @@ def localize(
     return camera_extrinsics
 
 
-def _prepare_data_for_solvepnp(marker_id_to_detections, marker_points_3d):
-    # markers_id_available are the id of the markers which have been known
+def _prepare_data_for_solvepnp(marker_id_to_detections, marker_id_to_extrinsics_prv):
+    # marker_ids_available are the id of the markers which have been known
     # and are detected in this frame.
-    markers_id_available = list(
-        set(marker_points_3d.keys() & set(marker_id_to_detections.keys()))
+    marker_ids_available = list(
+        set(marker_id_to_extrinsics_prv.keys() & set(marker_id_to_detections.keys()))
     )
-    if len(markers_id_available) < min_n_markers_per_frame:
+    if len(marker_ids_available) < min_n_markers_per_frame:
         return None
 
-    marker_points_3d = np.array([marker_points_3d[i] for i in markers_id_available])
-    marker_points_2d = np.array(
-        [marker_id_to_detections[i]["verts"] for i in markers_id_available]
-    )
-    data_for_solvepnp = marker_points_3d, marker_points_2d
+    markers_points_3d = [
+        utils.convert_marker_extrinsics_to_points_3d(marker_id_to_extrinsics_prv[i])
+        for i in marker_ids_available
+    ]
+    markers_points_2d = [
+        marker_id_to_detections[i]["verts"] for i in marker_ids_available
+    ]
+    markers_points_3d = np.array(markers_points_3d)
+    markers_points_2d = np.array(markers_points_2d)
+    data_for_solvepnp = markers_points_3d, markers_points_2d
     return data_for_solvepnp
 
 
 def _calculate(camera_model, data_for_solvepnp, camera_extrinsics_prv):
-    marker_points_3d, marker_points_2d = data_for_solvepnp
+    markers_points_3d, markers_points_2d = data_for_solvepnp
     retval, rotation, translation = _run_solvepnp(
-        camera_model, marker_points_3d, marker_points_2d, camera_extrinsics_prv
+        camera_model, markers_points_3d, markers_points_2d, camera_extrinsics_prv
     )
 
     if _check_solvepnp_output_reasonable(
-        retval, rotation, translation, marker_points_3d
+        retval, rotation, translation, markers_points_3d
     ):
         camera_extrinsics = utils.merge_extrinsics(rotation, translation)
         if _check_camera_trace_reasonable(camera_extrinsics, camera_extrinsics_prv):
@@ -55,20 +63,23 @@ def _calculate(camera_model, data_for_solvepnp, camera_extrinsics_prv):
 
 
 def _run_solvepnp(
-    camera_model, marker_points_3d, marker_points_2d, camera_extrinsics_prv
+    camera_model, markers_points_3d, markers_points_2d, frame_id_to_extrinsics_prv
 ):
-    assert marker_points_3d.shape[1:] == (4, 3) and marker_points_2d.shape[1:] == (4, 2)
-    assert len(marker_points_3d) == len(marker_points_2d)
+    assert len(markers_points_3d) == len(markers_points_2d)
+    assert markers_points_3d.shape[1:] == (4, 3)
+    assert markers_points_2d.shape[1:] == (4, 2)
 
-    if camera_extrinsics_prv is None:
+    if frame_id_to_extrinsics_prv is None:
         retval, rotation, translation = camera_model.solvePnP(
-            marker_points_3d, marker_points_2d
+            markers_points_3d, markers_points_2d
         )
     else:
-        rotation_prv, translation_prv = utils.split_extrinsics(camera_extrinsics_prv)
+        rotation_prv, translation_prv = utils.split_extrinsics(
+            frame_id_to_extrinsics_prv
+        )
         retval, rotation, translation = camera_model.solvePnP(
-            marker_points_3d,
-            marker_points_2d,
+            markers_points_3d,
+            markers_points_2d,
             useExtrinsicGuess=True,
             rvec=rotation_prv,
             tvec=translation_prv,
@@ -106,10 +117,8 @@ def _check_camera_trace_reasonable(camera_extrinsics, camera_extrinsics_prv):
 
     # If the camera position is too far from the previous camera position,
     # then it is very likely the output from solvePnP is wrong estimation.
-    camera_trace = utils.get_camera_trace_from_camera_extrinsics(camera_extrinsics)
-    camera_trace_prv = utils.get_camera_trace_from_camera_extrinsics(
-        camera_extrinsics_prv
-    )
+    camera_trace = utils.get_camera_trace_from_extrinsics(camera_extrinsics)
+    camera_trace_prv = utils.get_camera_trace_from_extrinsics(camera_extrinsics_prv)
     camera_trace_distance = np.linalg.norm(camera_trace - camera_trace_prv)
     if camera_trace_distance > max_camera_trace_distance:
         return False

@@ -122,16 +122,16 @@ class UserInterface:
 
     def _draw_markers_in_3d_window(self):
         for (
-            idx,
-            vertices,
-        ) in self._model_optimization_storage.marker_points_3d_opt.items():
-            if idx in self._controller_storage.marker_id_to_detections:
+            marker_id,
+            points_3d,
+        ) in self._model_optimization_storage.marker_id_to_points_3d_opt.items():
+            if marker_id in self._controller_storage.marker_id_to_detections:
                 color = (1, 0, 0, 0.8)
             else:
                 color = (1, 0.4, 0, 0.6)
 
             gl.glColor4f(*color)
-            self._draw_polygon_in_3d_window(vertices)
+            self._draw_polygon_in_3d_window(points_3d)
 
     def _draw_camera_trace_in_3d_window(self):
         trace = self._controller_storage.all_camera_traces[

@@ -54,7 +54,7 @@ class Controller:
         camera_extrinsics = localize_camera.localize(
             self._camera_model,
             marker_id_to_detections,
-            self._model_optimization_storage.marker_points_3d_opt,
+            self._model_optimization_storage.marker_id_to_extrinsics_opt,
             camera_extrinsics_prv=self._controller_storage.camera_extrinsics,
         )
 

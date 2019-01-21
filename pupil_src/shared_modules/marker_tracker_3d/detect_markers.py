@@ -34,8 +34,8 @@ def detect(frame, min_marker_perimeter):
 def _filter_markers(marker_list):
     marker_list = [m for m in marker_list if m["id_confidence"] > 0.9]
 
-    markers_id_all = set([m["id"] for m in marker_list])
-    for marker_id in markers_id_all:
+    marker_ids = set([m["id"] for m in marker_list])
+    for marker_id in marker_ids:
         marker_list = _remove_duplicate(marker_id, marker_list)
 
     return marker_list

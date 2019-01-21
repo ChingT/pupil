@@ -66,25 +66,25 @@ class VisibilityGraphs(Observable):
     def on_ready_for_initial_guess(self):
         pass
 
-    def add_observations(self, marker_detections, camera_extrinsics):
-        self._save_current_camera_extrinsics(camera_extrinsics)
+    def add_observations(self, marker_id_to_detections, current_camera_extrinsics):
+        self._save_current_camera_extrinsics(current_camera_extrinsics)
 
         if self._model_optimization_storage.adding_marker_detections:
             if self._n_frames_passed >= self._select_novel_markers_interval:
                 self._n_frames_passed = 0
-                self._select_novel_markers(marker_detections)
+                self._select_novel_markers(marker_id_to_detections)
 
         self._model_optimization_storage.current_frame_id += 1
         self._n_frames_passed += 1
 
-    def _save_current_camera_extrinsics(self, camera_extrinsics):
-        if camera_extrinsics is not None:
-            self._model_optimization_storage.camera_extrinsics_opt_dict[
+    def _save_current_camera_extrinsics(self, current_camera_extrinsics):
+        if current_camera_extrinsics is not None:
+            self._model_optimization_storage.frame_id_to_extrinsics_opt[
                 self._model_optimization_storage.current_frame_id
-            ] = camera_extrinsics
+            ] = current_camera_extrinsics
 
-    def _select_novel_markers(self, marker_detections):
-        novel_markers = self._filter_novel_markers(marker_detections)
+    def _select_novel_markers(self, marker_id_to_detections):
+        novel_markers = self._filter_novel_markers(marker_id_to_detections)
 
         if novel_markers:
             self._add_to_all_novel_markers(novel_markers)
@@ -92,18 +92,20 @@ class VisibilityGraphs(Observable):
 
             self._prepare_for_optimization()
 
-    def _filter_novel_markers(self, marker_detections):
-        if len(marker_detections) < self._min_n_markers_per_frame:
+    def _filter_novel_markers(self, marker_id_to_detections):
+        if len(marker_id_to_detections) < self._min_n_markers_per_frame:
             return []
 
-        novel_marker_candidates = self._get_novel_marker_candidates(marker_detections)
+        novel_marker_candidates = self._get_novel_marker_candidates(
+            marker_id_to_detections
+        )
 
         # if there are markers which have not yet been optimized,
         # add all markers in this frame and
         # do not need to check if the corresponding bins are available
         if not bool(
-            marker_detections.keys()
-            - self._model_optimization_storage.marker_extrinsics_opt_dict.keys()
+            marker_id_to_detections.keys()
+            - self._model_optimization_storage.marker_id_to_extrinsics_opt.keys()
         ):
             novel_marker_candidates = self._filter_novel_markers_by_bins_availability(
                 novel_marker_candidates
@@ -114,22 +116,25 @@ class VisibilityGraphs(Observable):
 
         return novel_marker_candidates
 
-    def _get_novel_marker_candidates(self, marker_detections):
-        bins_x, bins_y = self._get_bins(marker_detections)
+    def _get_novel_marker_candidates(self, marker_id_to_detections):
+        bins_x, bins_y = self._get_bins(marker_id_to_detections)
         novel_marker_candidates = [
             NovelMarker(
                 frame_id=self._model_optimization_storage.current_frame_id,
                 marker_id=marker_id,
-                verts=marker_detections[marker_id]["verts"],
+                verts=marker_id_to_detections[marker_id]["verts"],
                 bin=(x, y),
             )
-            for marker_id, x, y in zip(marker_detections.keys(), bins_x, bins_y)
+            for marker_id, x, y in zip(marker_id_to_detections.keys(), bins_x, bins_y)
         ]
         return novel_marker_candidates
 
-    def _get_bins(self, marker_detections):
+    def _get_bins(self, marker_id_to_detections):
         centroids = np.array(
-            [marker_detections[k]["centroid"] for k in marker_detections.keys()]
+            [
+                marker_id_to_detections[k]["centroid"]
+                for k in marker_id_to_detections.keys()
+            ]
         )
         bins_x = np.digitize(centroids[:, 0], self._bins_x)
         bins_y = np.digitize(centroids[:, 1], self._bins_y)
@@ -246,10 +251,10 @@ class VisibilityGraphs(Observable):
 
     def set_up_origin_marker(self):
         self._model_optimization_storage.marker_ids = [self._origin_marker_id]
-        self._model_optimization_storage.marker_extrinsics_opt_dict = {
+        self._model_optimization_storage.marker_id_to_extrinsics_opt = {
             self._origin_marker_id: utils.get_marker_extrinsics_origin()
         }
-        self._model_optimization_storage.marker_points_3d_opt = {
+        self._model_optimization_storage.marker_id_to_points_3d_opt = {
             self._origin_marker_id: utils.get_marker_points_3d_origin()
         }
 
@@ -276,35 +281,37 @@ class VisibilityGraphs(Observable):
         )
 
     def process_optimization_results(self, optimization_result):
-        """ process the results of optimization; update camera_extrinsics_opt_array,
-        marker_extrinsics_opt_array and marker_points_3d_opt """
+        """ process the results of optimization; update frame_id_to_extrinsics_opt,
+        marker_id_to_extrinsics_opt and marker_id_to_points_3d_opt """
 
         if optimization_result:
-            self._update_extrinsics_opt_array(optimization_result)
-            self.discard_failed_frames(optimization_result)
+            self._update_extrinsics_opt(
+                optimization_result.frame_id_to_extrinsics,
+                optimization_result.marker_id_to_extrinsics,
+            )
+            self._discard_failed_frames(optimization_result.frame_ids_failed)
         self.switch_on_optimization_requested()
 
-    def _update_extrinsics_opt_array(self, optimization_result):
-        self._model_optimization_storage.camera_extrinsics_opt_dict = (
-            optimization_result.camera_extrinsics_opt
+    def _update_extrinsics_opt(self, frame_id_to_extrinsics, marker_id_to_extrinsics):
+        self._model_optimization_storage.frame_id_to_extrinsics_opt = (
+            frame_id_to_extrinsics
         )
 
-        for marker_id, extrinsics in optimization_result.marker_extrinsics_opt.items():
-            self._model_optimization_storage.marker_extrinsics_opt_dict[
+        for marker_id, extrinsics in marker_id_to_extrinsics.items():
+            self._model_optimization_storage.marker_id_to_extrinsics_opt[
                 marker_id
             ] = extrinsics
-            self._model_optimization_storage.marker_points_3d_opt[
+            self._model_optimization_storage.marker_id_to_points_3d_opt[
                 marker_id
-            ] = utils.extrinsics_to_marker_points_3d(extrinsics)[0]
+            ] = utils.convert_marker_extrinsics_to_points_3d(extrinsics)
 
         logger.debug(
             "{} markers have been registered and updated".format(
-                len(self._model_optimization_storage.marker_extrinsics_opt_dict)
+                len(self._model_optimization_storage.marker_id_to_extrinsics_opt)
             )
         )
 
-    def discard_failed_frames(self, optimization_result):
-        frame_ids_failed = optimization_result.frame_ids_failed
+    def _discard_failed_frames(self, frame_ids_failed):
         logger.debug("discard_failed_frames {0}".format(frame_ids_failed))
 
         if frame_ids_failed:

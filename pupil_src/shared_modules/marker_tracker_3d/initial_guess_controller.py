@@ -17,8 +17,8 @@ class InitialGuessController(Observable):
 
         data_for_init = (
             self._model_optimization_storage.all_novel_markers,
-            self._model_optimization_storage.camera_extrinsics_opt_dict,
-            self._model_optimization_storage.marker_extrinsics_opt_dict,
+            self._model_optimization_storage.frame_id_to_extrinsics_opt,
+            self._model_optimization_storage.marker_id_to_extrinsics_opt,
             self._model_optimization_storage.frame_ids,
             self._model_optimization_storage.marker_ids,
         )
@@ -32,14 +32,14 @@ class InitialGuessController(Observable):
         self._bg_task.add_observer("on_exception", tasklib.raise_exception)
 
     def got_initial_guess(self, initial_guess_result):
-        camera_extrinsics_init, marker_extrinsics_init = initial_guess_result
+        frame_id_to_extrinsics_init, marker_id_to_extrinsics_init = initial_guess_result
 
         data_for_opt = (
             self._model_optimization_storage.all_novel_markers,
-            camera_extrinsics_init,
-            marker_extrinsics_init,
+            frame_id_to_extrinsics_init,
+            marker_id_to_extrinsics_init,
         )
-        if camera_extrinsics_init and marker_extrinsics_init:
+        if frame_id_to_extrinsics_init and marker_id_to_extrinsics_init:
             self.on_got_data_for_opt(data_for_opt)
         else:
             self.on_initial_guess_failed()

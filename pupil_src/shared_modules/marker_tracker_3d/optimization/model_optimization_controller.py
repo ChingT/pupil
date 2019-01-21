@@ -4,26 +4,25 @@ from observable import Observable
 
 
 class ModelOptimizationController(Observable):
-    def __init__(self, model_optimization_storage, camera_model, task_manager):
-        self._model_optimization_storage = model_optimization_storage
-        self._camera_model = camera_model
+    def __init__(self, model_storage, camera_intrinsics, task_manager):
+        self._model_storage = model_storage
         self._task_manager = task_manager
-        self._bundle_adjustment = BundleAdjustment(camera_model)
-
+        self._bundle_adjustment = BundleAdjustment(camera_intrinsics)
         self._bg_task = None
 
-    def run(self, data_for_opt):
+    def run(self, model_init_result):
         assert not self._bg_task or not self._bg_task.running
 
+        data_for_model_opt = (self._model_storage.all_novel_markers, model_init_result)
         self._bg_task = self._task_manager.create_background_task(
             name="optimization_routine",
             routine_or_generator_function=self._bundle_adjustment.run,
-            args=data_for_opt,
+            args=data_for_model_opt,
         )
-        self._bg_task.add_observer("on_completed", self.on_optimization_done)
+        self._bg_task.add_observer("on_completed", self.on_model_opt_done)
         self._bg_task.add_observer("on_exception", tasklib.raise_exception)
 
-    def on_optimization_done(self, optimization_results):
+    def on_model_opt_done(self, model_opt_results):
         pass
 
     def reset(self):

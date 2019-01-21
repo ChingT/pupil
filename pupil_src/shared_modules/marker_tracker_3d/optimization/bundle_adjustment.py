@@ -17,37 +17,39 @@ OptimizationResult = collections.namedtuple(
 # would be inefficient.
 # (especially true for _function_compute_residuals as a callback)
 class BundleAdjustment:
-    def __init__(self, camera_model):
-        self._camera_model = camera_model
+    def __init__(self, camera_intrinsics):
+        self._camera_intrinsics = camera_intrinsics
 
         self._tol = 1e-4
         self._diff_step = 1e-3
 
-    def run(
-        self,
-        all_novel_markers,
-        frame_id_to_extrinsics_init,
-        marker_id_to_extrinsics_init,
-    ):
+    def run(self, all_novel_markers, model_init_result):
         """ run bundle adjustment given the initial guess and then check the result of
         optimization
         """
+        if not model_init_result:
+            return None
+
+        frame_id_to_extrinsics_init, marker_id_to_extrinsics_init = model_init_result
+
         self._set_ids(frame_id_to_extrinsics_init, marker_id_to_extrinsics_init)
 
         if not self._check_enoug_data(all_novel_markers):
-            return
+            return None
 
         camera_extrinsics_array, marker_extrinsics_array = self._set_init_array(
             frame_id_to_extrinsics_init, marker_id_to_extrinsics_init
         )
 
-        initial_guess, bounds, sparsity_matrix = self._prepare_parameters(
+        initial_guess_array, bounds, sparsity_matrix = self._prepare_parameters(
             camera_extrinsics_array, marker_extrinsics_array
         )
-        least_sq_result = self._least_squares(bounds, initial_guess, sparsity_matrix)
+        least_sq_result = self._least_squares(
+            bounds, initial_guess_array, sparsity_matrix
+        )
 
-        optimization_result = self._get_optimization_result(least_sq_result)
-        return optimization_result
+        model_opt_result = self._get_model_opt_result(least_sq_result)
+        return model_opt_result
 
     def _set_ids(self, frame_id_to_extrinsics, marker_id_to_extrinsics):
         origin_marker_id = utils.find_origin_marker_id(marker_id_to_extrinsics)
@@ -94,7 +96,7 @@ class BundleAdjustment:
         return camera_extrinsics_array, marker_extrinsics_array
 
     def _prepare_parameters(self, camera_extrinsics_array, marker_extrinsics_array):
-        initial_guess = np.vstack(
+        initial_guess_array = np.vstack(
             (camera_extrinsics_array, marker_extrinsics_array)
         ).ravel()
 
@@ -102,7 +104,7 @@ class BundleAdjustment:
 
         sparsity_matrix = self._construct_sparsity_matrix()
 
-        return initial_guess, bounds, sparsity_matrix
+        return initial_guess_array, bounds, sparsity_matrix
 
     def _calculate_bounds(self, eps=1e-16):
         """ calculate the lower and upper bounds on independent variables
@@ -178,10 +180,10 @@ class BundleAdjustment:
         sparsity_matrix = scipy_sparse.lil_matrix(sparsity_matrix)
         return sparsity_matrix
 
-    def _least_squares(self, bounds, initial_guess, sparsity_matrix):
+    def _least_squares(self, bounds, initial_guess_array, sparsity_matrix):
         result = scipy_optimize.least_squares(
             fun=self._function_compute_residuals,
-            x0=initial_guess,
+            x0=initial_guess_array,
             bounds=bounds,
             ftol=self._tol,
             xtol=self._tol,
@@ -193,7 +195,7 @@ class BundleAdjustment:
         )
         return result
 
-    def _get_optimization_result(self, least_sq_result):
+    def _get_model_opt_result(self, least_sq_result):
         camera_extrinsics_array, marker_extrinsics_array = self._reshape_variables_to_extrinsics_array(
             least_sq_result.x
         )
@@ -214,12 +216,10 @@ class BundleAdjustment:
         }
         frame_ids_failed = [self._frame_ids[i] for i in frame_indices_failed]
 
-        optimization_result = OptimizationResult(
-            frame_id_to_extrinsics=frame_id_to_extrinsics_opt,
-            marker_id_to_extrinsics=marker_id_to_extrinsics_opt,
-            frame_ids_failed=frame_ids_failed,
+        model_opt_result = OptimizationResult(
+            frame_id_to_extrinsics_opt, marker_id_to_extrinsics_opt, frame_ids_failed
         )
-        return optimization_result
+        return model_opt_result
 
     def _function_compute_residuals(self, variables):
         """ Function which computes the vector of residuals,
@@ -262,7 +262,7 @@ class BundleAdjustment:
         )
         markers_points_2d_projected = np.array(
             [
-                self._camera_model.projectPoints(points, cam[0:3], cam[3:6])
+                self._camera_intrinsics.projectPoints(points, cam[0:3], cam[3:6])
                 for cam, points in zip(
                     camera_extrinsics_array[self._frame_indices],
                     markers_points_3d[self._marker_indices],

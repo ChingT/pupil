@@ -5,9 +5,9 @@ import cv2
 from marker_tracker_3d import math, utils
 
 
-def localize(camera_model, frame_id_to_detections, frame_id_to_extrinsics_prv):
+def localize(camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics_prv):
     data_for_triangulation = _prepare_data_for_triangulation(
-        camera_model, frame_id_to_detections, frame_id_to_extrinsics_prv
+        camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics_prv
     )
     if not data_for_triangulation:
         return None
@@ -17,7 +17,7 @@ def localize(camera_model, frame_id_to_detections, frame_id_to_extrinsics_prv):
 
 
 def _prepare_data_for_triangulation(
-    camera_model, frame_id_to_detections, frame_id_to_extrinsics_prv
+    camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics_prv
 ):
     # frame_ids_available are the id of the frames which have been known
     # and contain the marker which is going to be estimated.
@@ -34,8 +34,8 @@ def _prepare_data_for_triangulation(
 
     points1 = frame_id_to_detections[id1]["verts"].reshape((4, 1, 2))
     points2 = frame_id_to_detections[id2]["verts"].reshape((4, 1, 2))
-    undistort_points1 = camera_model.undistortPoints(points1)
-    undistort_points2 = camera_model.undistortPoints(points2)
+    undistort_points1 = camera_intrinsics.undistortPoints(points1)
+    undistort_points2 = camera_intrinsics.undistortPoints(points2)
 
     data_for_triangulation = proj_mat1, proj_mat2, undistort_points1, undistort_points2
     return data_for_triangulation

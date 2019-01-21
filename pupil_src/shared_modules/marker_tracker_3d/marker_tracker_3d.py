@@ -10,14 +10,7 @@ See COPYING and COPYING.LESSER for license details.
 """
 from marker_tracker_3d.controller import Controller
 from marker_tracker_3d.controller_storage import ControllerStorage
-from marker_tracker_3d.initial_guess_controller import InitialGuessController
-from marker_tracker_3d.optimization.model_optimization_controller import (
-    ModelOptimizationController,
-)
-from marker_tracker_3d.optimization.model_optimization_storage import (
-    ModelOptimizationStorage,
-)
-from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
+from marker_tracker_3d.optimization.model_storage import ModelStorage
 from marker_tracker_3d.user_interface import UserInterface
 from observable import Observable
 from plugin import Plugin
@@ -39,43 +32,21 @@ class Marker_Tracker_3D(Plugin, Observable):
         self._task_manager = PluginTaskManager(plugin=self)
 
         self._setup_storages()
-        self._setup_controllers()
+        self._setup_controller()
         self._setup_ui()
 
     def _setup_storages(self):
         self._controller_storage = ControllerStorage(
             self._min_marker_perimeter, save_path=self.g_pool.user_dir
         )
-        self._model_optimization_storage = ModelOptimizationStorage(
-            save_path=self.g_pool.user_dir
-        )
+        self._model_storage = ModelStorage(save_path=self.g_pool.user_dir)
 
-    def _setup_controllers(self):
-        self._visibility_graphs = VisibilityGraphs(
-            self._model_optimization_storage,
-            camera_model=self.g_pool.capture.intrinsics,
-            predetermined_origin_marker_id=None,
-        )
-
-        self._initial_guess_controller = InitialGuessController(
-            self._model_optimization_storage,
-            camera_model=self.g_pool.capture.intrinsics,
-            task_manager=self._task_manager,
-        )
-
-        self._model_optimization_controller = ModelOptimizationController(
-            self._model_optimization_storage,
-            camera_model=self.g_pool.capture.intrinsics,
-            task_manager=self._task_manager,
-        )
-
+    def _setup_controller(self):
         self._controller = Controller(
-            self._visibility_graphs,
-            self._initial_guess_controller,
-            self._model_optimization_controller,
-            self._model_optimization_storage,
-            self._controller_storage,
-            camera_model=self.g_pool.capture.intrinsics,
+            controller_storage=self._controller_storage,
+            model_storage=self._model_storage,
+            camera_intrinsics=self.g_pool.capture.intrinsics,
+            task_manager=self._task_manager,
             plugin=self,
         )
 
@@ -83,9 +54,9 @@ class Marker_Tracker_3D(Plugin, Observable):
         self._ui = UserInterface(
             self,
             self.g_pool.capture.intrinsics,
-            self._model_optimization_storage,
             self._controller,
             self._controller_storage,
+            self._model_storage,
         )
 
     def get_init_dict(self):

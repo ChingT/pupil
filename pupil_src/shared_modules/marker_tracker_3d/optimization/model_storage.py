@@ -1,6 +1,7 @@
 import logging
 import os
 
+import networkx as nx
 import numpy as np
 
 import file_methods
@@ -10,7 +11,7 @@ from observable import Observable
 logger = logging.getLogger(__name__)
 
 
-class ModelOptimizationStorage(Observable):
+class ModelStorage(Observable):
     def __init__(self, save_path):
         self._model_save_path = os.path.join(save_path, "marker_tracker_3d_model")
 
@@ -19,10 +20,14 @@ class ModelOptimizationStorage(Observable):
         self._load_marker_tracker_3d_model_from_file()
 
     def _set_to_default_values(self):
+        self.visibility_graph = nx.MultiGraph()
+        self.model_being_updated = False
+
         self.adding_marker_detections = True
         self.current_frame_id = 0
 
         self.all_novel_markers = []
+        self.n_new_novel_markers_added = 0
 
         # frame_id_to_extrinsics_opt: {frame id: optimized camera extrinsics (which is
         # composed of Rodrigues rotation vector and translation vector, which brings
@@ -48,7 +53,7 @@ class ModelOptimizationStorage(Observable):
 
         marker_id_to_extrinsics_opt = model.get("marker_id_to_extrinsics_opt", {})
         origin_marker_id = utils.find_origin_marker_id(marker_id_to_extrinsics_opt)
-        self.set_up_origin_marker_id(origin_marker_id)
+        self.setup_origin_marker_id(origin_marker_id)
 
         for marker_id, extrinsics in marker_id_to_extrinsics_opt.items():
             self.marker_id_to_extrinsics_opt[marker_id] = np.array(extrinsics)
@@ -78,7 +83,7 @@ class ModelOptimizationStorage(Observable):
             )
         )
 
-    def set_up_origin_marker_id(self, origin_marker_id):
+    def setup_origin_marker_id(self, origin_marker_id):
         self.origin_marker_id = origin_marker_id
         if origin_marker_id is not None:
             self.on_origin_marker_id_set()

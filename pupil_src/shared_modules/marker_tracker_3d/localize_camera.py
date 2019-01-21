@@ -7,7 +7,7 @@ max_camera_trace_distance = 10
 
 
 def localize(
-    camera_model,
+    camera_intrinsics,
     marker_id_to_detections,
     marker_id_to_extrinsics_prv,
     camera_extrinsics_prv=None,
@@ -19,7 +19,7 @@ def localize(
         return None
 
     camera_extrinsics = _calculate(
-        camera_model, data_for_solvepnp, camera_extrinsics_prv
+        camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv
     )
     return camera_extrinsics
 
@@ -46,10 +46,10 @@ def _prepare_data_for_solvepnp(marker_id_to_detections, marker_id_to_extrinsics_
     return data_for_solvepnp
 
 
-def _calculate(camera_model, data_for_solvepnp, camera_extrinsics_prv):
+def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
     markers_points_3d, markers_points_2d = data_for_solvepnp
     retval, rotation, translation = _run_solvepnp(
-        camera_model, markers_points_3d, markers_points_2d, camera_extrinsics_prv
+        camera_intrinsics, markers_points_3d, markers_points_2d, camera_extrinsics_prv
     )
 
     if _check_solvepnp_output_reasonable(
@@ -63,21 +63,21 @@ def _calculate(camera_model, data_for_solvepnp, camera_extrinsics_prv):
 
 
 def _run_solvepnp(
-    camera_model, markers_points_3d, markers_points_2d, frame_id_to_extrinsics_prv
+    camera_intrinsics, markers_points_3d, markers_points_2d, frame_id_to_extrinsics_prv
 ):
     assert len(markers_points_3d) == len(markers_points_2d)
     assert markers_points_3d.shape[1:] == (4, 3)
     assert markers_points_2d.shape[1:] == (4, 2)
 
     if frame_id_to_extrinsics_prv is None:
-        retval, rotation, translation = camera_model.solvePnP(
+        retval, rotation, translation = camera_intrinsics.solvePnP(
             markers_points_3d, markers_points_2d
         )
     else:
         rotation_prv, translation_prv = utils.split_extrinsics(
             frame_id_to_extrinsics_prv
         )
-        retval, rotation, translation = camera_model.solvePnP(
+        retval, rotation, translation = camera_intrinsics.solvePnP(
             markers_points_3d,
             markers_points_2d,
             useExtrinsicGuess=True,

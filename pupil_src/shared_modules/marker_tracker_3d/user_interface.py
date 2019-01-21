@@ -15,12 +15,7 @@ logger = logging.getLogger(__name__)
 
 class UserInterface:
     def __init__(
-        self,
-        plugin,
-        intrinsics,
-        model_optimization_storage,
-        controller,
-        controller_storage,
+        self, plugin, intrinsics, controller, controller_storage, model_storage
     ):
         self._plugin = plugin
         self._intrinsics = intrinsics
@@ -36,15 +31,15 @@ class UserInterface:
         self._window_size = 1280, 1335
         self._open_close_window(self._open_3d_window)
 
-        self._model_optimization_storage = model_optimization_storage
-        self._controller_storage = controller_storage
         self._controller = controller
+        self._controller_storage = controller_storage
+        self._model_storage = model_storage
 
         self._plugin.add_observer("init_ui", self._on_init_ui)
         self._plugin.add_observer("deinit_ui", self._on_deinit_ui)
         self._plugin.add_observer("gl_display", self._on_gl_display)
 
-        self._model_optimization_storage.add_observer(
+        self._model_storage.add_observer(
             "on_origin_marker_id_set", self._on_update_menu
         )
         self._plugin.add_observer("cleanup", self._on_close_window)
@@ -125,7 +120,7 @@ class UserInterface:
         for (
             marker_id,
             points_3d,
-        ) in self._model_optimization_storage.marker_id_to_points_3d_opt.items():
+        ) in self._model_storage.marker_id_to_points_3d_opt.items():
             if marker_id in self._controller_storage.marker_id_to_detections:
                 color = (1, 0, 0, 0.8)
             else:
@@ -246,12 +241,12 @@ class UserInterface:
         )
 
     def _create_origin_marker_text(self):
-        if self._model_optimization_storage.origin_marker_id is None:
+        if self._model_storage.origin_marker_id is None:
             text = "The coordinate system has not yet been built up"
         else:
             text = (
                 "The marker with id {} is defined as the origin of the coordinate "
-                "system".format(self._model_optimization_storage.origin_marker_id)
+                "system".format(self._model_storage.origin_marker_id)
             )
             logger.info(text)
 
@@ -277,9 +272,7 @@ class UserInterface:
 
     def _create_adding_marker_detections_switch(self):
         return ui.Switch(
-            "adding_marker_detections",
-            self._model_optimization_storage,
-            label="Adding observations",
+            "adding_marker_detections", self._model_storage, label="Adding observations"
         )
 
     def _create_reset_button(self):

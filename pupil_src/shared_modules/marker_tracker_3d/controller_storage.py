@@ -4,11 +4,12 @@ import os
 import numpy as np
 
 from marker_tracker_3d import utils
+from observable import Observable
 
 logger = logging.getLogger(__name__)
 
 
-class ControllerStorage:
+class ControllerStorage(Observable):
     def __init__(self, min_marker_perimeter, save_path):
         self.min_marker_perimeter = min_marker_perimeter  # adjustable in UI
 
@@ -29,6 +30,10 @@ class ControllerStorage:
 
     def reset(self):
         self._set_to_default_values()
+
+    def update(self, marker_id_to_detections, camera_extrinsics):
+        self.marker_id_to_detections = marker_id_to_detections
+        self.camera_extrinsics = camera_extrinsics
 
     def export_camera_traces(self):
         np.save(

@@ -50,7 +50,6 @@ class VisibilityGraphs(Observable):
         self._set_to_default_values()
 
     def _set_to_default_values(self):
-        self._origin_marker_id = None
         self._n_frames_passed = 0
         self._n_new_novel_markers_added = 0
         self._visibility_graph = nx.MultiGraph()
@@ -63,7 +62,7 @@ class VisibilityGraphs(Observable):
     def switch_on_optimization_requested(self):
         self._optimization_requested = True
 
-    def on_ready_for_initial_guess(self):
+    def on_ready_for_initial_guess(self, data_for_init):
         pass
 
     def add_observations(self, marker_id_to_detections, current_camera_extrinsics):
@@ -176,32 +175,44 @@ class VisibilityGraphs(Observable):
             self._optimization_requested
             and self._n_new_novel_markers_added >= self._optimization_interval
         ):
-            self._optimization_requested = False
-            self._n_new_novel_markers_added = 0
+            marker_ids_to_be_optimized = self._get_marker_ids_to_be_optimized()
+            frame_ids_to_be_optimized = self._get_frame_ids_to_be_optimized(
+                marker_ids_to_be_optimized
+            )
 
-            self._update_marker_ids()
-            self._update_frame_ids()
+            if frame_ids_to_be_optimized:
+                self._optimization_requested = False
+                self._n_new_novel_markers_added = 0
 
-            self.on_ready_for_initial_guess()
+                data_for_init = (
+                    self._model_optimization_storage.all_novel_markers,
+                    self._model_optimization_storage.frame_id_to_extrinsics_opt,
+                    self._model_optimization_storage.marker_id_to_extrinsics_opt,
+                    frame_ids_to_be_optimized,
+                    marker_ids_to_be_optimized,
+                )
+                self.on_ready_for_initial_guess(data_for_init)
 
-    def _update_marker_ids(self):
+    def _get_marker_ids_to_be_optimized(self):
         marker_id_candidates = self._filter_marker_ids_by_visibility_graph()
 
         try:
-            marker_ids = [self._model_optimization_storage.marker_ids[0]] + [
+            marker_ids_to_be_optimized = [
+                self._model_optimization_storage.origin_marker_id
+            ] + [
                 marker_id
                 for marker_id in marker_id_candidates
-                if marker_id != self._model_optimization_storage.marker_ids[0]
+                if marker_id != self._model_optimization_storage.origin_marker_id
             ]
         except IndexError:
             pass
         else:
-            self._model_optimization_storage.marker_ids = marker_ids
             logger.debug(
-                "marker_ids updated {}".format(
-                    self._model_optimization_storage.marker_ids
+                "marker_ids_to_be_optimized updated {}".format(
+                    marker_ids_to_be_optimized
                 )
             )
+            return marker_ids_to_be_optimized
 
     def _filter_marker_ids_by_visibility_graph(self):
         markers_enough_viewed = set(
@@ -220,23 +231,20 @@ class VisibilityGraphs(Observable):
             markers_connected_to_first_marker = set(
                 nx.node_connected_component(
                     self._visibility_graph,
-                    self._model_optimization_storage.marker_ids[0],
+                    self._model_optimization_storage.origin_marker_id,
                 )
             )
-        except IndexError:
-            # when self.storage.marker_ids == []
-            self._set_coordinate_system(markers_enough_viewed)
-            return set()
         except KeyError:
-            # self.storage.marker_ids[0] not in visibility_graph
+            # when origin_marker_id not in visibility_graph
+            if self._model_optimization_storage.origin_marker_id is None:
+                self._set_coordinate_system(markers_enough_viewed)
             return set()
         else:
             return markers_enough_viewed & markers_connected_to_first_marker
 
     def _set_coordinate_system(self, markers_enough_viewed):
-        self._origin_marker_id = self._determine_origin_marker_id(markers_enough_viewed)
-        if self._origin_marker_id is not None:
-            self.set_up_origin_marker()
+        origin_marker_id = self._determine_origin_marker_id(markers_enough_viewed)
+        self._model_optimization_storage.set_up_origin_marker_id(origin_marker_id)
 
     def _determine_origin_marker_id(self, markers_enough_viewed):
         if self._predetermined_origin_marker_id:
@@ -249,36 +257,27 @@ class VisibilityGraphs(Observable):
 
         return origin_marker_id
 
-    def set_up_origin_marker(self):
-        self._model_optimization_storage.marker_ids = [self._origin_marker_id]
-        self._model_optimization_storage.marker_id_to_extrinsics_opt = {
-            self._origin_marker_id: utils.get_marker_extrinsics_origin()
-        }
-        self._model_optimization_storage.marker_id_to_points_3d_opt = {
-            self._origin_marker_id: utils.get_marker_points_3d_origin()
-        }
-
-    def _update_frame_ids(self):
-        frame_ids = []
+    def _get_frame_ids_to_be_optimized(self, marker_ids_to_be_optimized):
         frame_id_candidates = set(
             marker_candidate.frame_id
             for marker_candidate in self._model_optimization_storage.all_novel_markers
         )
 
+        frame_ids_to_be_optimized = []
         for frame_id in frame_id_candidates:
             optimized_markers_in_frame = set(
                 marker.marker_id
                 for marker in self._model_optimization_storage.all_novel_markers
                 if marker.frame_id == frame_id
-                and marker.marker_id in self._model_optimization_storage.marker_ids
+                and marker.marker_id in marker_ids_to_be_optimized
             )
             if len(optimized_markers_in_frame) >= self._min_n_markers_per_frame:
-                frame_ids.append(frame_id)
+                frame_ids_to_be_optimized.append(frame_id)
 
-        self._model_optimization_storage.frame_ids = sorted(frame_ids)
         logger.debug(
-            "frame_ids updated {}".format(self._model_optimization_storage.frame_ids)
+            "frame_ids_to_be_optimized updated {}".format(frame_ids_to_be_optimized)
         )
+        return frame_ids_to_be_optimized
 
     def process_optimization_results(self, optimization_result):
         """ process the results of optimization; update frame_id_to_extrinsics_opt,

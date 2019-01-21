@@ -12,16 +12,8 @@ class InitialGuessController(Observable):
 
         self._bg_task = None
 
-    def run(self):
+    def run(self, data_for_init):
         assert not self._bg_task or not self._bg_task.running
-
-        data_for_init = (
-            self._model_optimization_storage.all_novel_markers,
-            self._model_optimization_storage.frame_id_to_extrinsics_opt,
-            self._model_optimization_storage.marker_id_to_extrinsics_opt,
-            self._model_optimization_storage.frame_ids,
-            self._model_optimization_storage.marker_ids,
-        )
 
         self._bg_task = self._task_manager.create_background_task(
             name="initial_guess",

@@ -17,7 +17,6 @@ class UserInterface:
     def __init__(
         self,
         plugin,
-        visibility_graphs,
         intrinsics,
         model_optimization_storage,
         controller,
@@ -45,7 +44,9 @@ class UserInterface:
         self._plugin.add_observer("deinit_ui", self._on_deinit_ui)
         self._plugin.add_observer("gl_display", self._on_gl_display)
 
-        visibility_graphs.add_observer("set_up_origin_marker", self._on_update_menu)
+        self._model_optimization_storage.add_observer(
+            "on_origin_marker_id_set", self._on_update_menu
+        )
         self._plugin.add_observer("cleanup", self._on_close_window)
 
     def _init_trackball(self):
@@ -245,7 +246,15 @@ class UserInterface:
         )
 
     def _create_origin_marker_text(self):
-        text = self._get_text_for_origin_marker()
+        if self._model_optimization_storage.origin_marker_id is None:
+            text = "The coordinate system has not yet been built up"
+        else:
+            text = (
+                "The marker with id {} is defined as the origin of the coordinate "
+                "system".format(self._model_optimization_storage.origin_marker_id)
+            )
+            logger.info(text)
+
         return ui.Info_Text(text)
 
     def _create_min_marker_perimeter_slider(self):
@@ -289,20 +298,6 @@ class UserInterface:
             label="camera traces",
             function=self._on_export_camera_traces_button_click,
         )
-
-    def _get_text_for_origin_marker(self):
-        try:
-            _origin_marker_id = self._model_optimization_storage.marker_ids[0]
-        except IndexError:
-            text = "The coordinate system has not yet been built up"
-        else:
-            text = (
-                "The marker with id {} is defined as the origin of the coordinate "
-                "system".format(_origin_marker_id)
-            )
-
-        logger.info(text)
-        return text
 
     def _on_reset_button_click(self):
         self._controller.reset()

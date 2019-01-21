@@ -82,7 +82,6 @@ class Marker_Tracker_3D(Plugin, Observable):
     def _setup_ui(self):
         self._ui = UserInterface(
             self,
-            self._visibility_graphs,
             self.g_pool.capture.intrinsics,
             self._model_optimization_storage,
             self._controller,

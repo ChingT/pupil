@@ -1,7 +1,5 @@
 import tasklib
-
 from marker_tracker_3d import worker
-
 from observable import Observable
 
 

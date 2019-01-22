@@ -1,9 +1,7 @@
 import collections
 
 import numpy as np
-from scipy import misc as scipy_misc
-from scipy import optimize as scipy_optimize
-from scipy import sparse as scipy_sparse
+from scipy import misc as scipy_misc, optimize as scipy_optimize, sparse as scipy_sparse
 
 from marker_tracker_3d import worker
 
@@ -275,7 +273,7 @@ class BundleAdjustment:
         )
         return markers_points_2d_projected
 
-    def _find_failed_indices(self, residuals, thres=20):
+    def _find_failed_indices(self, residuals, thres=8):
         """ find out those frame_indices and marker_indices which cause large
         reprojection errors
         """

@@ -14,7 +14,7 @@ class HeadPoseTrackerMenu(Observable):
 
         self._open_3d_window = True
 
-    def update_menu(self):
+    def create_menu(self):
         menu = [
             self._create_intro_text(),
             self._create_origin_marker_text(),

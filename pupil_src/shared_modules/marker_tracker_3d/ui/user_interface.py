@@ -50,13 +50,13 @@ class UserInterface:
             self._controller.export_camera_traces,
         )
 
-        model_storage.add_observer("on_origin_marker_id_set", self._update_menu)
+        model_storage.add_observer("on_origin_marker_id_set", self._render_menu)
 
     def _on_init_ui(self):
         self._plugin.add_menu()
         self._plugin.menu.label = "Head Pose Tracker"
         self._visualization_3d_window.on_open_window()
-        self._update_menu()
+        self._render_menu()
 
     def _on_deinit_ui(self):
         self._plugin.remove_menu()
@@ -70,11 +70,11 @@ class UserInterface:
 
     def _on_reset_button_click(self):
         self._controller.reset()
-        self._update_menu()
+        self._render_menu()
 
-    def _update_menu(self):
-        menu = self._head_pose_tracker_menu.update_menu()
-        self._plugin.menu.elements[:] = []
+    def _render_menu(self):
+        self._plugin.menu.elements.clear()
+        menu = self._head_pose_tracker_menu.create_menu()
         self._plugin.menu.extend(menu)
 
     def _display_2d_marker_detection(self):

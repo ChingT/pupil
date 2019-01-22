@@ -12,7 +12,7 @@ class Visualization3dWindow:
     def __init__(self, intrinsics, controller_storage, model_storage):
         self._intrinsics = intrinsics
 
-        self._max_camera_traces_len = 200
+        self._max_camera_traces_len = 300
         self._input = {"down": False, "mouse": (0, 0)}
 
         self._init_trackball()
@@ -64,16 +64,17 @@ class Visualization3dWindow:
         gl.glEnable(gl.GL_DEPTH_TEST)
 
     def _draw_coordinate_in_3d_window(self):
-        gl.glColor4f(1, 0, 0, 0.5)
+        gl.glColor4f(1, 0, 0, 1)
         self._draw_line_in_3d_window((0, 0, 0), (1, 0, 0))
 
-        gl.glColor4f(0, 1, 0, 0.5)
+        gl.glColor4f(0, 1, 0, 1)
         self._draw_line_in_3d_window((0, 0, 0), (0, 1, 0))
 
-        gl.glColor4f(0, 0, 1, 0.5)
+        gl.glColor4f(0, 0, 1, 1)
         self._draw_line_in_3d_window((0, 0, 0), (0, 0, 1))
 
     def _draw_markers_in_3d_window(self):
+        gl.glLoadIdentity()
         for (
             marker_id,
             points_3d,
@@ -90,9 +91,9 @@ class Visualization3dWindow:
         trace = self._controller_storage.all_camera_traces[
             -self._max_camera_traces_len :
         ]
+        gl.glLoadIdentity()
         gl.glColor4f(0, 0, 0.8, 0.2)
-        for i in range(len(trace) - 1):
-            self._draw_line_in_3d_window(trace[i], trace[i + 1])
+        self._draw_strip_in_3d_window(trace)
 
     def _draw_camera_in_3d_window(self):
         try:
@@ -102,16 +103,13 @@ class Visualization3dWindow:
         except AttributeError:
             pass
         else:
+            gl.glLoadMatrixf(camera_pose_matrix_flatten)
             self._draw_frustum_in_3d_window(
-                camera_pose_matrix_flatten,
-                self._intrinsics.resolution,
-                self._intrinsics.K,
+                self._intrinsics.resolution, self._intrinsics.K
             )
             self._draw_coordinate_in_3d_window()
 
-    def _draw_frustum_in_3d_window(
-        self, matrix_flatten, img_size, camera_intrinsics, scale=1000
-    ):
+    def _draw_frustum_in_3d_window(self, img_size, camera_intrinsics, scale=1000):
         x = img_size[0] / scale
         y = img_size[1] / scale
         z = (camera_intrinsics[0, 0] + camera_intrinsics[1, 1]) / scale
@@ -123,7 +121,6 @@ class Visualization3dWindow:
         vertices += [[0, 0, 0], [-x, -y, z], [-x, y, z]]
 
         gl.glColor4f(0, 0, 0.6, 0.8)
-        gl.glMultMatrixf(matrix_flatten)
         self._draw_polygon_in_3d_window(vertices)
 
     @staticmethod
@@ -136,6 +133,13 @@ class Visualization3dWindow:
     @staticmethod
     def _draw_polygon_in_3d_window(vertices):
         gl.glBegin(gl.GL_LINE_LOOP)
+        for vertex in vertices:
+            gl.glVertex3f(*vertex)
+        gl.glEnd()
+
+    @staticmethod
+    def _draw_strip_in_3d_window(vertices):
+        gl.glBegin(gl.GL_LINE_STRIP)
         for vertex in vertices:
             gl.glVertex3f(*vertex)
         gl.glEnd()

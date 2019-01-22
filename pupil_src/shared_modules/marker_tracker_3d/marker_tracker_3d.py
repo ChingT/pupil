@@ -8,10 +8,7 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
-from marker_tracker_3d.controller import Controller
-from marker_tracker_3d.controller_storage import ControllerStorage
-from marker_tracker_3d.optimization.model_storage import ModelStorage
-from marker_tracker_3d.user_interface import UserInterface
+from marker_tracker_3d import ui as plugin_ui, controller, storage
 from observable import Observable
 from plugin import Plugin
 from tasklib.manager import PluginTaskManager
@@ -36,13 +33,13 @@ class Marker_Tracker_3D(Plugin, Observable):
         self._setup_ui()
 
     def _setup_storages(self):
-        self._controller_storage = ControllerStorage(
+        self._controller_storage = storage.ControllerStorage(
             self._min_marker_perimeter, save_path=self.g_pool.user_dir
         )
-        self._model_storage = ModelStorage(save_path=self.g_pool.user_dir)
+        self._model_storage = storage.ModelStorage(save_path=self.g_pool.user_dir)
 
     def _setup_controller(self):
-        self._controller = Controller(
+        self._controller = controller.Controller(
             controller_storage=self._controller_storage,
             model_storage=self._model_storage,
             camera_intrinsics=self.g_pool.capture.intrinsics,
@@ -51,7 +48,7 @@ class Marker_Tracker_3D(Plugin, Observable):
         )
 
     def _setup_ui(self):
-        self._ui = UserInterface(
+        self._ui = plugin_ui.UserInterface(
             self,
             self.g_pool.capture.intrinsics,
             self._controller,

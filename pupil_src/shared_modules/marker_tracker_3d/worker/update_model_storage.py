@@ -1,6 +1,6 @@
 import logging
 
-from marker_tracker_3d import utils
+from marker_tracker_3d import worker
 from observable import Observable
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class UpdateModelStorage(Observable):
             self._model_storage.marker_id_to_extrinsics_opt[marker_id] = extrinsics
             self._model_storage.marker_id_to_points_3d_opt[
                 marker_id
-            ] = utils.convert_marker_extrinsics_to_points_3d(extrinsics)
+            ] = worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics)
 
         logger.debug(
             "{} markers have been registered and updated".format(

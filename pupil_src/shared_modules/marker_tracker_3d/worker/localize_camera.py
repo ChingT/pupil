@@ -1,6 +1,6 @@
 import numpy as np
 
-from marker_tracker_3d import utils
+from marker_tracker_3d import worker
 
 min_n_markers_per_frame = 1
 max_camera_trace_distance = 10
@@ -34,7 +34,9 @@ def _prepare_data_for_solvepnp(marker_id_to_detections, marker_id_to_extrinsics_
         return None
 
     markers_points_3d = [
-        utils.convert_marker_extrinsics_to_points_3d(marker_id_to_extrinsics_prv[i])
+        worker.utils.convert_marker_extrinsics_to_points_3d(
+            marker_id_to_extrinsics_prv[i]
+        )
         for i in marker_ids_available
     ]
     markers_points_2d = [
@@ -55,7 +57,7 @@ def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
     if _check_solvepnp_output_reasonable(
         retval, rotation, translation, markers_points_3d
     ):
-        camera_extrinsics = utils.merge_extrinsics(rotation, translation)
+        camera_extrinsics = worker.utils.merge_extrinsics(rotation, translation)
         if _check_camera_trace_reasonable(camera_extrinsics, camera_extrinsics_prv):
             return camera_extrinsics
 
@@ -74,7 +76,7 @@ def _run_solvepnp(
             markers_points_3d, markers_points_2d
         )
     else:
-        rotation_prv, translation_prv = utils.split_extrinsics(
+        rotation_prv, translation_prv = worker.utils.split_extrinsics(
             frame_id_to_extrinsics_prv
         )
         retval, rotation, translation = camera_intrinsics.solvePnP(
@@ -102,7 +104,9 @@ def _check_solvepnp_output_reasonable(retval, rotation, translation, pts_3d_worl
     # the depth of the markers in the camera coordinate system should be positive,
     # i.e. all seen markers in the frame should be in front of the camera;
     # if not, that implies the output of solvePnP is wrong.
-    pts_3d_camera = utils.to_camera_coordinate(pts_3d_world, rotation, translation)
+    pts_3d_camera = worker.utils.to_camera_coordinate(
+        pts_3d_world, rotation, translation
+    )
     if (pts_3d_camera[:, 2] < 0).any():
         return False
 
@@ -117,8 +121,10 @@ def _check_camera_trace_reasonable(camera_extrinsics, camera_extrinsics_prv):
 
     # If the camera position is too far from the previous camera position,
     # then it is very likely the output from solvePnP is wrong estimation.
-    camera_trace = utils.get_camera_trace_from_extrinsics(camera_extrinsics)
-    camera_trace_prv = utils.get_camera_trace_from_extrinsics(camera_extrinsics_prv)
+    camera_trace = worker.utils.get_camera_trace_from_extrinsics(camera_extrinsics)
+    camera_trace_prv = worker.utils.get_camera_trace_from_extrinsics(
+        camera_extrinsics_prv
+    )
     camera_trace_distance = np.linalg.norm(camera_trace - camera_trace_prv)
     if camera_trace_distance > max_camera_trace_distance:
         return False

@@ -5,7 +5,7 @@ import networkx as nx
 import numpy as np
 
 import file_methods
-from marker_tracker_3d import utils
+from marker_tracker_3d import worker
 from observable import Observable
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class ModelStorage(Observable):
         self.visibility_graph = nx.MultiGraph()
         self.model_being_updated = False
 
-        self.adding_marker_detections = True
+        self.adding_observations = True
         self.current_frame_id = 0
 
         self.all_novel_markers = []
@@ -52,14 +52,18 @@ class ModelStorage(Observable):
         model = file_methods.Persistent_Dict(self._model_save_path)
 
         marker_id_to_extrinsics_opt = model.get("marker_id_to_extrinsics_opt", {})
-        origin_marker_id = utils.find_origin_marker_id(marker_id_to_extrinsics_opt)
+        origin_marker_id = worker.utils.find_origin_marker_id(
+            marker_id_to_extrinsics_opt
+        )
         self.setup_origin_marker_id(origin_marker_id)
 
         for marker_id, extrinsics in marker_id_to_extrinsics_opt.items():
             self.marker_id_to_extrinsics_opt[marker_id] = np.array(extrinsics)
             self.marker_id_to_points_3d_opt[
                 marker_id
-            ] = utils.convert_marker_extrinsics_to_points_3d(np.array(extrinsics))
+            ] = worker.utils.convert_marker_extrinsics_to_points_3d(
+                np.array(extrinsics)
+            )
 
         if self.marker_id_to_extrinsics_opt:
             logger.info(
@@ -100,10 +104,10 @@ class ModelStorage(Observable):
         self._origin_marker_id = origin_marker_id
         if origin_marker_id is not None:
             self.marker_id_to_extrinsics_opt = {
-                origin_marker_id: utils.get_marker_extrinsics_origin()
+                origin_marker_id: worker.utils.get_marker_extrinsics_origin()
             }
             self.marker_id_to_points_3d_opt = {
-                origin_marker_id: utils.get_marker_points_3d_origin()
+                origin_marker_id: worker.utils.get_marker_points_3d_origin()
             }
         else:
             self.marker_id_to_extrinsics_opt = {}

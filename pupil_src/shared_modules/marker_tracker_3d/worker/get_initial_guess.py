@@ -1,6 +1,6 @@
 import collections
 
-from marker_tracker_3d import localize_camera, localize_markers
+from marker_tracker_3d import worker
 
 InitialGuessResult = collections.namedtuple(
     "InitialGuessResult",
@@ -63,7 +63,7 @@ def _get_frame_id_to_extrinsics_init(
             if (marker.marker_id in marker_ids and marker.frame_id == frame_id)
         }
 
-        camera_extrinsics = localize_camera.localize(
+        camera_extrinsics = worker.localize_camera.localize(
             camera_intrinsics, marker_id_to_detections, marker_id_to_extrinsics_prv
         )
         if camera_extrinsics is not None:
@@ -91,7 +91,7 @@ def _get_marker_id_to_extrinsics_init(
             if (marker.frame_id in frame_ids and marker.marker_id == marker_id)
         }
 
-        marker_extrinsics = localize_markers.localize(
+        marker_extrinsics = worker.localize_markers.localize(
             camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics_prv
         )
         if marker_extrinsics is not None:

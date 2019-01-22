@@ -5,7 +5,7 @@ from scipy import misc as scipy_misc
 from scipy import optimize as scipy_optimize
 from scipy import sparse as scipy_sparse
 
-from marker_tracker_3d import utils
+from marker_tracker_3d import worker
 
 OptimizationResult = collections.namedtuple(
     "OptimizationResult",
@@ -52,7 +52,7 @@ class BundleAdjustment:
         return model_opt_result
 
     def _set_ids(self, frame_id_to_extrinsics, marker_id_to_extrinsics):
-        origin_marker_id = utils.find_origin_marker_id(marker_id_to_extrinsics)
+        origin_marker_id = worker.utils.find_origin_marker_id(marker_id_to_extrinsics)
         self._marker_ids = [origin_marker_id] + list(
             set(marker_id_to_extrinsics.keys()) - {origin_marker_id}
         )
@@ -124,8 +124,12 @@ class BundleAdjustment:
         marker_extrinsics_upper_bound = np.full(
             self._marker_extrinsics_array_shape, np.inf
         )
-        marker_extrinsics_lower_bound[0] = utils.get_marker_extrinsics_origin() - eps
-        marker_extrinsics_upper_bound[0] = utils.get_marker_extrinsics_origin() + eps
+        marker_extrinsics_lower_bound[0] = (
+            worker.utils.get_marker_extrinsics_origin() - eps
+        )
+        marker_extrinsics_upper_bound[0] = (
+            worker.utils.get_marker_extrinsics_origin() + eps
+        )
 
         lower_bound = np.vstack(
             (camera_extrinsics_lower_bound, marker_extrinsics_lower_bound)
@@ -256,7 +260,7 @@ class BundleAdjustment:
     def _project_markers(self, camera_extrinsics_array, marker_extrinsics_array):
         markers_points_3d = np.array(
             [
-                utils.convert_marker_extrinsics_to_points_3d(extrinsics)
+                worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics)
                 for extrinsics in marker_extrinsics_array
             ]
         )

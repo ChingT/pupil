@@ -1,5 +1,5 @@
 import tasklib
-from marker_tracker_3d.optimization.bundle_adjustment import BundleAdjustment
+from marker_tracker_3d import worker
 from observable import Observable
 
 
@@ -7,7 +7,7 @@ class ModelOptimizationController(Observable):
     def __init__(self, model_storage, camera_intrinsics, task_manager):
         self._model_storage = model_storage
         self._task_manager = task_manager
-        self._bundle_adjustment = BundleAdjustment(camera_intrinsics)
+        self._bundle_adjustment = worker.BundleAdjustment(camera_intrinsics)
         self._bg_task = None
 
     def run(self, model_init_result):

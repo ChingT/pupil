@@ -47,11 +47,10 @@ class VisibilityGraphs(Observable):
         pass
 
     def add_observations(self, marker_id_to_detections, current_camera_extrinsics):
-        self._save_current_camera_extrinsics(current_camera_extrinsics)
-
-        if self._model_storage.adding_marker_detections:
+        if self._model_storage.adding_observations:
             if self._n_frames_passed >= self._select_novel_markers_interval:
                 self._n_frames_passed = 0
+                self._save_current_camera_extrinsics(current_camera_extrinsics)
                 novel_markers = self._pick_novel_markers(marker_id_to_detections)
                 self._add_novel_markers_to_model_storage(novel_markers)
 

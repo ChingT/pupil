@@ -1,5 +1,6 @@
 import tasklib
-from marker_tracker_3d.optimization import get_initial_guess
+
+from marker_tracker_3d import worker
 
 from observable import Observable
 
@@ -15,7 +16,7 @@ class ModelInitializationController(Observable):
 
         self._bg_task = self._task_manager.create_background_task(
             name="initial_guess",
-            routine_or_generator_function=get_initial_guess.calculate,
+            routine_or_generator_function=worker.get_initial_guess.calculate,
             args=(self._camera_intrinsics, data_for_model_init),
         )
         self._bg_task.add_observer("on_completed", self.on_model_init_done)

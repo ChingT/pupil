@@ -1,18 +1,6 @@
 import logging
 
-from marker_tracker_3d import detect_markers
-from marker_tracker_3d import localize_camera
-from marker_tracker_3d.model_initialization_controller import (
-    ModelInitializationController,
-)
-from marker_tracker_3d.optimization.model_optimization_controller import (
-    ModelOptimizationController,
-)
-from marker_tracker_3d.optimization.prepare_for_model_update import (
-    PrepareForModelUpdate,
-)
-from marker_tracker_3d.optimization.visibility_graphs import VisibilityGraphs
-from marker_tracker_3d.update_model_storage import UpdateModelStorage
+from marker_tracker_3d import worker, controller
 from observable import Observable
 
 logger = logging.getLogger(__name__)
@@ -27,17 +15,17 @@ class Controller(Observable):
         self._camera_intrinsics = camera_intrinsics
         self._plugin = plugin
 
-        self._visibility_graphs = VisibilityGraphs(model_storage)
-        self._prepare_for_model_update = PrepareForModelUpdate(
+        self._visibility_graphs = worker.VisibilityGraphs(model_storage)
+        self._prepare_for_model_update = worker.PrepareForModelUpdate(
             model_storage, predetermined_origin_marker_id=None
         )
-        self._model_initialization_controller = ModelInitializationController(
+        self._model_initialization_controller = controller.ModelInitializationController(
             camera_intrinsics, task_manager
         )
-        self._model_optimization_controller = ModelOptimizationController(
+        self._model_optimization_controller = controller.ModelOptimizationController(
             model_storage, camera_intrinsics, task_manager
         )
-        self._update_model_storage = UpdateModelStorage(model_storage)
+        self._update_model_storage = worker.UpdateModelStorage(model_storage)
 
         self._plugin.add_observer("recent_events", self._on_recent_events)
         self._setup_model_update_pipeline()
@@ -69,10 +57,10 @@ class Controller(Observable):
         )
 
     def _update(self, frame):
-        marker_id_to_detections = detect_markers.detect(
+        marker_id_to_detections = worker.detect_markers.detect(
             frame, self._controller_storage.min_marker_perimeter
         )
-        camera_extrinsics = localize_camera.localize(
+        camera_extrinsics = worker.localize_camera.localize(
             self._camera_intrinsics,
             marker_id_to_detections,
             self._model_storage.marker_id_to_extrinsics_opt,

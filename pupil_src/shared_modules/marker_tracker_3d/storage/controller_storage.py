@@ -3,7 +3,7 @@ import os
 
 import numpy as np
 
-from marker_tracker_3d import utils
+from marker_tracker_3d import worker
 from observable import Observable
 
 logger = logging.getLogger(__name__)
@@ -55,11 +55,11 @@ class ControllerStorage(Observable):
     def camera_extrinsics(self, camera_extrinsics_new):
         if camera_extrinsics_new is not None:
             self._camera_extrinsics = camera_extrinsics_new
-            self.camera_pose_matrix = utils.get_camera_pose_matrix(
+            self.camera_pose_matrix = worker.utils.get_camera_pose_matrix(
                 camera_extrinsics_new
             )
             self.all_camera_traces.append(
-                utils.get_camera_trace(self.camera_pose_matrix)
+                worker.utils.get_camera_trace(self.camera_pose_matrix)
             )
         else:
             # Do not set camera_extrinsics to None to ensure

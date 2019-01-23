@@ -8,24 +8,40 @@ logger = logging.getLogger(__name__)
 
 
 class HeadPoseTrackerMenu(Observable):
-    def __init__(self, controller_storage, model_storage):
+    def __init__(self, controller, controller_storage, model_storage, plugin):
+        self._controller = controller
         self._controller_storage = controller_storage
         self._model_storage = model_storage
+        self._plugin = plugin
 
         self._open_3d_window = True
 
-    def create_menu(self):
-        menu = [
-            self._create_intro_text(),
-            self._create_origin_marker_text(),
-            self._create_min_marker_perimeter_slider(),
-            self._create_open_3d_window_switch(),
-            self._create_adding_marker_detections_switch(),
-            self._create_reset_button(),
-            self._create_export_model_button(),
-            self._create_export_camera_traces_button(),
-        ]
-        return menu
+        plugin.add_observer("init_ui", self._on_init_ui)
+        plugin.add_observer("deinit_ui", self._on_deinit_ui)
+        model_storage.add_observer("on_origin_marker_id_set", self._render)
+
+    def _on_init_ui(self):
+        self._plugin.add_menu()
+        self._plugin.menu.label = "Head Pose Tracker"
+        self._render()
+
+    def _on_deinit_ui(self):
+        self._plugin.remove_menu()
+
+    def _render(self):
+        self._plugin.menu.elements.clear()
+        self._plugin.menu.extend(
+            [
+                self._create_intro_text(),
+                self._create_origin_marker_text(),
+                self._create_min_marker_perimeter_slider(),
+                self._create_open_3d_window_switch(),
+                self._create_adding_marker_detections_switch(),
+                self._create_reset_button(),
+                self._create_export_model_button(),
+                self._create_export_camera_traces_button(),
+            ]
+        )
 
     def _create_intro_text(self):
         return ui.Info_Text(
@@ -69,20 +85,20 @@ class HeadPoseTrackerMenu(Observable):
         )
 
     def _create_reset_button(self):
-        return ui.Button(label="reset", function=self.on_reset_button_click)
+        return ui.Button(label="reset", function=self._on_reset_button_click)
 
     def _create_export_model_button(self):
         return ui.Button(
             outer_label="export",
             label="marker tracker 3d model",
-            function=self.on_export_marker_tracker_3d_model_button_click,
+            function=self._on_export_marker_tracker_3d_model_button_click,
         )
 
     def _create_export_camera_traces_button(self):
         return ui.Button(
             outer_label="export",
             label="camera traces",
-            function=self.on_export_camera_traces_button_click,
+            function=self._on_export_camera_traces_button_click,
         )
 
     def _switch_3d_window(self, open_3d_window):
@@ -92,17 +108,18 @@ class HeadPoseTrackerMenu(Observable):
         else:
             self.on_close_3d_window()
 
-    def on_reset_button_click(self):
-        pass
-
     def on_open_3d_window(self):
         pass
 
     def on_close_3d_window(self):
         pass
 
-    def on_export_marker_tracker_3d_model_button_click(self):
-        pass
+    def _on_reset_button_click(self):
+        self._controller.reset()
+        self._render()
 
-    def on_export_camera_traces_button_click(self):
-        pass
+    def _on_export_marker_tracker_3d_model_button_click(self):
+        self._controller.export_marker_tracker_3d_model()
+
+    def _on_export_camera_traces_button_click(self):
+        self._controller.export_camera_traces()

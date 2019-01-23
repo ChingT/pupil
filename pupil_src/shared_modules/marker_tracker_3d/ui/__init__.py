@@ -1,3 +1,3 @@
 from marker_tracker_3d.ui.head_pose_tracker_menu import HeadPoseTrackerMenu
-from marker_tracker_3d.ui.user_interface import UserInterface
+from marker_tracker_3d.ui.marker_renderer import MarkerRenderer
 from marker_tracker_3d.ui.visualization_3d_window import Visualization3dWindow

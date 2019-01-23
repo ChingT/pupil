@@ -9,8 +9,10 @@ logger = logging.getLogger(__name__)
 
 
 class Visualization3dWindow:
-    def __init__(self, intrinsics, controller_storage, model_storage):
-        self._intrinsics = intrinsics
+    def __init__(self, camera_intrinsics, controller_storage, model_storage, plugin):
+        self._camera_intrinsics = camera_intrinsics
+        self._controller_storage = controller_storage
+        self._model_storage = model_storage
 
         self._max_camera_traces_len = 300
         self._input = {"down": False, "mouse": (0, 0)}
@@ -21,8 +23,28 @@ class Visualization3dWindow:
         self._window_position = 0, 0
         self._window_size = 1280, 1335
 
-        self._controller_storage = controller_storage
-        self._model_storage = model_storage
+        plugin.add_observer("init_ui", self._on_init_ui)
+        plugin.add_observer("deinit_ui", self._on_deinit_ui)
+        plugin.add_observer("cleanup", self._on_cleanup)
+        plugin.add_observer("gl_display", self._on_gl_display)
+        plugin.head_pose_tracker_menu.add_observer(
+            "on_open_3d_window", self.on_open_window
+        )
+        plugin.head_pose_tracker_menu.add_observer(
+            "on_close_3d_window", self.on_close_window
+        )
+
+    def _on_init_ui(self):
+        self._open_window()
+
+    def _on_gl_display(self):
+        self._display_3d_model(self._window)
+
+    def _on_deinit_ui(self):
+        self.on_close_window()
+
+    def _on_cleanup(self):
+        self.on_close_window()
 
     def _init_trackball(self):
         self._trackball = gl_utils.trackball.Trackball()
@@ -33,9 +55,6 @@ class Visualization3dWindow:
 
     def on_close_window(self, window=None):
         self._close_window()
-
-    def on_display_3d_model(self):
-        self._display_3d_model(self._window)
 
     def _display_3d_model(self, window):
         if not window:
@@ -105,7 +124,7 @@ class Visualization3dWindow:
         else:
             gl.glLoadMatrixf(camera_pose_matrix_flatten)
             self._draw_frustum_in_3d_window(
-                self._intrinsics.resolution, self._intrinsics.K
+                self._camera_intrinsics.resolution, self._camera_intrinsics.K
             )
             self._draw_coordinate_in_3d_window()
 

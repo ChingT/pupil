@@ -12,10 +12,7 @@ def detect(frame, min_marker_perimeter):
     # performance reasons
     try:
         marker_list = square_marker_detect.detect_markers(
-            frame.gray,
-            grid_size=5,
-            aperture=13,
-            min_marker_perimeter=min_marker_perimeter,
+            frame.gray, grid_size=5, min_marker_perimeter=min_marker_perimeter
         )
     except AttributeError:
         return {}
@@ -32,7 +29,7 @@ def detect(frame, min_marker_perimeter):
 
 
 def _filter_markers(marker_list):
-    marker_list = [m for m in marker_list if m["id_confidence"] > 0.9]
+    marker_list = [m for m in marker_list if m["id_confidence"] > 0.1]
 
     marker_ids = set([m["id"] for m in marker_list])
     for marker_id in marker_ids:

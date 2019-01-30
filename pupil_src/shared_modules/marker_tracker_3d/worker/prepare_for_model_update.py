@@ -113,7 +113,7 @@ class PrepareForModelUpdate(Observable):
         self._model_storage.setup_origin_marker_id(origin_marker_id)
 
     def _determine_origin_marker_id(self, markers_enough_viewed):
-        if self._predetermined_origin_marker_id:
+        if self._predetermined_origin_marker_id is not None:
             origin_marker_id = self._predetermined_origin_marker_id
         else:
             try:

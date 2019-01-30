@@ -18,10 +18,10 @@ class ControllerStorage(Observable):
         self._set_to_default_values()
 
     def _set_to_default_values(self):
-        # marker_id_to_detections is for drawing in 2d window
+        # for drawing in 2d window
         self.marker_id_to_detections = {}
 
-        # Following attributes are for drawing in 3d window
+        # for drawing in 3d window
         self.all_camera_traces = []
         self.camera_pose_matrix = None
         self._camera_extrinsics = None

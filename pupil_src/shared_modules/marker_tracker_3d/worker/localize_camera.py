@@ -2,17 +2,18 @@ import numpy as np
 
 from marker_tracker_3d import worker
 
-min_n_markers_per_frame = 1
+min_n_markers_per_frame = 2
 
 
 def localize(
     camera_intrinsics,
+    origin_marker_id,
     marker_id_to_detections,
     marker_id_to_extrinsics_prv,
     camera_extrinsics_prv=None,
 ):
     data_for_solvepnp = _prepare_data_for_solvepnp(
-        marker_id_to_detections, marker_id_to_extrinsics_prv
+        origin_marker_id, marker_id_to_detections, marker_id_to_extrinsics_prv
     )
     camera_extrinsics = _calculate(
         camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv
@@ -20,24 +21,34 @@ def localize(
     return camera_extrinsics
 
 
-def _prepare_data_for_solvepnp(marker_id_to_detections, marker_id_to_extrinsics_prv):
+def _prepare_data_for_solvepnp(
+    origin_marker_id, marker_id_to_detections, marker_id_to_extrinsics_prv
+):
     # marker_ids_available are the id of the markers which have been known
     # and are detected in this frame.
     marker_ids_available = list(
         set(marker_id_to_extrinsics_prv.keys() & set(marker_id_to_detections.keys()))
     )
-    if len(marker_ids_available) < min_n_markers_per_frame:
+    if origin_marker_id in marker_ids_available:
+        markers_points_3d = [
+            worker.utils.convert_marker_extrinsics_to_points_3d(
+                marker_id_to_extrinsics_prv[origin_marker_id]
+            )
+        ]
+        markers_points_2d = [marker_id_to_detections[origin_marker_id]["verts"]]
+    elif len(marker_ids_available) >= min_n_markers_per_frame:
+        markers_points_3d = [
+            worker.utils.convert_marker_extrinsics_to_points_3d(
+                marker_id_to_extrinsics_prv[i]
+            )
+            for i in marker_ids_available
+        ]
+        markers_points_2d = [
+            marker_id_to_detections[i]["verts"] for i in marker_ids_available
+        ]
+    else:
         return None
 
-    markers_points_3d = [
-        worker.utils.convert_marker_extrinsics_to_points_3d(
-            marker_id_to_extrinsics_prv[i]
-        )
-        for i in marker_ids_available
-    ]
-    markers_points_2d = [
-        marker_id_to_detections[i]["verts"] for i in marker_ids_available
-    ]
     markers_points_3d = np.array(markers_points_3d)
     markers_points_2d = np.array(markers_points_2d)
     data_for_solvepnp = markers_points_3d, markers_points_2d

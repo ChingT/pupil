@@ -68,6 +68,7 @@ class Controller(Observable):
         )
         camera_extrinsics = worker.localize_camera.localize(
             self._camera_intrinsics,
+            self._model_storage.origin_marker_id,
             marker_id_to_detections,
             self._model_storage.marker_id_to_extrinsics_opt,
             camera_extrinsics_prv=self._controller_storage.camera_extrinsics,

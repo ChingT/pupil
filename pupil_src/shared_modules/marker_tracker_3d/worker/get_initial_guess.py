@@ -64,7 +64,10 @@ def _get_frame_id_to_extrinsics_init(
         }
 
         camera_extrinsics = worker.localize_camera.localize(
-            camera_intrinsics, marker_id_to_detections, marker_id_to_extrinsics_prv
+            camera_intrinsics,
+            marker_ids[0],
+            marker_id_to_detections,
+            marker_id_to_extrinsics_prv,
         )
         if camera_extrinsics is not None:
             frame_id_to_extrinsics_init[frame_id] = camera_extrinsics

@@ -48,6 +48,10 @@ class Controller(Observable):
         self._model_initialization_controller.add_observer(
             "on_model_init_done", self._model_optimization_controller.run
         )
+        # TODO: debug only; to be removed
+        self._model_initialization_controller.add_observer(
+            "on_model_init_done", self._update_model_storage.run_init
+        )
         self._model_optimization_controller.add_observer(
             "on_model_opt_done", self._update_model_storage.run
         )
@@ -88,8 +92,15 @@ class Controller(Observable):
         self._model_optimization_controller.reset()
         logger.info("Reset 3D Marker Tracker!")
 
+    def load_marker_tracker_3d_model(self):
+        self._model_storage.load_marker_tracker_3d_model_from_file()
+
     def export_marker_tracker_3d_model(self):
         self._model_storage.export_marker_tracker_3d_model()
+
+    # TODO: debug only; to be removed
+    def export_visibility_graph(self):
+        self._model_storage.export_visibility_graph()
 
     def export_camera_traces(self):
         self._controller_storage.export_camera_traces()

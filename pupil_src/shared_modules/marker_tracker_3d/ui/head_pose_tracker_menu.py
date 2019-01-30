@@ -15,6 +15,11 @@ class HeadPoseTrackerMenu(Observable):
         self._plugin = plugin
 
         self._open_3d_window = True
+        self.show_markers_opt = True
+        self.show_camera_frustum = True
+        self.show_camera_trace = True
+        # TODO: This is only for debug; should be removed later
+        self.show_markers_init = False
 
         plugin.add_observer("init_ui", self._on_init_ui)
         plugin.add_observer("deinit_ui", self._on_deinit_ui)
@@ -36,9 +41,17 @@ class HeadPoseTrackerMenu(Observable):
                 self._create_origin_marker_text(),
                 self._create_min_marker_perimeter_slider(),
                 self._create_open_3d_window_switch(),
+                self._create_show_markers_opt_switch(),
+                # TODO: debug only; to be removed
+                self._create_show_markers_init_switch(),
+                self._create_show_camera_frustum_switch(),
+                self._create_show_camera_trace_switch(),
                 self._create_adding_marker_detections_switch(),
                 self._create_reset_button(),
+                self._create_load_model_button(),
                 self._create_export_model_button(),
+                # TODO: debug only; to be removed
+                self._create_export_visibility_graph_button(),
                 self._create_export_camera_traces_button(),
             ]
         )
@@ -66,8 +79,8 @@ class HeadPoseTrackerMenu(Observable):
             "min_marker_perimeter",
             self._controller_storage,
             step=1,
-            min=30,
-            max=100,
+            min=50,
+            max=150,
             label="Perimeter of markers",
         )
 
@@ -79,6 +92,19 @@ class HeadPoseTrackerMenu(Observable):
             setter=self._switch_3d_window,
         )
 
+    def _create_show_markers_opt_switch(self):
+        return ui.Switch("show_markers_opt", self, label="show optimized markers")
+
+    # TODO: debug only; to be removed
+    def _create_show_markers_init_switch(self):
+        return ui.Switch("show_markers_init", self, label="show init markers (debug)")
+
+    def _create_show_camera_frustum_switch(self):
+        return ui.Switch("show_camera_frustum", self, label="show camera frustum")
+
+    def _create_show_camera_trace_switch(self):
+        return ui.Switch("show_camera_trace", self, label="show camera trace")
+
     def _create_adding_marker_detections_switch(self):
         return ui.Switch(
             "adding_observations", self._model_storage, label="Adding new observations"
@@ -87,11 +113,26 @@ class HeadPoseTrackerMenu(Observable):
     def _create_reset_button(self):
         return ui.Button(label="reset", function=self._on_reset_button_click)
 
+    def _create_load_model_button(self):
+        return ui.Button(
+            outer_label="load",
+            label="marker tracker 3d model",
+            function=self._on_load_marker_tracker_3d_model_button_click,
+        )
+
     def _create_export_model_button(self):
         return ui.Button(
             outer_label="export",
             label="marker tracker 3d model",
             function=self._on_export_marker_tracker_3d_model_button_click,
+        )
+
+    # TODO: debug only; to be removed
+    def _create_export_visibility_graph_button(self):
+        return ui.Button(
+            outer_label="export",
+            label="visibility graph (debug)",
+            function=self._on_export_visibility_graph_button_click,
         )
 
     def _create_export_camera_traces_button(self):
@@ -118,8 +159,14 @@ class HeadPoseTrackerMenu(Observable):
         self._controller.reset()
         self._render()
 
+    def _on_load_marker_tracker_3d_model_button_click(self):
+        self._controller.load_marker_tracker_3d_model()
+
     def _on_export_marker_tracker_3d_model_button_click(self):
         self._controller.export_marker_tracker_3d_model()
+
+    def _on_export_visibility_graph_button_click(self):
+        self._controller.export_visibility_graph()
 
     def _on_export_camera_traces_button_click(self):
         self._controller.export_camera_traces()

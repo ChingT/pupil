@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 class Visualization3dWindow:
     def __init__(self, camera_intrinsics, controller_storage, model_storage, plugin):
+        self._plugin = plugin
         self._camera_intrinsics = camera_intrinsics
         self._controller_storage = controller_storage
         self._model_storage = model_storage
@@ -66,9 +67,19 @@ class Visualization3dWindow:
         self._init_3d_window()
         self._trackball.push()
         self._draw_coordinate_in_3d_window()
-        self._draw_markers_in_3d_window()
-        self._draw_camera_trace_in_3d_window()
-        self._draw_camera_in_3d_window()
+
+        if self._plugin.head_pose_tracker_menu.show_markers_opt:
+            self._draw_markers_opt_in_3d_window()
+
+        # TODO: debug only; to be removed
+        if self._plugin.head_pose_tracker_menu.show_markers_init:
+            self._draw_markers_init_in_3d_window()
+
+        if self._plugin.head_pose_tracker_menu.show_camera_frustum:
+            self._draw_camera_in_3d_window()
+        if self._plugin.head_pose_tracker_menu.show_camera_trace:
+            self._draw_camera_trace_in_3d_window()
+
         self._trackball.pop()
 
         glfw.glfwSwapBuffers(window)
@@ -76,43 +87,58 @@ class Visualization3dWindow:
 
     @staticmethod
     def _init_3d_window():
-        gl.glClearColor(0.8, 0.8, 0.8, 1.0)
+        gl.glClearColor(0.9, 0.9, 0.9, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         gl.glClearDepth(1.0)
         gl.glDepthFunc(gl.GL_LESS)
         gl.glEnable(gl.GL_DEPTH_TEST)
 
-    def _draw_coordinate_in_3d_window(self):
-        gl.glColor4f(1, 0, 0, 1)
-        self._draw_line_in_3d_window((0, 0, 0), (1, 0, 0))
+    def _draw_coordinate_in_3d_window(self, scale=1):
+        color = (1, 0, 0, 1)
+        self._draw_line_in_3d_window((0, 0, 0), (scale, 0, 0), color)
 
-        gl.glColor4f(0, 1, 0, 1)
-        self._draw_line_in_3d_window((0, 0, 0), (0, 1, 0))
+        color = (0, 1, 0, 1)
+        self._draw_line_in_3d_window((0, 0, 0), (0, scale, 0), color)
 
-        gl.glColor4f(0, 0, 1, 1)
-        self._draw_line_in_3d_window((0, 0, 0), (0, 0, 1))
+        color = (0, 0, 1, 1)
+        self._draw_line_in_3d_window((0, 0, 0), (0, 0, scale), color)
 
-    def _draw_markers_in_3d_window(self):
+    def _draw_markers_opt_in_3d_window(self):
         gl.glLoadIdentity()
         for (
             marker_id,
             points_3d,
         ) in self._model_storage.marker_id_to_points_3d_opt.items():
             if marker_id in self._controller_storage.marker_id_to_detections:
-                color = (1, 0, 0, 0.8)
+                color = (1, 0, 0, 0.15)
             else:
-                color = (1, 0.4, 0, 0.6)
+                color = (1, 0, 0, 0.1)
 
-            gl.glColor4f(*color)
-            self._draw_polygon_in_3d_window(points_3d)
+            self._draw_polygon_in_3d_window(points_3d, color)
+
+    # TODO: debug only; to be removed
+    def _draw_markers_init_in_3d_window(self):
+        gl.glLoadIdentity()
+
+        for (
+            marker_id,
+            points_3d,
+        ) in self._model_storage.marker_id_to_points_3d_init.items():
+            if marker_id in self._controller_storage.marker_id_to_detections:
+                color = (0, 0, 1, 0.15)
+            else:
+                color = (0, 0, 1, 0.1)
+
+            self._draw_polygon_in_3d_window(points_3d, color)
 
     def _draw_camera_trace_in_3d_window(self):
         trace = self._controller_storage.all_camera_traces[
             -self._max_camera_traces_len :
         ]
+
         gl.glLoadIdentity()
-        gl.glColor4f(0, 0, 0.8, 0.2)
-        self._draw_strip_in_3d_window(trace)
+        color = (0.2, 0.2, 0.2, 0.1)
+        self._draw_strip_in_3d_window(trace, color)
 
     def _draw_camera_in_3d_window(self):
         try:
@@ -123,10 +149,10 @@ class Visualization3dWindow:
             pass
         else:
             gl.glLoadMatrixf(camera_pose_matrix_flatten)
+            self._draw_coordinate_in_3d_window()
             self._draw_frustum_in_3d_window(
                 self._camera_intrinsics.resolution, self._camera_intrinsics.K
             )
-            self._draw_coordinate_in_3d_window()
 
     def _draw_frustum_in_3d_window(self, img_size, camera_intrinsics, scale=1000):
         x = img_size[0] / scale
@@ -139,25 +165,37 @@ class Visualization3dWindow:
         vertices += [[0, 0, 0], [-x, -y, z], [x, -y, z]]
         vertices += [[0, 0, 0], [-x, -y, z], [-x, y, z]]
 
-        gl.glColor4f(0, 0, 0.6, 0.8)
-        self._draw_polygon_in_3d_window(vertices)
+        color = (0.05, 0.05, 0.05, 0.1)
+        self._draw_polygon_in_3d_window(vertices, color)
 
     @staticmethod
-    def _draw_line_in_3d_window(start_point, end_point):
+    def _draw_line_in_3d_window(start_point, end_point, color):
+        gl.glColor4f(*color)
         gl.glBegin(gl.GL_LINES)
         gl.glVertex3f(*start_point)
         gl.glVertex3f(*end_point)
         gl.glEnd()
 
     @staticmethod
-    def _draw_polygon_in_3d_window(vertices):
-        gl.glBegin(gl.GL_LINE_LOOP)
+    def _draw_polygon_in_3d_window(vertices, color):
+        r, g, b, _ = color
+        gl.glColor4f(r, g, b, 0.5)
+        gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+        gl.glBegin(gl.GL_POLYGON)
+        for vertex in vertices:
+            gl.glVertex3f(*vertex)
+        gl.glEnd()
+
+        gl.glColor4f(*color)
+        gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+        gl.glBegin(gl.GL_POLYGON)
         for vertex in vertices:
             gl.glVertex3f(*vertex)
         gl.glEnd()
 
     @staticmethod
-    def _draw_strip_in_3d_window(vertices):
+    def _draw_strip_in_3d_window(vertices, color):
+        gl.glColor4f(*color)
         gl.glBegin(gl.GL_LINE_STRIP)
         for vertex in vertices:
             gl.glVertex3f(*vertex)

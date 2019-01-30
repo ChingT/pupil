@@ -23,7 +23,7 @@ class Marker_Tracker_3D(Plugin, Observable):
     icon_chr = chr(0xEC07)
     icon_font = "pupil_icons"
 
-    def __init__(self, g_pool, min_marker_perimeter=100):
+    def __init__(self, g_pool, min_marker_perimeter=75):
         super().__init__(g_pool)
         self._min_marker_perimeter = min_marker_perimeter
         self._task_manager = PluginTaskManager(plugin=self)
@@ -58,7 +58,7 @@ class Marker_Tracker_3D(Plugin, Observable):
             plugin=self,
         )
         self._marker_renderer = plugin_ui.MarkerRenderer(
-            self._controller_storage, plugin=self
+            self._controller_storage, self._model_storage, plugin=self
         )
 
     def get_init_dict(self):

@@ -7,7 +7,14 @@ from marker_tracker_3d import worker
 
 OptimizationResult = collections.namedtuple(
     "OptimizationResult",
-    ["frame_id_to_extrinsics", "marker_id_to_extrinsics", "frame_ids_failed"],
+    [
+        "frame_id_to_extrinsics",
+        "marker_id_to_extrinsics",
+        "frame_ids_failed",
+        "marker_ids_failed",
+        "camera_matrix",
+        "dist_coefs",
+    ],
 )
 
 
@@ -15,10 +22,11 @@ OptimizationResult = collections.namedtuple(
 # would be inefficient.
 # (especially true for _function_compute_residuals as a callback)
 class BundleAdjustment:
-    def __init__(self, camera_intrinsics):
+    def __init__(self, camera_intrinsics, optimiza_camera_intrinsics=1):
         self._camera_intrinsics = camera_intrinsics
+        self._optimiza_camera_intrinsics = optimiza_camera_intrinsics
 
-        self._tol = 1e-4
+        self._tol = 1e-5
         self._diff_step = 1e-3
 
     def run(self, all_novel_markers, model_init_result):
@@ -32,7 +40,7 @@ class BundleAdjustment:
 
         self._set_ids(frame_id_to_extrinsics_init, marker_id_to_extrinsics_init)
 
-        if not self._check_enoug_data(all_novel_markers):
+        if not self._check_enough_data(all_novel_markers):
             return None
 
         camera_extrinsics_array, marker_extrinsics_array = self._set_init_array(
@@ -56,7 +64,7 @@ class BundleAdjustment:
         )
         self._frame_ids = list(frame_id_to_extrinsics.keys())
 
-    def _check_enoug_data(self, all_novel_markers):
+    def _check_enough_data(self, all_novel_markers):
         frame_indices = []
         marker_indices = []
         markers_points_2d_detected = []
@@ -88,8 +96,8 @@ class BundleAdjustment:
             [marker_id_to_extrinsics_init[marker_id] for marker_id in self._marker_ids]
         )
 
-        self._camera_extrinsics_array_shape = camera_extrinsics_array.shape
-        self._marker_extrinsics_array_shape = marker_extrinsics_array.shape
+        self._camera_extrinsics_shape = camera_extrinsics_array.shape
+        self._marker_extrinsics_shape = marker_extrinsics_array.shape
 
         return camera_extrinsics_array, marker_extrinsics_array
 
@@ -97,6 +105,13 @@ class BundleAdjustment:
         initial_guess_array = np.vstack(
             (camera_extrinsics_array, marker_extrinsics_array)
         ).ravel()
+        if self._optimiza_camera_intrinsics:
+            camera_intrinsics_params = self._load_camera_intrinsics_params(
+                self._camera_intrinsics.K, self._camera_intrinsics.D
+            )
+            initial_guess_array = np.hstack(
+                (initial_guess_array, camera_intrinsics_params)
+            )
 
         bounds = self._calculate_bounds()
 
@@ -109,25 +124,14 @@ class BundleAdjustment:
             fix the first marker at the origin of the coordinate system
         """
 
-        camera_extrinsics_lower_bound = np.full(
-            self._camera_extrinsics_array_shape, -np.inf
-        )
-        camera_extrinsics_upper_bound = np.full(
-            self._camera_extrinsics_array_shape, np.inf
-        )
+        camera_extrinsics_lower_bound = np.full(self._camera_extrinsics_shape, -np.inf)
+        camera_extrinsics_upper_bound = np.full(self._camera_extrinsics_shape, np.inf)
 
-        marker_extrinsics_lower_bound = np.full(
-            self._marker_extrinsics_array_shape, -np.inf
-        )
-        marker_extrinsics_upper_bound = np.full(
-            self._marker_extrinsics_array_shape, np.inf
-        )
-        marker_extrinsics_lower_bound[0] = (
-            worker.utils.get_marker_extrinsics_origin() - eps
-        )
-        marker_extrinsics_upper_bound[0] = (
-            worker.utils.get_marker_extrinsics_origin() + eps
-        )
+        marker_extrinsics_lower_bound = np.full(self._marker_extrinsics_shape, -np.inf)
+        marker_extrinsics_upper_bound = np.full(self._marker_extrinsics_shape, np.inf)
+        marker_extrinsics_origin = worker.utils.get_marker_extrinsics_origin()
+        marker_extrinsics_lower_bound[0] = marker_extrinsics_origin - eps
+        marker_extrinsics_upper_bound[0] = marker_extrinsics_origin + eps
 
         lower_bound = np.vstack(
             (camera_extrinsics_lower_bound, marker_extrinsics_lower_bound)
@@ -135,6 +139,12 @@ class BundleAdjustment:
         upper_bound = np.vstack(
             (camera_extrinsics_upper_bound, marker_extrinsics_upper_bound)
         ).ravel()
+
+        if self._optimiza_camera_intrinsics:
+            camera_intrinsics_params_lower_bound = np.full((9,), -np.inf)
+            camera_intrinsics_params_upper_bound = np.full((9,), np.inf)
+            lower_bound = np.hstack((lower_bound, camera_intrinsics_params_lower_bound))
+            upper_bound = np.hstack((upper_bound, camera_intrinsics_params_upper_bound))
 
         return lower_bound, upper_bound
 
@@ -152,33 +162,36 @@ class BundleAdjustment:
 
         n_samples = len(self._frame_indices)
 
-        mat_camera = np.zeros(
-            (n_samples, self._camera_extrinsics_array_shape[0]), dtype=int
-        )
+        mat_camera = np.zeros((n_samples, self._camera_extrinsics_shape[0]), dtype=int)
         mat_camera[np.arange(n_samples), self._frame_indices] = 1
         mat_camera = scipy_misc.imresize(
             mat_camera,
             size=(
                 self._markers_points_2d_detected.size,
-                np.prod(self._camera_extrinsics_array_shape),
+                np.prod(self._camera_extrinsics_shape),
             ),
             interp="nearest",
         )
 
-        mat_marker = np.zeros(
-            (n_samples, self._marker_extrinsics_array_shape[0]), dtype=int
-        )
+        mat_marker = np.zeros((n_samples, self._marker_extrinsics_shape[0]), dtype=int)
         mat_marker[np.arange(n_samples), self._marker_indices] = 1
         mat_marker = scipy_misc.imresize(
             mat_marker,
             size=(
                 self._markers_points_2d_detected.size,
-                np.prod(self._marker_extrinsics_array_shape),
+                np.prod(self._marker_extrinsics_shape),
             ),
             interp="nearest",
         )
 
         sparsity_matrix = np.hstack((mat_camera, mat_marker))
+
+        if self._optimiza_camera_intrinsics:
+            mat_camera_intrinsics = np.ones(
+                (self._markers_points_2d_detected.size, 9), dtype=int
+            )
+            sparsity_matrix = np.hstack((sparsity_matrix, mat_camera_intrinsics))
+
         sparsity_matrix = scipy_sparse.lil_matrix(sparsity_matrix)
         return sparsity_matrix
 
@@ -194,14 +207,14 @@ class BundleAdjustment:
             loss="soft_l1",
             diff_step=self._diff_step,
             jac_sparsity=sparsity_matrix,
+            max_nfev=150,
         )
         return result
 
     def _get_model_opt_result(self, least_sq_result):
-        camera_extrinsics_array, marker_extrinsics_array = self._reshape_variables_to_extrinsics_array(
+        camera_extrinsics_array, marker_extrinsics_array = self._get_extrinsics_arrays(
             least_sq_result.x
         )
-
         frame_indices_failed, marker_indices_failed = self._find_failed_indices(
             least_sq_result.fun
         )
@@ -209,17 +222,22 @@ class BundleAdjustment:
         frame_id_to_extrinsics_opt = {
             self._frame_ids[frame_index]: extrinsics
             for frame_index, extrinsics in enumerate(camera_extrinsics_array)
-            if frame_index not in frame_indices_failed
         }
         marker_id_to_extrinsics_opt = {
             self._marker_ids[marker_index]: extrinsics
             for marker_index, extrinsics in enumerate(marker_extrinsics_array)
             if marker_index not in marker_indices_failed
         }
-        frame_ids_failed = [self._frame_ids[i] for i in frame_indices_failed]
+        frame_ids_failed = set(self._frame_ids[i] for i in frame_indices_failed)
+        marker_ids_failed = set(self._marker_ids[i] for i in marker_indices_failed)
 
         model_opt_result = OptimizationResult(
-            frame_id_to_extrinsics_opt, marker_id_to_extrinsics_opt, frame_ids_failed
+            frame_id_to_extrinsics_opt,
+            marker_id_to_extrinsics_opt,
+            frame_ids_failed,
+            marker_ids_failed,
+            self._camera_intrinsics.K,
+            self._camera_intrinsics.D,
         )
         return model_opt_result
 
@@ -227,10 +245,11 @@ class BundleAdjustment:
         """ Function which computes the vector of residuals,
         i.e., the minimization proceeds with respect to params
         """
-
-        camera_extrinsics_array, marker_extrinsics_array = self._reshape_variables_to_extrinsics_array(
+        camera_extrinsics_array, marker_extrinsics_array = self._get_extrinsics_arrays(
             variables
         )
+        if self._optimiza_camera_intrinsics:
+            self._unload_camera_intrinsics_params(variables[-9:])
 
         markers_points_2d_projected = self._project_markers(
             camera_extrinsics_array, marker_extrinsics_array
@@ -238,20 +257,21 @@ class BundleAdjustment:
         residuals = markers_points_2d_projected - self._markers_points_2d_detected
         return residuals.ravel()
 
-    def _reshape_variables_to_extrinsics_array(self, variables):
-        """ reshape 1-dimensional vector into the original shape of camera_extrinsics_array
-        and marker_extrinsics_array
+    def _get_extrinsics_arrays(self, variables):
+        """ reshape 1-dimensional vector into the original shape of
+        camera_extrinsics_array and marker_extrinsics_array
         """
 
-        camera_extrinsics_array = variables[
-            : np.prod(self._camera_extrinsics_array_shape)
-        ]
-        camera_extrinsics_array.shape = self._camera_extrinsics_array_shape
+        variables = variables[
+            : np.prod(self._camera_extrinsics_shape)
+            + np.prod(self._marker_extrinsics_shape)
+        ].copy()
 
-        marker_extrinsics_array = variables[
-            np.prod(self._camera_extrinsics_array_shape) :
-        ]
-        marker_extrinsics_array.shape = self._marker_extrinsics_array_shape
+        camera_extrinsics_array = variables[: np.prod(self._camera_extrinsics_shape)]
+        camera_extrinsics_array.shape = self._camera_extrinsics_shape
+
+        marker_extrinsics_array = variables[-np.prod(self._marker_extrinsics_shape) :]
+        marker_extrinsics_array.shape = self._marker_extrinsics_shape
 
         return camera_extrinsics_array, marker_extrinsics_array
 
@@ -283,3 +303,26 @@ class BundleAdjustment:
         frame_indices_failed = set(self._frame_indices[reprojection_errors > thres])
         marker_indices_failed = set(self._marker_indices[reprojection_errors > thres])
         return frame_indices_failed, marker_indices_failed
+
+    @staticmethod
+    def _load_camera_intrinsics_params(camera_matrix, dist_coefs):
+        assert camera_matrix.shape == (3, 3) and dist_coefs.size == 5
+        camera_intrinsics_params = np.zeros((9,))
+        camera_intrinsics_params[0] = camera_matrix[0, 0]  # fx
+        camera_intrinsics_params[1] = camera_matrix[1, 1]  # fy
+        camera_intrinsics_params[2] = camera_matrix[0, 2]  # cx
+        camera_intrinsics_params[3] = camera_matrix[1, 2]  # cy
+        camera_intrinsics_params[4:9] = dist_coefs
+        return camera_intrinsics_params
+
+    def _unload_camera_intrinsics_params(self, camera_intrinsics_params):
+        assert camera_intrinsics_params.size == 9
+        camera_matrix = np.eye(3)
+        camera_matrix[0, 0] = camera_intrinsics_params[0]  # fx
+        camera_matrix[1, 1] = camera_intrinsics_params[1]  # fy
+        camera_matrix[0, 2] = camera_intrinsics_params[2]  # cx
+        camera_matrix[1, 2] = camera_intrinsics_params[3]  # cy
+        dist_coefs = camera_intrinsics_params[4:9]
+
+        self._camera_intrinsics.update_camera_matrix(camera_matrix)
+        self._camera_intrinsics.update_dist_coefs(dist_coefs)

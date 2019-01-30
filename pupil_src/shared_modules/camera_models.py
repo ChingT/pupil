@@ -420,6 +420,12 @@ class Radial_Dist_Camera(object):
         self.resolution = resolution
         self.name = name
 
+    def update_camera_matrix(self, camera_matrix):
+        self.K[:] = np.array(camera_matrix)
+
+    def update_dist_coefs(self, dist_coefs):
+        self.D[:] = np.array(dist_coefs)
+
     def undistort(self, img):
         """
                 Undistortes an image based on the camera model.

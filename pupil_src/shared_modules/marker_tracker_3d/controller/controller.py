@@ -25,7 +25,9 @@ class Controller(Observable):
         self._model_optimization_controller = controller.ModelOptimizationController(
             model_storage, camera_intrinsics, task_manager
         )
-        self._update_model_storage = worker.UpdateModelStorage(model_storage)
+        self._update_model_storage = worker.UpdateModelStorage(
+            model_storage, camera_intrinsics
+        )
 
         self._plugin.add_observer("recent_events", self._on_recent_events)
         self._setup_model_update_pipeline()

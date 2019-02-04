@@ -1,25 +1,20 @@
 import logging
 
-from pyglui import ui as ui
-
-from observable import Observable
+from pyglui import ui
 
 logger = logging.getLogger(__name__)
 
 
-class HeadPoseTrackerMenu(Observable):
+class HeadPoseTrackerMenu:
     def __init__(self, controller, controller_storage, model_storage, plugin):
         self._controller = controller
         self._controller_storage = controller_storage
         self._model_storage = model_storage
         self._plugin = plugin
 
+        self._submenu = ui.Growing_Menu("visualization options", header_pos="headline")
+
         self._open_3d_window = True
-        self.show_markers_opt = True
-        self.show_camera_frustum = True
-        self.show_camera_trace = True
-        # TODO: This is only for debug; should be removed later
-        self.show_markers_init = False
 
         plugin.add_observer("init_ui", self._on_init_ui)
         plugin.add_observer("deinit_ui", self._on_deinit_ui)
@@ -40,21 +35,29 @@ class HeadPoseTrackerMenu(Observable):
                 self._create_intro_text(),
                 self._create_origin_marker_text(),
                 self._create_min_marker_perimeter_slider(),
-                self._create_open_3d_window_switch(),
-                self._create_show_markers_opt_switch(),
-                # TODO: debug only; to be removed
-                self._create_show_markers_init_switch(),
-                self._create_show_camera_frustum_switch(),
-                self._create_show_camera_trace_switch(),
                 self._create_adding_marker_detections_switch(),
                 self._create_reset_button(),
                 self._create_load_model_button(),
                 self._create_export_model_button(),
+                self._create_export_camera_traces_button(),
                 # TODO: debug only; to be removed
                 self._create_export_visibility_graph_button(),
-                self._create_export_camera_traces_button(),
             ]
         )
+
+        self._submenu.elements.clear()
+        self._submenu.append(self._create_open_3d_window_switch())
+        if self._open_3d_window:
+            self._submenu.extend(
+                [
+                    self._create_show_3d_markers_opt_switch(),
+                    # TODO: debug only; to be removed
+                    self._create_show_3d_markers_init_switch(),
+                    self._create_show_camera_frustum_switch(),
+                    self._create_show_camera_trace_switch(),
+                ]
+            )
+        self._plugin.menu.append(self._submenu)
 
     def _create_intro_text(self):
         return ui.Info_Text(
@@ -70,8 +73,6 @@ class HeadPoseTrackerMenu(Observable):
                 "The marker with id {} is defined as the origin of the coordinate "
                 "system".format(self._model_storage.origin_marker_id)
             )
-            logger.info(text)
-
         return ui.Info_Text(text)
 
     def _create_min_marker_perimeter_slider(self):
@@ -84,76 +85,87 @@ class HeadPoseTrackerMenu(Observable):
             label="Perimeter of markers",
         )
 
-    def _create_open_3d_window_switch(self):
-        return ui.Switch(
-            "_open_3d_window",
-            self,
-            label="3d visualization window",
-            setter=self._switch_3d_window,
-        )
-
-    def _create_show_markers_opt_switch(self):
-        return ui.Switch("show_markers_opt", self, label="show optimized markers")
-
-    # TODO: debug only; to be removed
-    def _create_show_markers_init_switch(self):
-        return ui.Switch("show_markers_init", self, label="show init markers (debug)")
-
-    def _create_show_camera_frustum_switch(self):
-        return ui.Switch("show_camera_frustum", self, label="show camera frustum")
-
-    def _create_show_camera_trace_switch(self):
-        return ui.Switch("show_camera_trace", self, label="show camera trace")
-
     def _create_adding_marker_detections_switch(self):
         return ui.Switch(
-            "adding_observations", self._model_storage, label="Adding new observations"
+            "adding_observations", self._model_storage, label="Optimizing the model"
         )
 
     def _create_reset_button(self):
-        return ui.Button(label="reset", function=self._on_reset_button_click)
+        return ui.Button(label="Reset", function=self._on_reset_button_click)
 
     def _create_load_model_button(self):
         return ui.Button(
-            outer_label="load",
-            label="marker tracker 3d model",
+            outer_label="Load",
+            label="Marker tracker 3d model",
             function=self._on_load_marker_tracker_3d_model_button_click,
         )
 
     def _create_export_model_button(self):
         return ui.Button(
-            outer_label="export",
-            label="marker tracker 3d model",
+            outer_label="Export",
+            label="Marker tracker 3d model",
             function=self._on_export_marker_tracker_3d_model_button_click,
+        )
+
+    def _create_export_camera_traces_button(self):
+        return ui.Button(
+            outer_label="Export",
+            label="Camera traces",
+            function=self._on_export_camera_traces_button_click,
         )
 
     # TODO: debug only; to be removed
     def _create_export_visibility_graph_button(self):
         return ui.Button(
-            outer_label="export",
-            label="visibility graph (debug)",
+            outer_label="Export",
+            label="Visibility graph",
             function=self._on_export_visibility_graph_button_click,
         )
 
-    def _create_export_camera_traces_button(self):
-        return ui.Button(
-            outer_label="export",
-            label="camera traces",
-            function=self._on_export_camera_traces_button_click,
+    def _create_open_3d_window_switch(self):
+        return ui.Switch(
+            "_open_3d_window",
+            self,
+            label="Open 3d visualization window",
+            setter=self._on_3d_window_switch_click,
         )
 
-    def _switch_3d_window(self, open_3d_window):
+    def _create_show_3d_markers_opt_switch(self):
+        return ui.Switch(
+            "show_markers_opt",
+            self._plugin.visualization_3d_window,
+            label="Show optimized markers",
+        )
+
+    # TODO: debug only; to be removed
+    def _create_show_3d_markers_init_switch(self):
+        return ui.Switch(
+            "show_markers_init",
+            self._plugin.visualization_3d_window,
+            label="Show init markers (debug)",
+        )
+
+    def _create_show_camera_frustum_switch(self):
+        return ui.Switch(
+            "show_camera_frustum",
+            self._plugin.visualization_3d_window,
+            label="Show camera frustum",
+        )
+
+    def _create_show_camera_trace_switch(self):
+        return ui.Switch(
+            "show_camera_trace",
+            self._plugin.visualization_3d_window,
+            label="Show camera trace",
+        )
+
+    def _on_3d_window_switch_click(self, open_3d_window):
         self._open_3d_window = open_3d_window
-        if self._open_3d_window:
-            self.on_open_3d_window()
+        if open_3d_window:
+            self._plugin.visualization_3d_window.open()
         else:
-            self.on_close_3d_window()
-
-    def on_open_3d_window(self):
-        pass
-
-    def on_close_3d_window(self):
-        pass
+            self._plugin.visualization_3d_window.close()
+        self._render()
 
     def _on_reset_button_click(self):
         self._controller.reset()

@@ -12,7 +12,6 @@ class MarkerRenderer:
     """
 
     def __init__(self, controller_storage, model_storage, plugin):
-        self._plugin = plugin
         self._controller_storage = controller_storage
         self._model_storage = model_storage
 
@@ -37,10 +36,7 @@ class MarkerRenderer:
             elif marker_id in self._model_storage.marker_id_to_extrinsics_opt:
                 color = (0.8, 0.2, 0.1, 0.2)
             # TODO: debug only; to be removed
-            elif (
-                self._plugin.head_pose_tracker_menu.show_markers_init
-                and marker_id in self._model_storage.marker_id_to_points_3d_init
-            ):
+            elif marker_id in self._model_storage.marker_id_to_points_3d_init:
                 color = (0.0, 0.0, 1.0, 0.2)
             else:
                 color = (0.0, 1.0, 1.0, 0.2)

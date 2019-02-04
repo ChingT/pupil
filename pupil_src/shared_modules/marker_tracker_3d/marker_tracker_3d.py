@@ -48,10 +48,10 @@ class Marker_Tracker_3D(Plugin, Observable):
         )
 
     def _setup_ui(self):
-        self.head_pose_tracker_menu = plugin_ui.HeadPoseTrackerMenu(
+        self._head_pose_tracker_menu = plugin_ui.HeadPoseTrackerMenu(
             self._controller, self._controller_storage, self._model_storage, plugin=self
         )
-        self._visualization_3d_window = plugin_ui.Visualization3dWindow(
+        self.visualization_3d_window = plugin_ui.Visualization3dWindow(
             self.g_pool.capture.intrinsics,
             self._controller_storage,
             self._model_storage,

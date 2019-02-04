@@ -39,27 +39,40 @@ def _prepare_data_for_triangulation(
 
 
 def _calculate(data_for_triangulation):
-    marker_points_4d = cv2.triangulatePoints(*data_for_triangulation)
-    marker_points_3d = cv2.convertPointsFromHomogeneous(marker_points_4d.T)
-    marker_points_3d.shape = 4, 3
-
-    if not _check_square_length(marker_points_3d):
-        return None
+    marker_points_3d = _run_triangulation(data_for_triangulation)
 
     rotation_matrix, translation, error = worker.svdt(
         A=worker.utils.get_marker_points_3d_origin(), B=marker_points_3d
     )
-    # if error is too large, it means the transformation result is bad
-    if error > 0.1:
+
+    if _check_triangulate_output_reasonable(translation, error):
+        rotation = cv2.Rodrigues(rotation_matrix)[0]
+        marker_extrinsics = worker.utils.merge_extrinsics(rotation, translation)
+        return marker_extrinsics
+    else:
         return None
 
-    rotation = cv2.Rodrigues(rotation_matrix)[0]
-    marker_extrinsics = worker.utils.merge_extrinsics(rotation, translation)
-    return marker_extrinsics
+
+def _run_triangulation(data_for_triangulation):
+    marker_points_4d = cv2.triangulatePoints(*data_for_triangulation)
+    marker_points_3d = cv2.convertPointsFromHomogeneous(marker_points_4d.T)
+    marker_points_3d.shape = 4, 3
+    return marker_points_3d
 
 
-def _check_square_length(marker_points_3d):
-    length = np.linalg.norm(
-        marker_points_3d[[0, 1, 2, 3]] - marker_points_3d[[1, 2, 3, 0]], axis=1
-    ).sum()
-    return np.abs(length - 4) < 0.5
+def _check_triangulate_output_reasonable(translation, error):
+    # Sometimes the frames may contain bad marker detection, which could lead to bad
+    # triangulation. So it is necessary to check if the output of triangulation is
+    # reasonable.
+
+    # if magnitude of translation is too large, it is very possible that the
+    # triangulate result is wrong.
+    if (np.abs(translation) > 1e2).any():
+        return False
+
+    # if svdt error is too large, it is very possible that the
+    # triangulate result is wrong.
+    if error > 0.05:
+        return False
+
+    return True

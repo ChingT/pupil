@@ -46,7 +46,7 @@ def _calculate(data_for_triangulation):
     if not _check_square_length(marker_points_3d):
         return None
 
-    rotation_matrix, translation, error = worker.math.svdt(
+    rotation_matrix, translation, error = worker.svdt(
         A=worker.utils.get_marker_points_3d_origin(), B=marker_points_3d
     )
     # if error is too large, it means the transformation result is bad

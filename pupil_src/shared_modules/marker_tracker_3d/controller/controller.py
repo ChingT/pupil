@@ -8,12 +8,19 @@ logger = logging.getLogger(__name__)
 
 class Controller(Observable):
     def __init__(
-        self, controller_storage, model_storage, camera_intrinsics, task_manager, plugin
+        self,
+        controller_storage,
+        model_storage,
+        camera_intrinsics,
+        task_manager,
+        plugin,
+        save_path,
     ):
         self._controller_storage = controller_storage
         self._model_storage = model_storage
         self._camera_intrinsics = camera_intrinsics
         self._plugin = plugin
+        self._save_path = save_path
 
         self._visibility_graphs = worker.VisibilityGraphs(model_storage)
         self._prepare_for_model_update = worker.PrepareForModelUpdate(
@@ -68,14 +75,14 @@ class Controller(Observable):
         )
         camera_extrinsics = worker.localize_camera.localize(
             self._camera_intrinsics,
-            self._model_storage.origin_marker_id,
             marker_id_to_detections,
             self._model_storage.marker_id_to_extrinsics_opt,
-            camera_extrinsics_prv=self._controller_storage.camera_extrinsics,
+            self._controller_storage.camera_extrinsics,
+            self._model_storage.origin_marker_id,
         )
         self._controller_storage.update(marker_id_to_detections, camera_extrinsics)
 
-    def _on_update_model_started(self, args=None):
+    def _on_update_model_started(self, _):
         self._model_storage.model_being_updated = True
 
     def _on_update_model_finished(self):
@@ -102,6 +109,10 @@ class Controller(Observable):
     # TODO: debug only; to be removed
     def export_visibility_graph(self):
         self._model_storage.export_visibility_graph()
+
+    # TODO: maybe should be moved to other place
+    def export_camera_intrinsics(self):
+        self._camera_intrinsics.save(self._save_path)
 
     def export_camera_traces(self):
         self._controller_storage.export_camera_traces()

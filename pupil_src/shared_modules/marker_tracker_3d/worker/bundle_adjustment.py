@@ -22,7 +22,7 @@ OptimizationResult = collections.namedtuple(
 # would be inefficient.
 # (especially true for _function_compute_residuals as a callback)
 class BundleAdjustment:
-    def __init__(self, camera_intrinsics, optimiza_camera_intrinsics=1):
+    def __init__(self, camera_intrinsics, optimiza_camera_intrinsics=True):
         self._camera_intrinsics = camera_intrinsics
         self._optimiza_camera_intrinsics = optimiza_camera_intrinsics
 
@@ -119,16 +119,15 @@ class BundleAdjustment:
 
         return initial_guess_array, bounds, sparsity_matrix
 
-    def _calculate_bounds(self, eps=1e-16):
+    def _calculate_bounds(self, eps=1e-16, scale=1e3):
         """ calculate the lower and upper bounds on independent variables
             fix the first marker at the origin of the coordinate system
         """
+        camera_extrinsics_lower_bound = np.full(self._camera_extrinsics_shape, -scale)
+        camera_extrinsics_upper_bound = np.full(self._camera_extrinsics_shape, scale)
 
-        camera_extrinsics_lower_bound = np.full(self._camera_extrinsics_shape, -np.inf)
-        camera_extrinsics_upper_bound = np.full(self._camera_extrinsics_shape, np.inf)
-
-        marker_extrinsics_lower_bound = np.full(self._marker_extrinsics_shape, -np.inf)
-        marker_extrinsics_upper_bound = np.full(self._marker_extrinsics_shape, np.inf)
+        marker_extrinsics_lower_bound = np.full(self._marker_extrinsics_shape, -scale)
+        marker_extrinsics_upper_bound = np.full(self._marker_extrinsics_shape, scale)
         marker_extrinsics_origin = worker.utils.get_marker_extrinsics_origin()
         marker_extrinsics_lower_bound[0] = marker_extrinsics_origin - eps
         marker_extrinsics_upper_bound[0] = marker_extrinsics_origin + eps
@@ -141,10 +140,16 @@ class BundleAdjustment:
         ).ravel()
 
         if self._optimiza_camera_intrinsics:
-            camera_intrinsics_params_lower_bound = np.full((9,), -np.inf)
-            camera_intrinsics_params_upper_bound = np.full((9,), np.inf)
-            lower_bound = np.hstack((lower_bound, camera_intrinsics_params_lower_bound))
-            upper_bound = np.hstack((upper_bound, camera_intrinsics_params_upper_bound))
+            camera_matrix_lower_bound = np.full((4,), 0)
+            camera_matrix_upper_bound = np.full((4,), 2000)
+            dist_coefs_lower_bound = np.full((5,), -1)
+            dist_coefs_upper_bound = np.full((5,), 1)
+            lower_bound = np.hstack(
+                (lower_bound, camera_matrix_lower_bound, dist_coefs_lower_bound)
+            )
+            upper_bound = np.hstack(
+                (upper_bound, camera_matrix_upper_bound, dist_coefs_upper_bound)
+            )
 
         return lower_bound, upper_bound
 
@@ -231,14 +236,26 @@ class BundleAdjustment:
         frame_ids_failed = set(self._frame_ids[i] for i in frame_indices_failed)
         marker_ids_failed = set(self._marker_ids[i] for i in marker_indices_failed)
 
-        model_opt_result = OptimizationResult(
-            frame_id_to_extrinsics_opt,
-            marker_id_to_extrinsics_opt,
-            frame_ids_failed,
-            marker_ids_failed,
-            self._camera_intrinsics.K,
-            self._camera_intrinsics.D,
-        )
+        if not self._optimiza_camera_intrinsics or len(marker_ids_failed) == len(
+            self._marker_ids
+        ):
+            model_opt_result = OptimizationResult(
+                frame_id_to_extrinsics_opt,
+                marker_id_to_extrinsics_opt,
+                frame_ids_failed,
+                marker_ids_failed,
+                None,
+                None,
+            )
+        else:
+            model_opt_result = OptimizationResult(
+                frame_id_to_extrinsics_opt,
+                marker_id_to_extrinsics_opt,
+                frame_ids_failed,
+                marker_ids_failed,
+                self._camera_intrinsics.K,
+                self._camera_intrinsics.D,
+            )
         return model_opt_result
 
     def _function_compute_residuals(self, variables):

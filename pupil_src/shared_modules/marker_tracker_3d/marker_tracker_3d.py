@@ -45,6 +45,7 @@ class Marker_Tracker_3D(Plugin, Observable):
             camera_intrinsics=self.g_pool.capture.intrinsics,
             task_manager=self._task_manager,
             plugin=self,
+            save_path=self.g_pool.user_dir,
         )
 
     def _setup_ui(self):

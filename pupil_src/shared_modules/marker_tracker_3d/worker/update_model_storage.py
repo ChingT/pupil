@@ -23,8 +23,11 @@ class UpdateModelStorage(Observable):
             self._discard_failed_novel_markers(
                 model_opt_result.frame_ids_failed, model_opt_result.marker_ids_failed
             )
-            self._camera_intrinsics.update_camera_matrix(model_opt_result.camera_matrix)
-            self._camera_intrinsics.update_dist_coefs(model_opt_result.dist_coefs)
+            if model_opt_result.camera_matrix is not None:
+                self._camera_intrinsics.update_camera_matrix(
+                    model_opt_result.camera_matrix
+                )
+                self._camera_intrinsics.update_dist_coefs(model_opt_result.dist_coefs)
         self.on_update_model_storage_done()
 
     def _update_extrinsics_opt(self, frame_id_to_extrinsics, marker_id_to_extrinsics):

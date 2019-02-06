@@ -13,7 +13,7 @@ class ModelInitializationController(Observable):
         assert not self._bg_task or not self._bg_task.running
 
         self._bg_task = self._task_manager.create_background_task(
-            name="initial_guess",
+            name="get_initial_guess",
             routine_or_generator_function=worker.get_initial_guess.calculate,
             args=(self._camera_intrinsics, data_for_model_init),
         )

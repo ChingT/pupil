@@ -7,10 +7,10 @@ min_n_markers_per_frame = 2
 
 def localize(
     camera_intrinsics,
-    origin_marker_id,
     marker_id_to_detections,
     marker_id_to_extrinsics,
     camera_extrinsics_prv=None,
+    origin_marker_id=None,
 ):
     # marker_ids_available are the id of the markers which have been known
     # and are detected in this frame.
@@ -123,7 +123,7 @@ def _check_solvepnp_output_reasonable(retval, rotation, translation, pts_3d_worl
 
     # if magnitude of translation is too large, it is very possible that the output of
     # solvePnP is wrong.
-    if (np.abs(translation) > 1e2).any():
+    if (np.abs(translation) > 1e3).any():
         return False
 
     # the magnitude of rotation should be less than 2*pi

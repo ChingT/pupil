@@ -13,11 +13,10 @@ class ModelOptimizationController(Observable):
     def run(self, model_init_result):
         assert not self._bg_task or not self._bg_task.running
 
-        data_for_model_opt = (self._model_storage.all_novel_markers, model_init_result)
         self._bg_task = self._task_manager.create_background_task(
-            name="optimization_routine",
-            routine_or_generator_function=self._bundle_adjustment.run,
-            args=data_for_model_opt,
+            name="bundle_adjustment",
+            routine_or_generator_function=self._bundle_adjustment.calculate,
+            args=(model_init_result,),
         )
         self._bg_task.add_observer("on_completed", self.on_model_opt_done)
         self._bg_task.add_observer("on_exception", tasklib.raise_exception)

@@ -76,7 +76,7 @@ class UpdateModelStorage(Observable):
     # TODO: debug only; to be removed
     def run_init(self, model_init_result):
         if model_init_result:
-            self._update_extrinsics_init(model_init_result.marker_id_to_extrinsics_init)
+            self._update_extrinsics_init(model_init_result.marker_id_to_extrinsics)
 
     # TODO: debug only; to be removed
     def _update_extrinsics_init(self, marker_id_to_extrinsics_init):

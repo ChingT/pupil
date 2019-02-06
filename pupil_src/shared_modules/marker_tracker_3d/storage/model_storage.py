@@ -92,10 +92,16 @@ class ModelStorage(Observable):
 
     def setup_origin_marker_id(self, origin_marker_id):
         if self.origin_marker_id is not None and origin_marker_id is not None:
-            assert self.origin_marker_id == origin_marker_id
+            assert self.origin_marker_id == origin_marker_id, "{0}, {1}".format(
+                self.origin_marker_id, origin_marker_id
+            )
         self.origin_marker_id = origin_marker_id
         if origin_marker_id is not None:
             self.on_origin_marker_id_set()
+            logger.info(
+                "The marker with id {} is defined as the origin of the coordinate "
+                "system".format(self.origin_marker_id)
+            )
 
     def on_origin_marker_id_set(self):
         pass

@@ -39,7 +39,7 @@ class HeadPoseTrackerMenu:
                 self._create_reset_button(),
                 self._create_load_model_button(),
                 self._create_export_model_button(),
-                self._create_export_camera_traces_button(),
+                self._create_export_all_camera_poses_button(),
                 # TODO: debug only; to be removed
                 self._create_export_visibility_graph_button(),
                 self._create_export_camera_intrinsics_button(),
@@ -108,11 +108,11 @@ class HeadPoseTrackerMenu:
             function=self._on_export_marker_tracker_3d_model_button_click,
         )
 
-    def _create_export_camera_traces_button(self):
+    def _create_export_all_camera_poses_button(self):
         return ui.Button(
             outer_label="Export",
-            label="Camera traces",
-            function=self._on_export_camera_traces_button_click,
+            label="All camera poses",
+            function=self._on_export_all_camera_poses_button_click,
         )
 
     # TODO: debug only; to be removed
@@ -194,5 +194,5 @@ class HeadPoseTrackerMenu:
     def _on_export_camera_intrinsics_button_click(self):
         self._controller.export_camera_intrinsics()
 
-    def _on_export_camera_traces_button_click(self):
-        self._controller.export_camera_traces()
+    def _on_export_all_camera_poses_button_click(self):
+        self._controller.export_all_camera_poses()

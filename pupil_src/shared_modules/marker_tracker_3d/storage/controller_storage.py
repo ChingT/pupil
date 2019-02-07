@@ -14,7 +14,7 @@ class ControllerStorage(Observable):
     def __init__(self, min_marker_perimeter, save_path):
         self.min_marker_perimeter = min_marker_perimeter  # adjustable in UI
 
-        self.save_path = save_path
+        self._all_camera_poses_path = os.path.join(save_path, "all_camera_poses")
 
         self._set_to_default_values()
 
@@ -37,15 +37,16 @@ class ControllerStorage(Observable):
         self.marker_id_to_detections = marker_id_to_detections
         self.camera_extrinsics = camera_extrinsics
 
-    def export_camera_traces(self):
-        np.save(
-            os.path.join(self.save_path, "all_camera_traces"), self.all_camera_traces
-        )
+    def export_all_camera_poses(self):
+        all_camera_poses_object = {
+            frame_id: camera_poses.tolist()
+            for frame_id, camera_poses in self.all_camera_poses.items()
+        }
+        file_methods.save_object(all_camera_poses_object, self._all_camera_poses_path)
 
         logger.info(
             "camera trace from {0} frames has been exported to {1}".format(
-                len(self.all_camera_traces),
-                os.path.join(self.save_path, "all_camera_traces"),
+                len(all_camera_poses_object), self._all_camera_poses_path
             )
         )
 
@@ -54,15 +55,16 @@ class ControllerStorage(Observable):
         return self._camera_extrinsics
 
     @camera_extrinsics.setter
-    def camera_extrinsics(self, camera_extrinsics_new):
-        if camera_extrinsics_new is not None:
-            self._camera_extrinsics = camera_extrinsics_new
-            self.camera_pose_matrix = worker.utils.get_camera_pose_matrix(
-                camera_extrinsics_new
-            )
-            self.all_camera_traces.append(
-                worker.utils.get_camera_trace(self.camera_pose_matrix)
-            )
+    def camera_extrinsics(self, _camera_extrinsics):
+        if _camera_extrinsics is not None:
+            self._camera_extrinsics = _camera_extrinsics
+
+            camera_poses = worker.utils.get_camera_pose(_camera_extrinsics)
+            self.camera_pose_matrix = worker.utils.get_extrinsic_matrix(camera_poses)
+            self.all_camera_traces.append(camera_poses[3:6])
+            self.all_camera_poses[self.current_frame_id] = camera_poses
+
+            self.frame_id_to_extrinsics_all[self.current_frame_id] = _camera_extrinsics
         else:
             # Do not set camera_extrinsics to None to ensure
             # a decent initial guess for the next solvePnP call

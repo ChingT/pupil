@@ -122,5 +122,5 @@ class Controller(Observable):
     def export_camera_intrinsics(self):
         self._camera_intrinsics.save(self._save_path)
 
-    def export_camera_traces(self):
-        self._controller_storage.export_camera_traces()
+    def export_all_camera_poses(self):
+        self._controller_storage.export_all_camera_poses()

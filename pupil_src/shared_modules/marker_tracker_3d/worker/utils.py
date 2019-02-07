@@ -33,6 +33,7 @@ def to_camera_coordinate(pts_3d_world, rotation, translation):
     return pts_3d_cam
 
 
+# TODO: need to rename
 def get_extrinsic_matrix(extrinsics):
     rotation, translation = split_extrinsics(extrinsics)
     extrinsic_matrix = np.eye(4, dtype=np.float32)
@@ -41,22 +42,12 @@ def get_extrinsic_matrix(extrinsics):
     return extrinsic_matrix
 
 
-def get_camera_pose_matrix(camera_extrinsics):
-    rotation, translation = split_extrinsics(camera_extrinsics)
-    camera_pose_matrix = np.eye(4, dtype=np.float32)
-    camera_pose_matrix[0:3, 0:3] = cv2.Rodrigues(rotation)[0].T
-    camera_pose_matrix[0:3, 3] = -camera_pose_matrix[0:3, 0:3] @ translation
-    return camera_pose_matrix
-
-
-def get_camera_trace(camera_pose_matrix):
-    return camera_pose_matrix[0:3, 3]
-
-
-def get_camera_trace_from_extrinsics(camera_extrinsics):
-    rotation, translation = split_extrinsics(camera_extrinsics)
-    camera_trace = -cv2.Rodrigues(rotation)[0].T @ translation
-    return camera_trace
+def get_camera_pose(camera_extrinsics):
+    rotation_ext, translation_ext = split_extrinsics(camera_extrinsics)
+    rotation_pose = -rotation_ext
+    translation_pose = -cv2.Rodrigues(rotation_ext)[0].T @ translation_ext
+    camera_pose = merge_extrinsics(rotation_pose, translation_pose)
+    return camera_pose
 
 
 def convert_marker_extrinsics_to_points_3d(marker_extrinsics):
@@ -97,11 +88,11 @@ def timer(func):
         t2 = time.perf_counter()
         run_time = t2 - t1
         if run_time > 1:
-            logger.debug("{0} took {1:.2f} s".format(func.__name__, run_time))
+            logger.info("{0} took {1:.2f} s".format(func.__name__, run_time))
         elif run_time > 1e-3:
-            logger.debug("{0} took {1:.2f} ms".format(func.__name__, run_time * 1e3))
+            logger.info("{0} took {1:.2f} ms".format(func.__name__, run_time * 1e3))
         else:
-            logger.debug("{0} took {1:.2f} µs".format(func.__name__, run_time * 1e6))
+            logger.info("{0} took {1:.2f} µs".format(func.__name__, run_time * 1e6))
 
         return value
 

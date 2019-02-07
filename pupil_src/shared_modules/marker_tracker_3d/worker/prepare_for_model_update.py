@@ -25,40 +25,25 @@ class PrepareForModelUpdate(Observable):
         self,
         model_storage,
         predetermined_origin_marker_id=None,
-        min_n_novel_markers=5,
         min_n_frames_per_marker=2,
         min_n_markers_per_frame=2,
     ):
         assert min_n_markers_per_frame >= 2
-        assert min_n_novel_markers >= 1
         assert min_n_frames_per_marker >= 2
 
         self._model_storage = model_storage
+
         self._predetermined_origin_marker_id = predetermined_origin_marker_id
         self._min_n_markers_per_frame = min_n_markers_per_frame
-        self._min_n_novel_markers = min_n_novel_markers
         self._min_n_frames_per_marker = min_n_frames_per_marker
 
-    def on_prepare_for_model_init_done(self, data_for_model_init):
-        pass
-
     def run(self):
-        if self._model_storage.model_being_updated:
-            return
-
-        # Do optimization only when there are enough new novel_markers selected
-        if self._model_storage.n_new_novel_markers_added < self._min_n_novel_markers:
-            return
-
-        self._prepare_for_model_init()
-
-    def _prepare_for_model_init(self):
         marker_ids_to_be_optimized = self._get_marker_ids_to_be_optimized()
         frame_ids_to_be_optimized = self._get_frame_ids_to_be_optimized(
             marker_ids_to_be_optimized
         )
         if not frame_ids_to_be_optimized:
-            return
+            return None
 
         novel_markers = [
             marker
@@ -77,7 +62,7 @@ class PrepareForModelUpdate(Observable):
         )
 
         self._model_storage.n_new_novel_markers_added = 0
-        self.on_prepare_for_model_init_done(data_for_model_init)
+        return data_for_model_init
 
     def _get_marker_ids_to_be_optimized(self):
         marker_id_candidates = self._filter_marker_ids_by_visibility_graph()

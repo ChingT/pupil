@@ -30,7 +30,7 @@ class ControllerStorage(Observable):
     def reset(self):
         self._set_to_default_values()
 
-    def update(self, marker_id_to_detections, camera_extrinsics):
+    def save_observation(self, marker_id_to_detections, camera_extrinsics):
         self.marker_id_to_detections = marker_id_to_detections
         self.camera_extrinsics = camera_extrinsics
 

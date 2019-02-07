@@ -46,22 +46,26 @@ class VisibilityGraphs(Observable):
     def on_novel_markers_added(self):
         pass
 
-    def add_observations(self, marker_id_to_detections, current_camera_extrinsics):
-        if self._model_storage.adding_observations:
-            if self._n_frames_passed >= self._select_novel_markers_interval:
-                self._n_frames_passed = 0
-                self._save_current_camera_extrinsics(current_camera_extrinsics)
-                novel_markers = self._pick_novel_markers(marker_id_to_detections)
-                self._add_novel_markers_to_model_storage(novel_markers)
+    def check_novel_markers(self, marker_id_to_detections):
+        if not self._model_storage.adding_observations:
+            return False
+
+        if self._n_frames_passed >= self._select_novel_markers_interval:
+            self._n_frames_passed = 0
+            novel_markers = self._pick_novel_markers(
+                marker_id_to_detections
+            )
+            self._add_novel_markers_to_model_storage(novel_markers)
+        else:
+            novel_markers = []
 
         self._model_storage.current_frame_id += 1
         self._n_frames_passed += 1
 
-    def _save_current_camera_extrinsics(self, current_camera_extrinsics):
-        if current_camera_extrinsics is not None:
-            self._model_storage.frame_id_to_extrinsics_opt[
-                self._model_storage.current_frame_id
-            ] = current_camera_extrinsics
+        if novel_markers:
+            return True
+        else:
+            return False
 
     def _pick_novel_markers(self, marker_id_to_detections):
         if len(marker_id_to_detections) < self._min_n_markers_per_frame:

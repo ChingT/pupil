@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 
+import file_methods
 from marker_tracker_3d import worker
 from observable import Observable
 
@@ -18,6 +19,8 @@ class ControllerStorage(Observable):
         self._set_to_default_values()
 
     def _set_to_default_values(self):
+        self.current_frame_id = 0
+
         # for drawing in 2d window
         self.marker_id_to_detections = {}
 

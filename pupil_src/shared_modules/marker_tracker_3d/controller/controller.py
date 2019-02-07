@@ -114,7 +114,9 @@ class Controller(Observable):
 
     # TODO: debug only; to be removed
     def export_visibility_graph(self):
-        self._model_storage.export_visibility_graph()
+        self._model_storage.export_visibility_graph(
+            self._controller_storage.current_frame_id
+        )
 
     # TODO: maybe should be moved to other place
     def export_camera_intrinsics(self):

@@ -46,20 +46,19 @@ class VisibilityGraphs(Observable):
     def on_novel_markers_added(self):
         pass
 
-    def check_novel_markers(self, marker_id_to_detections):
+    def check_novel_markers(self, marker_id_to_detections, current_frame_id):
         if not self._model_storage.adding_observations:
             return False
 
         if self._n_frames_passed >= self._select_novel_markers_interval:
             self._n_frames_passed = 0
             novel_markers = self._pick_novel_markers(
-                marker_id_to_detections
+                marker_id_to_detections, current_frame_id
             )
-            self._add_novel_markers_to_model_storage(novel_markers)
+            self._add_novel_markers_to_model_storage(novel_markers, current_frame_id)
         else:
             novel_markers = []
 
-        self._model_storage.current_frame_id += 1
         self._n_frames_passed += 1
 
         if novel_markers:
@@ -67,12 +66,12 @@ class VisibilityGraphs(Observable):
         else:
             return False
 
-    def _pick_novel_markers(self, marker_id_to_detections):
+    def _pick_novel_markers(self, marker_id_to_detections, current_frame_id):
         if len(marker_id_to_detections) < self._min_n_markers_per_frame:
             return []
 
         novel_marker_candidates = self._get_novel_marker_candidates(
-            marker_id_to_detections
+            marker_id_to_detections, current_frame_id
         )
 
         # if there are markers which have not yet been optimized,
@@ -91,11 +90,11 @@ class VisibilityGraphs(Observable):
 
         return novel_marker_candidates
 
-    def _get_novel_marker_candidates(self, marker_id_to_detections):
+    def _get_novel_marker_candidates(self, marker_id_to_detections, current_frame_id):
         bins_x, bins_y = self._get_bins(marker_id_to_detections)
         novel_marker_candidates = [
             NovelMarker(
-                self._model_storage.current_frame_id,
+                current_frame_id,
                 marker_id,
                 marker_id_to_detections[marker_id]["verts"],
                 (x, y),
@@ -131,7 +130,7 @@ class VisibilityGraphs(Observable):
 
         return novel_markers
 
-    def _add_novel_markers_to_model_storage(self, novel_markers):
+    def _add_novel_markers_to_model_storage(self, novel_markers, current_frame_id):
         if not novel_markers:
             return
 
@@ -142,9 +141,7 @@ class VisibilityGraphs(Observable):
         # the node of visibility_graph: marker_id;
         # the edge of visibility_graph: current_frame_id
         for u, v in list(it.combinations(all_markers, 2)):
-            self._model_storage.visibility_graph.add_edge(
-                u, v, key=self._model_storage.current_frame_id
-            )
+            self._model_storage.visibility_graph.add_edge(u, v, key=current_frame_id)
 
         self._model_storage.all_novel_markers += novel_markers
         self._model_storage.n_new_novel_markers_added += len(novel_markers)

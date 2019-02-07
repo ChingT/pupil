@@ -24,7 +24,6 @@ class ModelStorage(Observable):
         self.visibility_graph = nx.MultiGraph()
 
         self.adding_observations = True
-        self.current_frame_id = 0
 
         self.all_novel_markers = []
         self.n_new_novel_markers_added = 0
@@ -124,7 +123,7 @@ class ModelStorage(Observable):
             self.marker_id_to_points_3d_opt = {}
 
     # TODO: debug only; to be removed
-    def export_visibility_graph(self, show_unconnected_nodes=False):
+    def export_visibility_graph(self, current_frame_id, show_unconnected_nodes=False):
         if not self.visibility_graph:
             return
 
@@ -179,7 +178,7 @@ class ModelStorage(Observable):
         save_name = os.path.join(
             self._visibility_graph_path,
             "frame-{0:03d}-{1}-{2}".format(
-                self.current_frame_id,
+                current_frame_id,
                 len(self.visibility_graph),
                 len(self.marker_id_to_extrinsics_opt),
             ),

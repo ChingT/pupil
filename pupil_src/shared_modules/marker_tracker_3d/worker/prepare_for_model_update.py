@@ -23,6 +23,7 @@ DataForModelInit = collections.namedtuple(
 class PrepareForModelUpdate(Observable):
     def __init__(
         self,
+        controller_storage,
         model_storage,
         predetermined_origin_marker_id=None,
         min_n_frames_per_marker=2,
@@ -31,6 +32,7 @@ class PrepareForModelUpdate(Observable):
         assert min_n_markers_per_frame >= 2
         assert min_n_frames_per_marker >= 2
 
+        self._controller_storage = controller_storage
         self._model_storage = model_storage
 
         self._predetermined_origin_marker_id = predetermined_origin_marker_id
@@ -53,10 +55,15 @@ class PrepareForModelUpdate(Observable):
                 and marker.marker_id in marker_ids_to_be_optimized
             )
         ]
+        frame_id_to_extrinsics_prv = self._get_frame_id_to_extrinsics_prv(
+            frame_ids_to_be_optimized
+        )
+        marker_id_to_extrinsics_prv = self._get_marker_id_to_extrinsics_prv()
+
         data_for_model_init = DataForModelInit(
             novel_markers,
-            self._model_storage.frame_id_to_extrinsics_opt,
-            self._model_storage.marker_id_to_extrinsics_opt,
+            frame_id_to_extrinsics_prv,
+            marker_id_to_extrinsics_prv,
             frame_ids_to_be_optimized,
             marker_ids_to_be_optimized,
         )
@@ -138,3 +145,24 @@ class PrepareForModelUpdate(Observable):
             "frame_ids_to_be_optimized updated {}".format(frame_ids_to_be_optimized)
         )
         return frame_ids_to_be_optimized
+
+    def _get_frame_id_to_extrinsics_prv(self, frame_ids_to_be_optimized):
+        frame_id_to_extrinsics_prv = {}
+        for frame_id in frame_ids_to_be_optimized:
+            try:
+                frame_id_to_extrinsics_prv[
+                    frame_id
+                ] = self._model_storage.frame_id_to_extrinsics_opt[frame_id]
+            except KeyError:
+                try:
+                    frame_id_to_extrinsics_prv[
+                        frame_id
+                    ] = self._controller_storage.frame_id_to_extrinsics_all[frame_id]
+                except KeyError:
+                    pass
+
+        return frame_id_to_extrinsics_prv
+
+    def _get_marker_id_to_extrinsics_prv(self):
+        # Do not need to use .copy(), since it will be copied to bg_task
+        return self._model_storage.marker_id_to_extrinsics_opt

@@ -31,7 +31,7 @@ class UpdateModelStorage(Observable):
         self.on_update_model_storage_done()
 
     def _update_extrinsics_opt(self, frame_id_to_extrinsics, marker_id_to_extrinsics):
-        self._model_storage.frame_id_to_extrinsics_opt = frame_id_to_extrinsics
+        self._model_storage.frame_id_to_extrinsics_opt.update(frame_id_to_extrinsics)
 
         for marker_id, extrinsics in marker_id_to_extrinsics.items():
             self._model_storage.marker_id_to_extrinsics_opt[marker_id] = extrinsics

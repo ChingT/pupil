@@ -23,7 +23,7 @@ class Controller(Observable):
 
         self._visibility_graphs = worker.VisibilityGraphs(model_storage)
         self._prepare_for_model_update = worker.PrepareForModelUpdate(
-            model_storage, predetermined_origin_marker_id=None
+            controller_storage, model_storage, predetermined_origin_marker_id=None
         )
         self._model_initialization_controller = controller.ModelInitializationController(
             camera_intrinsics, task_manager

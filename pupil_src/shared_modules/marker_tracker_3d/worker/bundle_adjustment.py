@@ -217,6 +217,7 @@ class BundleAdjustment:
         frame_id_to_extrinsics_opt = {
             self._frame_ids[frame_index]: extrinsics
             for frame_index, extrinsics in enumerate(camera_extrinsics_array)
+            if frame_index not in frame_indices_failed
         }
         marker_id_to_extrinsics_opt = {
             self._marker_ids[marker_index]: extrinsics

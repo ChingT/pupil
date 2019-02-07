@@ -20,7 +20,10 @@ class ControllerStorage(Observable):
 
     def _set_to_default_values(self):
         self.current_frame_id = 0
+        self.frame_id_to_extrinsics_all = {}
 
+        # for export
+        self.all_camera_poses = {}
         # for drawing in 2d window
         self.marker_id_to_detections = {}
 

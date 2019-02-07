@@ -65,6 +65,7 @@ class Controller(Observable):
         self._visibility_graphs.check_novel_markers(
             marker_id_to_detections, self._controller_storage.current_frame_id
         )
+        self._controller_storage.current_frame_id += 1
 
     def _update_model(self):
         if self._model_being_updated:

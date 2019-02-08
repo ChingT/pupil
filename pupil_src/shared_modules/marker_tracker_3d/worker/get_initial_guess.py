@@ -4,15 +4,18 @@ from marker_tracker_3d import worker
 
 InitialGuessResult = collections.namedtuple(
     "InitialGuessResult",
-    ["frame_id_to_extrinsics", "marker_id_to_extrinsics", "key_markers"],
+    ["key_markers", "frame_id_to_extrinsics", "marker_id_to_extrinsics"],
 )
 
 
 def calculate(camera_intrinsics, data_for_model_init):
     """ get marker and camera initial guess for bundle adjustment """
 
-    frame_id_to_extrinsics_init = data_for_model_init.frame_id_to_extrinsics_prv
-    marker_id_to_extrinsics_init = data_for_model_init.marker_id_to_extrinsics_prv
+    try:
+        frame_id_to_extrinsics_init = data_for_model_init.frame_id_to_extrinsics_prv
+        marker_id_to_extrinsics_init = data_for_model_init.marker_id_to_extrinsics_prv
+    except AttributeError:
+        return None
 
     # The function _calculate_extrinsics calculates camera extrinsics and marker
     # extrinsics iteratively. It is possible that not all of them can be calculated
@@ -45,7 +48,7 @@ def calculate(camera_intrinsics, data_for_model_init):
         return None
 
     model_init_result = InitialGuessResult(
-        frame_id_to_extrinsics_init, marker_id_to_extrinsics_init, key_markers
+        key_markers, frame_id_to_extrinsics_init, marker_id_to_extrinsics_init
     )
     return model_init_result
 

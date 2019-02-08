@@ -202,7 +202,7 @@ class BundleAdjustment:
             loss="soft_l1",
             diff_step=self._diff_step,
             jac_sparsity=sparsity_matrix,
-            max_nfev=100,
+            max_nfev=50,
         )
         return result
 
@@ -301,7 +301,7 @@ class BundleAdjustment:
         )
         return markers_points_2d_projected
 
-    def _find_failed_indices(self, residuals, thres=8):
+    def _find_failed_indices(self, residuals, thres=20):
         """ find out those frame_indices and marker_indices which cause large
         reprojection errors
         """

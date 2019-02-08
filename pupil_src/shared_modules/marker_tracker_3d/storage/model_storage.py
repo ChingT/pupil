@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class ModelStorage(Observable):
     def __init__(self, save_path):
         self._model_path = os.path.join(save_path, "marker_tracker_3d_model")
-        self._visibility_graph_path = os.path.join(save_path, "visibility_graphs")
+        self._visibility_graph_path = os.path.join(save_path, "visibility_graph")
 
         self._set_to_default_values()
 
@@ -26,7 +26,6 @@ class ModelStorage(Observable):
         self.optimize_model_allowed = True
 
         self.all_key_markers = []
-        self.n_new_key_markers_added = 0
 
         # frame_id_to_extrinsics_opt: {frame id: optimized camera extrinsics (which is
         # composed of Rodrigues rotation vector and translation vector, which brings

@@ -65,8 +65,6 @@ class PrepareForModelUpdate:
             frame_ids_to_be_optimized,
             marker_ids_to_be_optimized,
         )
-
-        self._model_storage.n_new_key_markers_added = 0
         return data_for_model_init
 
     def _get_marker_ids_to_be_optimized(self):

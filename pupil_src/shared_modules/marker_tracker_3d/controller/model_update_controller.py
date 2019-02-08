@@ -24,9 +24,6 @@ class ModelUpdateController:
             return
 
         data_for_model_init = self._prepare_for_model_update.run()
-        if not data_for_model_init:
-            return
-
         self._run_model_initialization(data_for_model_init)
 
     def _run_model_initialization(self, data_for_model_init):

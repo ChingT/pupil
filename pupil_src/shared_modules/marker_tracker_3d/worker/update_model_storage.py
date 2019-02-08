@@ -15,20 +15,19 @@ class UpdateModelStorage(Observable):
         """ process the results of optimization; update frame_id_to_extrinsics_opt,
         marker_id_to_extrinsics_opt and marker_id_to_points_3d_opt """
 
-        if model_opt_result:
-            self._update_extrinsics_opt(
-                model_opt_result.frame_id_to_extrinsics,
-                model_opt_result.marker_id_to_extrinsics,
-            )
-            self._discard_failed_novel_markers(
-                model_opt_result.frame_ids_failed, model_opt_result.marker_ids_failed
-            )
-            if model_opt_result.camera_matrix is not None:
-                self._camera_intrinsics.update_camera_matrix(
-                    model_opt_result.camera_matrix
-                )
-                self._camera_intrinsics.update_dist_coefs(model_opt_result.dist_coefs)
-        self.on_update_model_storage_done()
+        if not model_opt_result:
+            return
+
+        self._update_extrinsics_opt(
+            model_opt_result.frame_id_to_extrinsics,
+            model_opt_result.marker_id_to_extrinsics,
+        )
+        self._discard_failed_novel_markers(
+            model_opt_result.frame_ids_failed, model_opt_result.marker_ids_failed
+        )
+        if model_opt_result.camera_matrix is not None:
+            self._camera_intrinsics.update_camera_matrix(model_opt_result.camera_matrix)
+            self._camera_intrinsics.update_dist_coefs(model_opt_result.dist_coefs)
 
     def _update_extrinsics_opt(self, frame_id_to_extrinsics, marker_id_to_extrinsics):
         self._model_storage.frame_id_to_extrinsics_opt.update(frame_id_to_extrinsics)
@@ -69,9 +68,6 @@ class UpdateModelStorage(Observable):
         ]
 
         logger.debug("discard_failed_frames {0}".format(frame_ids_failed))
-
-    def on_update_model_storage_done(self):
-        pass
 
     # TODO: debug only; to be removed
     def run_init(self, model_init_result):

@@ -39,18 +39,21 @@ class Marker_Tracker_3D(Plugin, Observable):
         self._model_storage = storage.ModelStorage(save_path=self.g_pool.user_dir)
 
     def _setup_controller(self):
-        self._controller = controller.Controller(
-            controller_storage=self._controller_storage,
-            model_storage=self._model_storage,
-            camera_intrinsics=self.g_pool.capture.intrinsics,
-            task_manager=self._task_manager,
+        self._general_controller = controller.GeneralController(
+            self._controller_storage,
+            self._model_storage,
+            self.g_pool.capture.intrinsics,
+            self._task_manager,
             plugin=self,
             save_path=self.g_pool.user_dir,
         )
 
     def _setup_ui(self):
         self._head_pose_tracker_menu = plugin_ui.HeadPoseTrackerMenu(
-            self._controller, self._controller_storage, self._model_storage, plugin=self
+            self._general_controller,
+            self._controller_storage,
+            self._model_storage,
+            plugin=self,
         )
         self.visualization_3d_window = plugin_ui.Visualization3dWindow(
             self.g_pool.capture.intrinsics,

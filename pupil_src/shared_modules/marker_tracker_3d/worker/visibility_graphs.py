@@ -4,8 +4,6 @@ import logging
 
 import numpy as np
 
-from observable import Observable
-
 logger = logging.getLogger(__name__)
 
 NovelMarker = collections.namedtuple(
@@ -13,7 +11,7 @@ NovelMarker = collections.namedtuple(
 )
 
 
-class VisibilityGraphs(Observable):
+class VisibilityGraphs:
     def __init__(
         self,
         model_storage,
@@ -43,9 +41,6 @@ class VisibilityGraphs(Observable):
     def reset(self):
         self._set_to_default_values()
 
-    def on_novel_markers_added(self):
-        pass
-
     def check_novel_markers(self, marker_id_to_detections, current_frame_id):
         if not self._model_storage.adding_observations:
             return False
@@ -56,15 +51,8 @@ class VisibilityGraphs(Observable):
                 marker_id_to_detections, current_frame_id
             )
             self._add_novel_markers_to_model_storage(novel_markers, current_frame_id)
-        else:
-            novel_markers = []
 
         self._n_frames_passed += 1
-
-        if novel_markers:
-            return True
-        else:
-            return False
 
     def _pick_novel_markers(self, marker_id_to_detections, current_frame_id):
         if len(marker_id_to_detections) < self._min_n_markers_per_frame:
@@ -145,4 +133,3 @@ class VisibilityGraphs(Observable):
 
         self._model_storage.all_novel_markers += novel_markers
         self._model_storage.n_new_novel_markers_added += len(novel_markers)
-        self.on_novel_markers_added()

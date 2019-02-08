@@ -7,7 +7,7 @@ class ObservationProcessController:
         self._model_storage = model_storage
         self._camera_intrinsics = camera_intrinsics
 
-        self._visibility_graphs = worker.VisibilityGraphs(model_storage)
+        self._pick_key_markers = worker.PickKeyMarkers(model_storage)
 
     def run(self, frame):
         marker_id_to_detections = worker.detect_markers.detect(
@@ -25,10 +25,14 @@ class ObservationProcessController:
         )
 
         if self._model_storage.optimize_model_allowed:
-            self._visibility_graphs.check_key_markers(
+            key_markers = self._pick_key_markers.run(
                 marker_id_to_detections, self._controller_storage.current_frame_id
             )
+            self._model_storage.save_key_markers(
+                key_markers, self._controller_storage.current_frame_id
+            )
+
         self._controller_storage.current_frame_id += 1
 
     def reset(self):
-        self._visibility_graphs.reset()
+        self._pick_key_markers.reset()

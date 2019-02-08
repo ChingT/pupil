@@ -1,3 +1,4 @@
+import itertools as it
 import logging
 import os
 
@@ -83,6 +84,15 @@ class ModelStorage(Observable):
                 len(marker_id_to_extrinsics_opt), self._model_path
             )
         )
+
+    def save_key_markers(self, key_markers, current_frame_id):
+        marker_ids = [marker.marker_id for marker in key_markers]
+        # the node of visibility_graph: marker_id;
+        # the edge of visibility_graph: current_frame_id
+        for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2)):
+            self.visibility_graph.add_edge(marker_id1, marker_id2, key=current_frame_id)
+
+        self.all_key_markers += key_markers
 
     def setup_origin_marker_id(self, origin_marker_id):
         if self.origin_marker_id is not None and origin_marker_id is not None:

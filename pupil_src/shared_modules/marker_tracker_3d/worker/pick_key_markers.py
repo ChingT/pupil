@@ -1,5 +1,4 @@
 import collections
-import itertools as it
 import logging
 
 import numpy as np
@@ -11,7 +10,7 @@ KeyMarker = collections.namedtuple(
 )
 
 
-class VisibilityGraphs:
+class PickKeyMarkers:
     def __init__(
         self,
         model_storage,
@@ -41,15 +40,15 @@ class VisibilityGraphs:
     def reset(self):
         self._set_to_default_values()
 
-    def check_key_markers(self, marker_id_to_detections, current_frame_id):
+    def run(self, marker_id_to_detections, current_frame_id):
+        key_markers = []
         if self._n_frames_passed >= self._select_key_markers_interval:
             self._n_frames_passed = 0
             key_markers = self._pick_key_markers(
                 marker_id_to_detections, current_frame_id
             )
-            self._add_key_markers_to_model_storage(key_markers, current_frame_id)
-
         self._n_frames_passed += 1
+        return key_markers
 
     def _pick_key_markers(self, marker_id_to_detections, current_frame_id):
         if len(marker_id_to_detections) < self._min_n_markers_per_frame:
@@ -59,21 +58,10 @@ class VisibilityGraphs:
             marker_id_to_detections, current_frame_id
         )
 
-        # if there are markers which have not yet been optimized,
-        # add all markers in this frame and
-        # do not need to check if the corresponding bins are available
-        if not bool(
-            marker_id_to_detections.keys()
-            - self._model_storage.marker_id_to_extrinsics_opt.keys()
-        ):
-            key_marker_candidates = self._filter_key_markers_by_bins_availability(
-                key_marker_candidates
-            )
-
-        if len(key_marker_candidates) < self._min_n_markers_per_frame:
+        if self._check_key_markers_bins_availability(key_marker_candidates):
+            return key_marker_candidates
+        else:
             return []
-
-        return key_marker_candidates
 
     def _get_key_marker_candidates(self, marker_id_to_detections, current_frame_id):
         bins_x, bins_y = self._get_bins(marker_id_to_detections)
@@ -91,16 +79,15 @@ class VisibilityGraphs:
     def _get_bins(self, marker_id_to_detections):
         centroids = np.array(
             [
-                marker_id_to_detections[k]["centroid"]
-                for k in marker_id_to_detections.keys()
+                marker_id_to_detections[marker_id]["centroid"]
+                for marker_id in marker_id_to_detections.keys()
             ]
         )
         bins_x = np.digitize(centroids[:, 0], self._bins_x)
         bins_y = np.digitize(centroids[:, 1], self._bins_y)
         return bins_x, bins_y
 
-    def _filter_key_markers_by_bins_availability(self, key_marker_candidates):
-        key_markers = []
+    def _check_key_markers_bins_availability(self, key_marker_candidates):
         for candidate in key_marker_candidates:
             n_same_markers_in_bin = len(
                 [
@@ -111,22 +98,6 @@ class VisibilityGraphs:
                 ]
             )
             if n_same_markers_in_bin < self._max_n_same_markers_per_bin:
-                key_markers.append(candidate)
+                return True
 
-        return key_markers
-
-    def _add_key_markers_to_model_storage(self, key_markers, current_frame_id):
-        if not key_markers:
-            return
-
-        all_markers = [marker.marker_id for marker in key_markers]
-        logger.debug(
-            "frame {0} key_markers {1}".format(key_markers[0].frame_id, all_markers)
-        )
-        # the node of visibility_graph: marker_id;
-        # the edge of visibility_graph: current_frame_id
-        for u, v in list(it.combinations(all_markers, 2)):
-            self._model_storage.visibility_graph.add_edge(u, v, key=current_frame_id)
-
-        self._model_storage.all_key_markers += key_markers
-        self._model_storage.n_new_key_markers_added += len(key_markers)
+        return False

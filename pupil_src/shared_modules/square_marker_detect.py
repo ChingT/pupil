@@ -243,8 +243,8 @@ def detect_markers(
                     r, angle + 1, axis=0
                 )  # np.roll is not the fastest when using these tiny arrays...
 
-                # id_confidence = 2*np.mean (np.abs(np.array(soft_msg)-.5 ))
-                id_confidence = 2 * min(np.abs(np.array(soft_msg) - 0.5))
+                id_confidence = 2 * np.mean(np.abs(np.array(soft_msg) - 0.5))
+                # id_confidence = 2 * min(np.abs(np.array(soft_msg) - 0.5))
 
                 marker = {
                     "id": msg,

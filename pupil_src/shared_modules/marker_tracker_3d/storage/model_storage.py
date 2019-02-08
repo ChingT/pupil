@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 class ModelStorage(Observable):
     def __init__(self, save_path):
         self._model_path = os.path.join(save_path, "marker_tracker_3d_model")
-
         self._visibility_graph_path = os.path.join(save_path, "visibility_graphs")
 
         self._set_to_default_values()
@@ -52,9 +51,8 @@ class ModelStorage(Observable):
         self._set_to_default_values()
 
     def load_marker_tracker_3d_model_from_file(self):
-        model = file_methods.Persistent_Dict(self._model_path)
+        marker_id_to_extrinsics_opt = file_methods.load_object(self._model_path)
 
-        marker_id_to_extrinsics_opt = model.get("marker_id_to_extrinsics_opt", {})
         origin_marker_id = worker.utils.find_origin_marker_id(
             marker_id_to_extrinsics_opt
         )
@@ -68,23 +66,21 @@ class ModelStorage(Observable):
                 np.array(extrinsics)
             )
 
-        if self.marker_id_to_extrinsics_opt:
-            logger.info(
-                "marker tracker 3d model with {0} markers has been loaded from "
-                "{1}".format(len(marker_id_to_extrinsics_opt), self._model_path)
-            )
+        logger.info(
+            "marker tracker 3d model with {0} markers has been loaded from "
+            "{1}".format(len(marker_id_to_extrinsics_opt), self._model_path)
+        )
 
     def export_marker_tracker_3d_model(self):
-        marker_tracker_3d_model = file_methods.Persistent_Dict(self._model_path)
-        marker_tracker_3d_model["marker_id_to_extrinsics_opt"] = {
+        marker_id_to_extrinsics_opt = {
             marker_id: extrinsics.tolist()
             for marker_id, extrinsics in self.marker_id_to_extrinsics_opt.items()
         }
-        marker_tracker_3d_model.save()
+        file_methods.save_object(marker_id_to_extrinsics_opt, self._model_path)
 
         logger.info(
             "marker tracker 3d model with {0} markers has been exported to {1}".format(
-                len(self.marker_id_to_extrinsics_opt), self._model_path
+                len(marker_id_to_extrinsics_opt), self._model_path
             )
         )
 
@@ -128,10 +124,10 @@ class ModelStorage(Observable):
             return
 
         graph_vis = self.visibility_graph.copy()
+
         connected_component = nx.node_connected_component(
             self.visibility_graph, self.origin_marker_id
         )
-
         if not show_unconnected_nodes:
             if self.origin_marker_id not in self.visibility_graph:
                 return
@@ -140,44 +136,25 @@ class ModelStorage(Observable):
 
         pos = nx.spring_layout(graph_vis, seed=0)
 
-        nx.draw_networkx_nodes(
-            graph_vis,
-            pos,
-            nodelist=list(graph_vis.nodes),
-            node_color="g",
-            node_size=100,
-        )
-        nx.draw_networkx_nodes(
-            graph_vis,
-            pos,
-            nodelist=connected_component,
-            node_color="orange",
-            node_size=100,
-        )
-        nx.draw_networkx_nodes(
-            graph_vis,
-            pos,
-            nodelist=list(
-                set(graph_vis.nodes) & self.marker_id_to_extrinsics_opt.keys()
-            ),
-            node_color="r",
-            node_size=100,
-        )
+        def draw_nodes(nodelist, node_color):
+            nx.draw_networkx_nodes(
+                graph_vis, pos, nodelist=nodelist, node_color=node_color, node_size=100
+            )
 
-        nx.draw_networkx_nodes(
-            graph_vis,
-            pos,
-            nodelist=list(set(graph_vis.nodes) & {self.origin_marker_id}),
-            node_color="brown",
-            node_size=100,
+        draw_nodes(list(graph_vis.nodes), "green")
+        draw_nodes(connected_component, "orange")
+        draw_nodes(
+            list(set(graph_vis.nodes) & self.marker_id_to_extrinsics_opt.keys()), "red"
         )
+        draw_nodes(list(set(graph_vis.nodes) & {self.origin_marker_id}), "brown")
+
         nx.draw_networkx_edges(graph_vis, pos, width=1, alpha=0.1)
         nx.draw_networkx_labels(graph_vis, pos, font_size=7)
 
         plt.axis("off")
         save_name = os.path.join(
             self._visibility_graph_path,
-            "frame-{0:03d}-{1}-{2}".format(
+            "frame-{0:03d}-{1}-{2}.png".format(
                 current_frame_id,
                 len(self.visibility_graph),
                 len(self.marker_id_to_extrinsics_opt),

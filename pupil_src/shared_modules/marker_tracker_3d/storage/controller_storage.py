@@ -5,12 +5,11 @@ import numpy as np
 
 import file_methods
 from marker_tracker_3d import worker
-from observable import Observable
 
 logger = logging.getLogger(__name__)
 
 
-class ControllerStorage(Observable):
+class ControllerStorage:
     def __init__(self, min_marker_perimeter, save_path):
         self.min_marker_perimeter = min_marker_perimeter  # adjustable in UI
 
@@ -48,7 +47,7 @@ class ControllerStorage(Observable):
         file_methods.save_object(all_camera_poses_object, self._all_camera_poses_path)
 
         logger.info(
-            "camera trace from {0} frames has been exported to {1}".format(
+            "camera poses from {0} frames has been exported to {1}".format(
                 len(all_camera_poses_object), self._all_camera_poses_path
             )
         )

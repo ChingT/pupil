@@ -3,8 +3,6 @@ import logging
 
 import networkx as nx
 
-from observable import Observable
-
 logger = logging.getLogger(__name__)
 
 
@@ -20,7 +18,7 @@ DataForModelInit = collections.namedtuple(
 )
 
 
-class PrepareForModelUpdate(Observable):
+class PrepareForModelUpdate:
     def __init__(
         self,
         controller_storage,

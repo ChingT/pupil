@@ -32,7 +32,8 @@ class GeneralController:
     def _on_recent_events(self, events):
         if "frame" in events:
             self._observation_process_controller.run(events["frame"])
-        self._model_update_controller.run()
+        if self._model_storage.optimize_model_allowed:
+            self._model_update_controller.run()
 
     def reset(self):
         self._controller_storage.reset()

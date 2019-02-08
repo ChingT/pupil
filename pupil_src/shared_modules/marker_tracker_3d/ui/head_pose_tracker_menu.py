@@ -35,7 +35,7 @@ class HeadPoseTrackerMenu:
                 self._create_intro_text(),
                 self._create_origin_marker_text(),
                 self._create_min_marker_perimeter_slider(),
-                self._create_adding_marker_detections_switch(),
+                self._create_optimize_model_allowed_switch(),
                 self._create_reset_button(),
                 self._create_load_model_button(),
                 self._create_export_model_button(),
@@ -86,9 +86,9 @@ class HeadPoseTrackerMenu:
             label="Perimeter of markers",
         )
 
-    def _create_adding_marker_detections_switch(self):
+    def _create_optimize_model_allowed_switch(self):
         return ui.Switch(
-            "adding_observations", self._model_storage, label="Optimizing the model"
+            "optimize_model_allowed", self._model_storage, label="Optimizing the model"
         )
 
     def _create_reset_button(self):

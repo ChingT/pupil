@@ -42,9 +42,6 @@ class VisibilityGraphs:
         self._set_to_default_values()
 
     def check_key_markers(self, marker_id_to_detections, current_frame_id):
-        if not self._model_storage.adding_observations:
-            return False
-
         if self._n_frames_passed >= self._select_key_markers_interval:
             self._n_frames_passed = 0
             key_markers = self._pick_key_markers(

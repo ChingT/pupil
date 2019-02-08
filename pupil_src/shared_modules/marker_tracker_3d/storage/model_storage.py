@@ -22,7 +22,7 @@ class ModelStorage(Observable):
     def _set_to_default_values(self):
         self.visibility_graph = nx.MultiGraph()
 
-        self.adding_observations = True
+        self.optimize_model_allowed = True
 
         self.all_key_markers = []
         self.n_new_key_markers_added = 0

@@ -22,7 +22,7 @@ class UpdateModelStorage(Observable):
             model_opt_result.frame_id_to_extrinsics,
             model_opt_result.marker_id_to_extrinsics,
         )
-        self._discard_failed_novel_markers(
+        self._discard_failed_key_markers(
             model_opt_result.frame_ids_failed, model_opt_result.marker_ids_failed
         )
         if model_opt_result.camera_matrix is not None:
@@ -44,7 +44,7 @@ class UpdateModelStorage(Observable):
             )
         )
 
-    def _discard_failed_novel_markers(self, frame_ids_failed, marker_ids_failed):
+    def _discard_failed_key_markers(self, frame_ids_failed, marker_ids_failed):
         if not frame_ids_failed or not marker_ids_failed:
             return
 
@@ -58,9 +58,9 @@ class UpdateModelStorage(Observable):
         ]
         self._model_storage.visibility_graph.remove_edges_from(redundant_edges)
 
-        self._model_storage.all_novel_markers = [
+        self._model_storage.all_key_markers = [
             marker
-            for marker in self._model_storage.all_novel_markers
+            for marker in self._model_storage.all_key_markers
             if not (
                 marker.frame_id in frame_ids_failed
                 and marker.marker_id in marker_ids_failed

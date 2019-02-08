@@ -24,7 +24,7 @@ class ObservationProcessController:
             marker_id_to_detections, camera_extrinsics
         )
 
-        self._visibility_graphs.check_novel_markers(
+        self._visibility_graphs.check_key_markers(
             marker_id_to_detections, self._controller_storage.current_frame_id
         )
         self._controller_storage.current_frame_id += 1

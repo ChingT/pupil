@@ -4,7 +4,7 @@ from marker_tracker_3d import worker
 
 InitialGuessResult = collections.namedtuple(
     "InitialGuessResult",
-    ["frame_id_to_extrinsics", "marker_id_to_extrinsics", "novel_markers"],
+    ["frame_id_to_extrinsics", "marker_id_to_extrinsics", "key_markers"],
 )
 
 
@@ -20,39 +20,39 @@ def calculate(camera_intrinsics, data_for_model_init):
     for _ in range(2):
         frame_id_to_extrinsics_init = _get_frame_id_to_extrinsics_init(
             camera_intrinsics,
-            data_for_model_init.novel_markers,
+            data_for_model_init.key_markers,
             frame_id_to_extrinsics_init,
             marker_id_to_extrinsics_init,
             data_for_model_init.frame_ids_to_be_optimized,
         )
         marker_id_to_extrinsics_init = _get_marker_id_to_extrinsics_init(
             camera_intrinsics,
-            data_for_model_init.novel_markers,
+            data_for_model_init.key_markers,
             frame_id_to_extrinsics_init,
             marker_id_to_extrinsics_init,
             data_for_model_init.marker_ids_to_be_optimized,
         )
 
-    novel_markers = [
+    key_markers = [
         marker
-        for marker in data_for_model_init.novel_markers
+        for marker in data_for_model_init.key_markers
         if (
             marker.frame_id in frame_id_to_extrinsics_init.keys()
             and marker.marker_id in marker_id_to_extrinsics_init.keys()
         )
     ]
-    if not novel_markers:
+    if not key_markers:
         return None
 
     model_init_result = InitialGuessResult(
-        frame_id_to_extrinsics_init, marker_id_to_extrinsics_init, novel_markers
+        frame_id_to_extrinsics_init, marker_id_to_extrinsics_init, key_markers
     )
     return model_init_result
 
 
 def _get_frame_id_to_extrinsics_init(
     camera_intrinsics,
-    novel_markers,
+    key_markers,
     frame_id_to_extrinsics_prv,
     marker_id_to_extrinsics_prv,
     frame_ids,
@@ -64,7 +64,7 @@ def _get_frame_id_to_extrinsics_init(
     for frame_id in frame_ids_not_computed:
         marker_id_to_detections = {
             marker.marker_id: {"verts": marker.verts}
-            for marker in novel_markers
+            for marker in key_markers
             if marker.frame_id == frame_id
         }
 
@@ -79,7 +79,7 @@ def _get_frame_id_to_extrinsics_init(
 
 def _get_marker_id_to_extrinsics_init(
     camera_intrinsics,
-    novel_markers,
+    key_markers,
     frame_id_to_extrinsics_prv,
     marker_id_to_extrinsics_prv,
     marker_ids,
@@ -91,7 +91,7 @@ def _get_marker_id_to_extrinsics_init(
     for marker_id in marker_ids_not_computed:
         frame_id_to_detections = {
             marker.frame_id: {"verts": marker.verts}
-            for marker in novel_markers
+            for marker in key_markers
             if marker.marker_id == marker_id
         }
 

@@ -47,7 +47,7 @@ class BundleAdjustment:
             model_init_result.frame_id_to_extrinsics,
             model_init_result.marker_id_to_extrinsics,
         )
-        self._prepare_basic_data(model_init_result.novel_markers)
+        self._prepare_basic_data(model_init_result.key_markers)
 
         initial_guess_array, bounds, sparsity_matrix = self._prepare_parameters(
             camera_extrinsics_array, marker_extrinsics_array
@@ -77,15 +77,15 @@ class BundleAdjustment:
         )
         return camera_extrinsics_array, marker_extrinsics_array
 
-    def _prepare_basic_data(self, novel_markers):
+    def _prepare_basic_data(self, key_markers):
         self._frame_indices = np.array(
-            [self._frame_ids.index(marker.frame_id) for marker in novel_markers]
+            [self._frame_ids.index(marker.frame_id) for marker in key_markers]
         )
         self._marker_indices = np.array(
-            [self._marker_ids.index(marker.marker_id) for marker in novel_markers]
+            [self._marker_ids.index(marker.marker_id) for marker in key_markers]
         )
         self._markers_points_2d_detected = np.array(
-            [marker.verts for marker in novel_markers]
+            [marker.verts for marker in key_markers]
         )
 
     def _prepare_parameters(self, camera_extrinsics_array, marker_extrinsics_array):

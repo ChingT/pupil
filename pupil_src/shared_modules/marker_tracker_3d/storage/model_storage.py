@@ -24,8 +24,8 @@ class ModelStorage(Observable):
 
         self.adding_observations = True
 
-        self.all_novel_markers = []
-        self.n_new_novel_markers_added = 0
+        self.all_key_markers = []
+        self.n_new_key_markers_added = 0
 
         # frame_id_to_extrinsics_opt: {frame id: optimized camera extrinsics (which is
         # composed of Rodrigues rotation vector and translation vector, which brings

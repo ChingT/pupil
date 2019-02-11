@@ -180,6 +180,10 @@ def world(
 
         IPC_Logging_Task_Proxy.push_url = ipc_push_url
 
+        from tasklib.background.patches import IPCLoggingPatch
+
+        IPCLoggingPatch.ipc_push_url = ipc_push_url
+
         # UI Platform tweaks
         if platform.system() == "Linux":
             scroll_factor = 10.0
@@ -729,7 +733,6 @@ def world_profiled(
     import cProfile
     import subprocess
     import os
-    from .world import world
 
     cProfile.runctx(
         "world(timebase, eye_procs_alive, ipc_pub_url,ipc_sub_url,ipc_push_url,user_dir,version)",

@@ -8,62 +8,62 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
-
-import logging
-
-from marker_tracker_3d.controller import Controller
-from marker_tracker_3d.storage import Storage
-from marker_tracker_3d.user_interface import UserInterface
+from marker_tracker_3d import ui as plugin_ui, controller, storage
 from observable import Observable
 from plugin import Plugin
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.NOTSET)
+from tasklib.manager import PluginTaskManager
 
 
 class Marker_Tracker_3D(Plugin, Observable):
     """
-    This plugin tracks the pose of the scene camera based on fiducial markers in the environment.
+    This plugin tracks the pose of the scene camera based on fiducial markers in the
+    environment.
     """
 
     icon_chr = chr(0xEC07)
     icon_font = "pupil_icons"
 
-    def __init__(self, g_pool, min_marker_perimeter=100):
+    def __init__(self, g_pool, min_marker_perimeter=75):
         super().__init__(g_pool)
+        self._min_marker_perimeter = min_marker_perimeter
+        self._task_manager = PluginTaskManager(plugin=self)
 
-        self.storage = Storage()
+        self._setup_storages()
+        self._setup_controller()
+        self._setup_ui()
 
-        self.ui = UserInterface(self, self.storage, self.g_pool.capture.intrinsics)
+    def _setup_storages(self):
+        self._controller_storage = storage.ControllerStorage(
+            self._min_marker_perimeter, save_path=self.g_pool.user_dir
+        )
+        self._model_storage = storage.ModelStorage(save_path=self.g_pool.user_dir)
 
-        self.controller = Controller(
-            self.storage,
+    def _setup_controller(self):
+        self._general_controller = controller.GeneralController(
+            self._controller_storage,
+            self._model_storage,
             self.g_pool.capture.intrinsics,
-            self.ui.update_menu,
-            min_marker_perimeter,
+            self._task_manager,
+            plugin=self,
+            save_path=self.g_pool.user_dir,
         )
 
-    def cleanup(self):
-        """ called when the plugin gets terminated.
-        This happens either voluntarily or forced.
-        if you have a GUI or glfw window destroy it here.
-        """
-
-        self.controller.cleanup()
-
-    def restart(self):
-        self.storage.reset()
-        self.controller.restart()
-        self.ui.update_menu()
-
-    def export_data(self):
-        self.controller.export_data()
+    def _setup_ui(self):
+        self._head_pose_tracker_menu = plugin_ui.HeadPoseTrackerMenu(
+            self._general_controller,
+            self._controller_storage,
+            self._model_storage,
+            plugin=self,
+        )
+        self.visualization_3d_window = plugin_ui.Visualization3dWindow(
+            self.g_pool.capture.intrinsics,
+            self._controller_storage,
+            self._model_storage,
+            plugin=self,
+        )
+        self._marker_renderer = plugin_ui.MarkerRenderer(
+            self._controller_storage, self._model_storage, plugin=self
+        )
 
     def get_init_dict(self):
-        d = super().get_init_dict()
-        d["min_marker_perimeter"] = self.controller.marker_detector.min_marker_perimeter
-        return d
-
-    def recent_events(self, events):
-        frame = events.get("frame")
-        self.controller.update(frame)
+        return self._controller_storage.get_init_dict()

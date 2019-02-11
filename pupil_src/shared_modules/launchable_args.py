@@ -1,7 +1,7 @@
 """
 (*)~---------------------------------------------------------------------------
 Pupil - eye tracking platform
-Copyright (C) 2012-2018 Pupil Labs
+Copyright (C) 2012-2019 Pupil Labs
 
 Distributed under the terms of the GNU
 Lesser General Public License (LGPL v3.0).
@@ -25,7 +25,7 @@ class DefaultNamespace(argparse.Namespace):
 
 
 def parse(running_from_bundle, **defaults):
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(allow_abbrev=False)
     target_ns = DefaultNamespace(**defaults)
 
     if running_from_bundle:
@@ -34,7 +34,7 @@ def parse(running_from_bundle, **defaults):
         _setup_source_parsers(parser)
     _add_debug_profile_args(parser)
 
-    return parser.parse_args(namespace=target_ns)
+    return parser.parse_known_args(namespace=target_ns)
 
 
 def _setup_source_parsers(main_parser):
@@ -76,7 +76,7 @@ def _add_remote_port_arg(parser):
 
 
 def _add_recording_arg(parser):
-    parser.add_argument("recording", nargs="?", help="path to recording")
+    parser.add_argument("recording", default="", nargs="?", help="path to recording")
 
 
 def _add_debug_profile_args(parser):

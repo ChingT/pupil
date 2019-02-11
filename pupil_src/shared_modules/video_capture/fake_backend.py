@@ -1,7 +1,7 @@
 """
 (*)~---------------------------------------------------------------------------
 Pupil - eye tracking platform
-Copyright (C) 2012-2018 Pupil Labs
+Copyright (C) 2012-2019 Pupil Labs
 
 Distributed under the terms of the GNU
 Lesser General Public License (LGPL v3.0).
@@ -171,6 +171,7 @@ class Fake_Source(Playback_Source, Base_Source):
         frame = frame or self.get_frame()
         self._recent_frame = frame
         events["frame"] = frame
+        self.g_pool.seek_control.end_of_seek()
 
     def recent_events_own_timing(self, events):
         try:

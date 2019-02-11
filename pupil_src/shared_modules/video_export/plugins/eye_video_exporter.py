@@ -1,7 +1,7 @@
 """
 (*)~---------------------------------------------------------------------------
 Pupil - eye tracking platform
-Copyright (C) 2012-2018 Pupil Labs
+Copyright (C) 2012-2019 Pupil Labs
 
 Distributed under the terms of the GNU
 Lesser General Public License (LGPL v3.0).
@@ -54,7 +54,7 @@ class Eye_Video_Exporter(IsolatedFrameExporter):
                 input_name=eye_name,
                 output_name=eye_name,
                 process_frame=process_frame,
-                export_timestamps=True,
+                timestamp_export_format="all",
             )
         except FileNotFoundError:
             # happens if there is no such eye video
@@ -82,6 +82,8 @@ class _add_pupil_ellipse:
     pupil positions for rendering.
     """
 
+    _warned_once_data_not_found = False
+
     def __init__(self, pupil_positions_of_eye):
         self._pupil_positions_of_eye = pupil_positions_of_eye
 
@@ -91,5 +93,7 @@ class _add_pupil_ellipse:
             pupil_datum = self._pupil_positions_of_eye.by_ts(frame.timestamp)
             draw_pupil_on_image(eye_image, pupil_datum)
         except ValueError:
-            logger.warning("Inconsistent timestamps found in pupil data")
+            if not self._warned_once_data_not_found:
+                logger.warning("Could not draw pupil visualization. No data found.")
+                self._warned_once_data_not_found = True
         return eye_image

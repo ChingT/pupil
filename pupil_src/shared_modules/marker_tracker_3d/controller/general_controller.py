@@ -1,5 +1,6 @@
 import logging
 
+import camera_models
 from marker_tracker_3d import controller
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,21 @@ class GeneralController:
         self._model_storage.export_visibility_graph(
             self._controller_storage.current_frame_id
         )
+
+    def optimize_camera_intrinsics_switch(self, optimize_camera_intrinsics):
+        self._model_update_controller.optimize_camera_intrinsics_switch(
+            optimize_camera_intrinsics
+        )
+
+    # TODO: maybe should be moved to other place
+    def load_camera_intrinsics(self):
+        camera_intrinsics = camera_models.load_intrinsics(
+            self._save_path,
+            self._camera_intrinsics.name,
+            self._camera_intrinsics.resolution,
+        )
+        self._camera_intrinsics.update_camera_matrix(camera_intrinsics.K)
+        self._camera_intrinsics.update_dist_coefs(camera_intrinsics.D)
 
     # TODO: maybe should be moved to other place
     def export_camera_intrinsics(self):

@@ -70,3 +70,8 @@ class ModelUpdateController:
 
     def reset(self):
         self._kill_bg_tasks()
+
+    def optimize_camera_intrinsics_switch(self, optimize_camera_intrinsics):
+        self._bundle_adjustment.optimize_camera_intrinsics_switch(
+            optimize_camera_intrinsics
+        )

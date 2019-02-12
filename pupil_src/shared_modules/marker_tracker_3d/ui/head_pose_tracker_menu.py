@@ -14,6 +14,10 @@ class HeadPoseTrackerMenu:
 
         self._submenu = ui.Growing_Menu("visualization options", header_pos="headline")
 
+        self._optimize_camera_intrinsics = True
+        self._on_optimize_camera_intrinsics_switch_click(
+            self._optimize_camera_intrinsics
+        )
         self._open_3d_window = True
 
         plugin.add_observer("init_ui", self._on_init_ui)
@@ -34,13 +38,15 @@ class HeadPoseTrackerMenu:
             [
                 self._create_intro_text(),
                 self._create_origin_marker_text(),
-                self._create_optimize_model_allowed_switch(),
+                self._create_optimize_model_switch(),
                 self._create_reset_button(),
                 self._create_load_model_button(),
                 self._create_export_model_button(),
                 self._create_export_all_camera_poses_button(),
                 # TODO: debug only; to be removed
                 self._create_export_visibility_graph_button(),
+                self._create_optimize_camera_intrinsics_switch(),
+                self._create_load_camera_intrinsics_button(),
                 self._create_export_camera_intrinsics_button(),
             ]
         )
@@ -55,6 +61,7 @@ class HeadPoseTrackerMenu:
                     self._create_show_3d_markers_init_switch(),
                     self._create_show_camera_frustum_switch(),
                     self._create_show_camera_trace_switch(),
+                    self._create_move_rotate_center_to_centroid(),
                 ]
             )
         self._plugin.menu.append(self._submenu)
@@ -75,7 +82,7 @@ class HeadPoseTrackerMenu:
             )
         return ui.Info_Text(text)
 
-    def _create_optimize_model_allowed_switch(self):
+    def _create_optimize_model_switch(self):
         return ui.Switch(
             "optimize_model_allowed", self._model_storage, label="Optimizing the model"
         )
@@ -112,7 +119,21 @@ class HeadPoseTrackerMenu:
             function=self._on_export_visibility_graph_button_click,
         )
 
-    # TODO: debug only; to be removed
+    def _create_optimize_camera_intrinsics_switch(self):
+        return ui.Switch(
+            "_optimize_camera_intrinsics",
+            self,
+            label="Optimizing camera intrinsic",
+            setter=self._on_optimize_camera_intrinsics_switch_click,
+        )
+
+    def _create_load_camera_intrinsics_button(self):
+        return ui.Button(
+            outer_label="Load",
+            label="Camera intrinsics",
+            function=self._on_load_camera_intrinsics_button_click,
+        )
+
     def _create_export_camera_intrinsics_button(self):
         return ui.Button(
             outer_label="Export",
@@ -157,6 +178,16 @@ class HeadPoseTrackerMenu:
             label="Show camera trace",
         )
 
+    def _create_move_rotate_center_to_centroid(self):
+        return ui.Button(
+            label="Move rotate center to centroid",
+            function=self._on_move_rotate_center_to_centroid_button_click,
+        )
+
+    def _on_optimize_camera_intrinsics_switch_click(self, optimize_camera_intrinsics):
+        self._optimize_camera_intrinsics = optimize_camera_intrinsics
+        self._controller.optimize_camera_intrinsics_switch(optimize_camera_intrinsics)
+
     def _on_3d_window_switch_click(self, open_3d_window):
         self._open_3d_window = open_3d_window
         if open_3d_window:
@@ -179,9 +210,14 @@ class HeadPoseTrackerMenu:
     def _on_export_visibility_graph_button_click(self):
         self._controller.export_visibility_graph()
 
-    # TODO: debug only; to be removed
+    def _on_load_camera_intrinsics_button_click(self):
+        self._controller.load_camera_intrinsics()
+
     def _on_export_camera_intrinsics_button_click(self):
         self._controller.export_camera_intrinsics()
 
     def _on_export_all_camera_poses_button_click(self):
         self._controller.export_all_camera_poses()
+
+    def _on_move_rotate_center_to_centroid_button_click(self):
+        self._model_storage.calculate_points_3d_centroid()

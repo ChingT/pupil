@@ -22,9 +22,9 @@ OptimizationResult = collections.namedtuple(
 # would be inefficient.
 # (especially true for _function_compute_residuals as a callback)
 class BundleAdjustment:
-    def __init__(self, camera_intrinsics, optimiza_camera_intrinsics=True):
+    def __init__(self, camera_intrinsics, optimize_camera_intrinsics=True):
         self._camera_intrinsics = camera_intrinsics
-        self._optimiza_camera_intrinsics = optimiza_camera_intrinsics
+        self._optimize_camera_intrinsics = optimize_camera_intrinsics
 
         self._tol = 1e-5
         self._diff_step = 1e-3
@@ -95,7 +95,7 @@ class BundleAdjustment:
         initial_guess_array = np.vstack(
             (camera_extrinsics_array, marker_extrinsics_array)
         ).ravel()
-        if self._optimiza_camera_intrinsics:
+        if self._optimize_camera_intrinsics:
             camera_intrinsics_params = self._load_camera_intrinsics_params(
                 self._camera_intrinsics.K, self._camera_intrinsics.D
             )
@@ -129,7 +129,7 @@ class BundleAdjustment:
             (camera_extrinsics_upper_bound, marker_extrinsics_upper_bound)
         ).ravel()
 
-        if self._optimiza_camera_intrinsics:
+        if self._optimize_camera_intrinsics:
             camera_matrix_lower_bound = np.full((4,), 0)
             camera_matrix_upper_bound = np.full((4,), 2000)
             dist_coefs_lower_bound = np.full((5,), -1)
@@ -181,7 +181,7 @@ class BundleAdjustment:
 
         sparsity_matrix = np.hstack((mat_camera, mat_marker))
 
-        if self._optimiza_camera_intrinsics:
+        if self._optimize_camera_intrinsics:
             mat_camera_intrinsics = np.ones(
                 (self._markers_points_2d_detected.size, 9), dtype=int
             )
@@ -227,7 +227,7 @@ class BundleAdjustment:
         frame_ids_failed = set(self._frame_ids[i] for i in frame_indices_failed)
         marker_ids_failed = set(self._marker_ids[i] for i in marker_indices_failed)
 
-        if not self._optimiza_camera_intrinsics or len(marker_ids_failed) == len(
+        if not self._optimize_camera_intrinsics or len(marker_ids_failed) == len(
             self._marker_ids
         ):
             model_opt_result = OptimizationResult(
@@ -256,7 +256,7 @@ class BundleAdjustment:
         camera_extrinsics_array, marker_extrinsics_array = self._get_extrinsics_arrays(
             variables
         )
-        if self._optimiza_camera_intrinsics:
+        if self._optimize_camera_intrinsics:
             self._unload_camera_intrinsics_params(variables[-9:])
 
         markers_points_2d_projected = self._project_markers(
@@ -334,3 +334,6 @@ class BundleAdjustment:
 
         self._camera_intrinsics.update_camera_matrix(camera_matrix)
         self._camera_intrinsics.update_dist_coefs(dist_coefs)
+
+    def optimize_camera_intrinsics_switch(self, optimize_camera_intrinsics):
+        self._optimize_camera_intrinsics = optimize_camera_intrinsics

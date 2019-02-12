@@ -27,18 +27,17 @@ class ModelStorage(Observable):
 
         self.all_key_markers = []
 
-        # frame_id_to_extrinsics_opt: {frame id: optimized camera extrinsics (which is
-        # composed of Rodrigues rotation vector and translation vector, which brings
-        # points from the world coordinate system to the camera coordinate system)}
+        # {frame id: optimized camera extrinsics (which is composed of Rodrigues
+        # rotation vector and translation vector, which brings points from the world
+        # coordinate system to the camera coordinate system)}
         self.frame_id_to_extrinsics_opt = {}
 
-        # marker_id_to_extrinsics_opt: {marker id: optimized marker extrinsics}
+        # {marker id: optimized marker extrinsics}
         self.marker_id_to_extrinsics_opt = {}
 
-        # marker_id_to_points_3d_opt: {marker id: 3d points of 4 vertices of the marker
-        # in the world coordinate system}.
-        # it is updated according to marker_id_to_extrinsics_opt by the function
-        # extrinsics_to_marker_id_to_points_3d
+        # {marker id: 3d points of 4 vertices of the marker in the world coordinate
+        # system}. It is updated according to marker_id_to_extrinsics_opt by the
+        # function extrinsics_to_marker_id_to_points_3d
         self.marker_id_to_points_3d_opt = {}
 
         # TODO: debug only; to be removed
@@ -47,8 +46,19 @@ class ModelStorage(Observable):
         # TODO: redo origin_marker_id logic
         self.origin_marker_id = None
 
+        self.calculate_points_3d_centroid()
+
     def reset(self):
         self._set_to_default_values()
+
+    def calculate_points_3d_centroid(self):
+        marker_id_to_points_3d = [
+            points_3d for points_3d in self.marker_id_to_points_3d_opt.values()
+        ]
+        try:
+            self.points_3d_centroid = np.mean(marker_id_to_points_3d, axis=(0, 1))
+        except IndexError:
+            self.points_3d_centroid = np.zeros((3,), dtype=np.float32)
 
     def load_marker_tracker_3d_model_from_file(self):
         marker_id_to_extrinsics_opt = file_methods.load_object(self._model_path)

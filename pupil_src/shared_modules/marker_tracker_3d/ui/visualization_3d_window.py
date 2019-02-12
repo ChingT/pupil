@@ -1,6 +1,7 @@
 import logging
 
 import OpenGL.GL as gl
+import numpy as np
 
 import gl_utils
 import glfw
@@ -103,11 +104,11 @@ class Visualization3dWindow:
         if action == glfw.GLFW_PRESS:
             if key == glfw.GLFW_KEY_RIGHT:
                 self._trackball.pan_to(1, 0)
-            if key == glfw.GLFW_KEY_LEFT:
+            elif key == glfw.GLFW_KEY_LEFT:
                 self._trackball.pan_to(-1, 0)
-            if key == glfw.GLFW_KEY_DOWN:
+            elif key == glfw.GLFW_KEY_DOWN:
                 self._trackball.pan_to(0, 1)
-            if key == glfw.GLFW_KEY_UP:
+            elif key == glfw.GLFW_KEY_UP:
                 self._trackball.pan_to(0, -1)
 
     def _on_window_mouse_button(self, window, button, action, mods):
@@ -138,6 +139,11 @@ class Visualization3dWindow:
 
         self._init_3d_window()
         self._trackball.push()
+
+        self._draw_centroid()
+
+        self._shift_rotate_center()
+
         self._draw_coordinate_in_3d_window()
 
         if self.show_markers_opt:
@@ -145,10 +151,10 @@ class Visualization3dWindow:
         # TODO: debug only; to be removed
         if self.show_markers_init:
             self._draw_markers_init_in_3d_window()
-        if self.show_camera_frustum:
-            self._draw_camera_in_3d_window()
         if self.show_camera_trace:
             self._draw_camera_trace_in_3d_window()
+        if self.show_camera_frustum:
+            self._draw_camera_in_3d_window()
 
         self._trackball.pop()
 
@@ -163,6 +169,19 @@ class Visualization3dWindow:
         gl.glDepthFunc(gl.GL_LESS)
         gl.glEnable(gl.GL_DEPTH_TEST)
 
+    @staticmethod
+    def _draw_centroid():
+        gl.glLoadIdentity()
+        gl.glPointSize(5)
+        gl.glBegin(gl.GL_POINTS)
+        gl.glVertex3f(0, 0, 0)
+        gl.glEnd()
+
+    def _shift_rotate_center(self):
+        camera_pose_matrix = np.eye(4, dtype=np.float32)
+        camera_pose_matrix[0:3, 3] = -self._model_storage.points_3d_centroid
+        gl.glLoadTransposeMatrixf(camera_pose_matrix)
+
     def _draw_coordinate_in_3d_window(self, scale=1):
         color = (1, 0, 0, 1)
         self._draw_line_in_3d_window((0, 0, 0), (scale, 0, 0), color)
@@ -174,7 +193,6 @@ class Visualization3dWindow:
         self._draw_line_in_3d_window((0, 0, 0), (0, 0, scale), color)
 
     def _draw_markers_opt_in_3d_window(self):
-        gl.glLoadIdentity()
         for (
             marker_id,
             points_3d,
@@ -188,8 +206,6 @@ class Visualization3dWindow:
 
     # TODO: debug only; to be removed
     def _draw_markers_init_in_3d_window(self):
-        gl.glLoadIdentity()
-
         for (
             marker_id,
             points_3d,
@@ -206,23 +222,18 @@ class Visualization3dWindow:
             -self._max_camera_traces_len :
         ]
 
-        gl.glLoadIdentity()
         color = (0.2, 0.2, 0.2, 0.1)
         self._draw_strip_in_3d_window(trace, color)
 
     def _draw_camera_in_3d_window(self):
-        try:
-            camera_pose_matrix_flatten = (
-                self._controller_storage.camera_pose_matrix.T.flatten()
-            )
-        except AttributeError:
-            pass
-        else:
-            gl.glLoadMatrixf(camera_pose_matrix_flatten)
-            self._draw_coordinate_in_3d_window()
-            self._draw_frustum_in_3d_window(
-                self._camera_intrinsics.resolution, self._camera_intrinsics.K
-            )
+        if self._controller_storage.camera_pose_matrix is None:
+            return
+
+        gl.glMultTransposeMatrixf(self._controller_storage.camera_pose_matrix)
+        self._draw_coordinate_in_3d_window()
+        self._draw_frustum_in_3d_window(
+            self._camera_intrinsics.resolution, self._camera_intrinsics.K
+        )
 
     def _draw_frustum_in_3d_window(self, img_size, camera_intrinsics, scale=1000):
         x = img_size[0] / scale

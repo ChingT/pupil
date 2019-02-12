@@ -34,7 +34,6 @@ class HeadPoseTrackerMenu:
             [
                 self._create_intro_text(),
                 self._create_origin_marker_text(),
-                self._create_min_marker_perimeter_slider(),
                 self._create_optimize_model_allowed_switch(),
                 self._create_reset_button(),
                 self._create_load_model_button(),
@@ -75,16 +74,6 @@ class HeadPoseTrackerMenu:
                 "system".format(self._model_storage.origin_marker_id)
             )
         return ui.Info_Text(text)
-
-    def _create_min_marker_perimeter_slider(self):
-        return ui.Slider(
-            "min_marker_perimeter",
-            self._controller_storage,
-            step=1,
-            min=50,
-            max=150,
-            label="Perimeter of markers",
-        )
 
     def _create_optimize_model_allowed_switch(self):
         return ui.Switch(

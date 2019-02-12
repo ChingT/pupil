@@ -10,9 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class ControllerStorage:
-    def __init__(self, min_marker_perimeter, save_path):
-        self.min_marker_perimeter = min_marker_perimeter  # adjustable in UI
-
+    def __init__(self, save_path):
         self._all_camera_poses_path = os.path.join(save_path, "all_camera_poses")
 
         self._set_to_default_values()
@@ -72,7 +70,3 @@ class ControllerStorage:
             # a decent initial guess for the next solvePnP call
             self.camera_pose_matrix = None
             self.all_camera_traces.append(np.full((3,), np.nan))
-
-    def get_init_dict(self):
-        d = {"min_marker_perimeter": self.min_marker_perimeter}
-        return d

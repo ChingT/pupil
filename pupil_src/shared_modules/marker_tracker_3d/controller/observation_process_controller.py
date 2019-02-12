@@ -10,9 +10,8 @@ class ObservationProcessController:
         self._pick_key_markers = worker.PickKeyMarkers(model_storage)
 
     def run(self, frame):
-        marker_id_to_detections = worker.detect_markers.detect(
-            frame, self._controller_storage.min_marker_perimeter
-        )
+        marker_id_to_detections = worker.detect_markers.detect(frame)
+
         camera_extrinsics = worker.localize_camera.localize(
             self._camera_intrinsics,
             marker_id_to_detections,

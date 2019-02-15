@@ -26,7 +26,7 @@ class BundleAdjustment:
         self._camera_intrinsics = camera_intrinsics
         self._optimize_camera_intrinsics = optimize_camera_intrinsics
 
-        self._tol = 1e-5
+        self._tol = 1e-8
         self._diff_step = 1e-3
 
         self._marker_ids = []
@@ -49,11 +49,11 @@ class BundleAdjustment:
         )
         self._prepare_basic_data(model_init_result.key_markers)
 
-        initial_guess_array, bounds, sparsity_matrix = self._prepare_parameters(
+        initial_guess_array, x_scale, bounds, sparsity_matrix = self._prepare_parameters(
             camera_extrinsics_array, marker_extrinsics_array
         )
         least_sq_result = self._least_squares(
-            bounds, initial_guess_array, sparsity_matrix
+            initial_guess_array, x_scale, bounds, sparsity_matrix
         )
 
         model_opt_result = self._get_model_opt_result(least_sq_result)
@@ -103,11 +103,19 @@ class BundleAdjustment:
                 (initial_guess_array, camera_intrinsics_params)
             )
 
+        x_scale = np.ones_like(initial_guess_array)
+        x_scale[
+            np.prod(self._camera_extrinsics_shape) : np.prod(
+                self._camera_extrinsics_shape
+            )
+            + np.prod(self._marker_extrinsics_shape)
+        ] = 10
+
         bounds = self._calculate_bounds()
 
         sparsity_matrix = self._construct_sparsity_matrix()
 
-        return initial_guess_array, bounds, sparsity_matrix
+        return initial_guess_array, x_scale, bounds, sparsity_matrix
 
     def _calculate_bounds(self, eps=1e-16, scale=3e2):
         """ calculate the lower and upper bounds on independent variables
@@ -190,7 +198,7 @@ class BundleAdjustment:
         sparsity_matrix = scipy_sparse.lil_matrix(sparsity_matrix)
         return sparsity_matrix
 
-    def _least_squares(self, bounds, initial_guess_array, sparsity_matrix):
+    def _least_squares(self, initial_guess_array, x_scale, bounds, sparsity_matrix):
         result = scipy_optimize.least_squares(
             fun=self._function_compute_residuals,
             x0=initial_guess_array,
@@ -198,11 +206,11 @@ class BundleAdjustment:
             ftol=self._tol,
             xtol=self._tol,
             gtol=self._tol,
-            x_scale="jac",
+            x_scale=x_scale,
             loss="soft_l1",
             diff_step=self._diff_step,
             jac_sparsity=sparsity_matrix,
-            max_nfev=20,
+            max_nfev=10,
         )
         return result
 
@@ -224,10 +232,10 @@ class BundleAdjustment:
             for marker_index, extrinsics in enumerate(marker_extrinsics_array)
             if marker_index not in marker_indices_failed
         }
-        frame_ids_failed = set(self._frame_ids[i] for i in frame_indices_failed)
-        marker_ids_failed = set(self._marker_ids[i] for i in marker_indices_failed)
+        frame_ids_failed = [self._frame_ids[i] for i in frame_indices_failed]
+        marker_ids_failed = [self._marker_ids[i] for i in marker_indices_failed]
 
-        if not self._optimize_camera_intrinsics or len(marker_ids_failed) == len(
+        if not self._optimize_camera_intrinsics or len(set(marker_ids_failed)) == len(
             self._marker_ids
         ):
             model_opt_result = OptimizationResult(
@@ -239,6 +247,11 @@ class BundleAdjustment:
                 None,
             )
         else:
+            print(
+                self._load_camera_intrinsics_params(
+                    self._camera_intrinsics.K, self._camera_intrinsics.D
+                ).tolist()
+            )
             model_opt_result = OptimizationResult(
                 frame_id_to_extrinsics_opt,
                 marker_id_to_extrinsics_opt,
@@ -301,15 +314,15 @@ class BundleAdjustment:
         )
         return markers_points_2d_projected
 
-    def _find_failed_indices(self, residuals, thres=8):
+    def _find_failed_indices(self, residuals, thres=4):
         """ find out those frame_indices and marker_indices which cause large
         reprojection errors
         """
 
         residuals.shape = -1, 4, 2
         reprojection_errors = np.linalg.norm(residuals, axis=2).sum(axis=1)
-        frame_indices_failed = set(self._frame_indices[reprojection_errors > thres])
-        marker_indices_failed = set(self._marker_indices[reprojection_errors > thres])
+        frame_indices_failed = self._frame_indices[reprojection_errors > thres]
+        marker_indices_failed = self._marker_indices[reprojection_errors > thres]
         return frame_indices_failed, marker_indices_failed
 
     @staticmethod

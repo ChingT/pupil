@@ -30,7 +30,7 @@ class UpdateModelStorage(Observable):
             self._camera_intrinsics.update_dist_coefs(model_opt_result.dist_coefs)
 
     def _update_extrinsics_opt(self, frame_id_to_extrinsics, marker_id_to_extrinsics):
-        self._model_storage.frame_id_to_extrinsics_opt = frame_id_to_extrinsics
+        self._model_storage.frame_id_to_extrinsics_opt.update(frame_id_to_extrinsics)
 
         for marker_id, extrinsics in marker_id_to_extrinsics.items():
             self._model_storage.marker_id_to_extrinsics_opt[marker_id] = extrinsics
@@ -42,23 +42,20 @@ class UpdateModelStorage(Observable):
         if not frame_ids_failed or not marker_ids_failed:
             return
 
+        instances = list(zip(marker_ids_failed, frame_ids_failed))
         redundant_edges = [
             (node, neighbor, frame_id)
             for node, neighbor, frame_id in self._model_storage.visibility_graph.edges(
                 keys=True
             )
-            if frame_id in frame_ids_failed
-            and (node in marker_ids_failed or neighbor in marker_ids_failed)
+            if (node, frame_id) in instances or (neighbor, frame_id) in instances
         ]
         self._model_storage.visibility_graph.remove_edges_from(redundant_edges)
 
         self._model_storage.all_key_markers = [
             marker
             for marker in self._model_storage.all_key_markers
-            if not (
-                marker.frame_id in frame_ids_failed
-                and marker.marker_id in marker_ids_failed
-            )
+            if (marker.marker_id, marker.frame_id) not in instances
         ]
 
     # TODO: debug only; to be removed

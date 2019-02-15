@@ -24,7 +24,7 @@ class PrepareForModelUpdate:
         controller_storage,
         model_storage,
         predetermined_origin_marker_id=None,
-        min_n_frames_per_marker=2,
+        min_n_frames_per_marker=4,
     ):
         assert min_n_frames_per_marker >= 1
 
@@ -33,8 +33,14 @@ class PrepareForModelUpdate:
 
         self._predetermined_origin_marker_id = predetermined_origin_marker_id
         self._min_n_frames_per_marker = min_n_frames_per_marker
+        self._n_observations_added_once = 20
 
     def run(self):
+        self._model_storage.all_key_markers += self._model_storage.all_key_markers_queue[
+            : self._n_observations_added_once
+        ]
+        del self._model_storage.all_key_markers_queue[: self._n_observations_added_once]
+
         marker_ids_to_be_optimized = self._get_marker_ids_to_be_optimized()
         frame_ids_to_be_optimized = self._get_frame_ids_to_be_optimized()
         if not frame_ids_to_be_optimized:

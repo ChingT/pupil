@@ -26,6 +26,7 @@ class ModelStorage(Observable):
         self.optimize_model_allowed = True
 
         self.all_key_markers = []
+        self.all_key_markers_queue = []
 
         # {frame id: optimized camera extrinsics (which is composed of Rodrigues
         # rotation vector and translation vector, which brings points from the world
@@ -101,7 +102,7 @@ class ModelStorage(Observable):
         for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2)):
             self.visibility_graph.add_edge(marker_id1, marker_id2, key=current_frame_id)
 
-        self.all_key_markers += key_markers
+        self.all_key_markers_queue += key_markers
 
     def setup_origin_marker_id(self, origin_marker_id):
         if self.origin_marker_id is not None and origin_marker_id is not None:

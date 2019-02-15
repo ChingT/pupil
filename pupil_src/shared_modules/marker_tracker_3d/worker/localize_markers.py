@@ -65,14 +65,14 @@ def _check_triangulate_output_reasonable(translation, error):
     # triangulation. So it is necessary to check if the output of triangulation is
     # reasonable.
 
-    # if magnitude of translation is too large, it is very possible that the
-    # triangulate result is wrong.
-    if (np.abs(translation) > 1e3).any():
-        return False
-
     # if svdt error is too large, it is very possible that the
     # triangulate result is wrong.
-    if error > 0.05:
+    if error > 5e-2:
+        return False
+
+    # if magnitude of translation is too large, it is very possible that the
+    # triangulate result is wrong.
+    if (np.abs(translation) > 2e2).any():
         return False
 
     return True

@@ -2,7 +2,7 @@ import numpy as np
 
 from marker_tracker_3d import worker
 
-min_n_markers_per_frame = 2
+min_n_markers_per_frame = 1
 
 
 def localize(
@@ -123,7 +123,7 @@ def _check_solvepnp_output_reasonable(retval, rotation, translation, pts_3d_worl
 
     # if magnitude of translation is too large, it is very possible that the output of
     # solvePnP is wrong.
-    if (np.abs(translation) > 1e3).any():
+    if (np.abs(translation) > 2e2).any():
         return False
 
     # the magnitude of rotation should be less than 2*pi

@@ -25,23 +25,18 @@ class PrepareForModelUpdate:
         model_storage,
         predetermined_origin_marker_id=None,
         min_n_frames_per_marker=2,
-        min_n_markers_per_frame=2,
     ):
-        assert min_n_markers_per_frame >= 2
-        assert min_n_frames_per_marker >= 2
+        assert min_n_frames_per_marker >= 1
 
         self._controller_storage = controller_storage
         self._model_storage = model_storage
 
         self._predetermined_origin_marker_id = predetermined_origin_marker_id
-        self._min_n_markers_per_frame = min_n_markers_per_frame
         self._min_n_frames_per_marker = min_n_frames_per_marker
 
     def run(self):
         marker_ids_to_be_optimized = self._get_marker_ids_to_be_optimized()
-        frame_ids_to_be_optimized = self._get_frame_ids_to_be_optimized(
-            marker_ids_to_be_optimized
-        )
+        frame_ids_to_be_optimized = self._get_frame_ids_to_be_optimized()
         if not frame_ids_to_be_optimized:
             return None
 
@@ -71,9 +66,6 @@ class PrepareForModelUpdate:
         marker_id_candidates = self._filter_marker_ids_by_visibility_graph()
         marker_ids_to_be_optimized = [self._model_storage.origin_marker_id] + list(
             marker_id_candidates - {self._model_storage.origin_marker_id}
-        )
-        logger.debug(
-            "marker_ids_to_be_optimized updated {}".format(marker_ids_to_be_optimized)
         )
         return marker_ids_to_be_optimized
 
@@ -120,25 +112,12 @@ class PrepareForModelUpdate:
 
         return origin_marker_id
 
-    def _get_frame_ids_to_be_optimized(self, marker_ids_to_be_optimized):
-        frame_id_candidates = set(
-            marker_candidate.frame_id
-            for marker_candidate in self._model_storage.all_key_markers
-        )
-
-        frame_ids_to_be_optimized = []
-        for frame_id in frame_id_candidates:
-            optimized_markers_in_frame = set(
-                marker.marker_id
-                for marker in self._model_storage.all_key_markers
-                if marker.frame_id == frame_id
-                and marker.marker_id in marker_ids_to_be_optimized
+    def _get_frame_ids_to_be_optimized(self):
+        frame_ids_to_be_optimized = list(
+            set(
+                marker_candidate.frame_id
+                for marker_candidate in self._model_storage.all_key_markers
             )
-            if len(optimized_markers_in_frame) >= self._min_n_markers_per_frame:
-                frame_ids_to_be_optimized.append(frame_id)
-
-        logger.debug(
-            "frame_ids_to_be_optimized updated {}".format(frame_ids_to_be_optimized)
         )
         return frame_ids_to_be_optimized
 

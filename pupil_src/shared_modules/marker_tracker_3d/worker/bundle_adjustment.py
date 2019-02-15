@@ -109,7 +109,7 @@ class BundleAdjustment:
 
         return initial_guess_array, bounds, sparsity_matrix
 
-    def _calculate_bounds(self, eps=1e-16, scale=1e3):
+    def _calculate_bounds(self, eps=1e-16, scale=3e2):
         """ calculate the lower and upper bounds on independent variables
             fix the first marker at the origin of the coordinate system
         """
@@ -202,7 +202,7 @@ class BundleAdjustment:
             loss="soft_l1",
             diff_step=self._diff_step,
             jac_sparsity=sparsity_matrix,
-            max_nfev=50,
+            max_nfev=20,
         )
         return result
 
@@ -301,7 +301,7 @@ class BundleAdjustment:
         )
         return markers_points_2d_projected
 
-    def _find_failed_indices(self, residuals, thres=20):
+    def _find_failed_indices(self, residuals, thres=8):
         """ find out those frame_indices and marker_indices which cause large
         reprojection errors
         """

@@ -108,8 +108,8 @@ class ModelStorage(Observable):
             assert self.origin_marker_id == origin_marker_id, "{0}, {1}".format(
                 self.origin_marker_id, origin_marker_id
             )
-        self.origin_marker_id = origin_marker_id
         if origin_marker_id is not None:
+            self.origin_marker_id = origin_marker_id
             self.on_origin_marker_id_set()
             logger.info(
                 "The marker with id {} is defined as the origin of the coordinate "
@@ -144,9 +144,13 @@ class ModelStorage(Observable):
 
         graph_vis = self.visibility_graph.copy()
 
-        connected_component = nx.node_connected_component(
-            self.visibility_graph, self.origin_marker_id
-        )
+        try:
+            connected_component = nx.node_connected_component(
+                self.visibility_graph, self.origin_marker_id
+            )
+        except KeyError:
+            return
+
         if not show_unconnected_nodes:
             if self.origin_marker_id not in self.visibility_graph:
                 return

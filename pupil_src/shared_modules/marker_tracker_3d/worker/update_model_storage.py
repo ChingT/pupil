@@ -30,19 +30,13 @@ class UpdateModelStorage(Observable):
             self._camera_intrinsics.update_dist_coefs(model_opt_result.dist_coefs)
 
     def _update_extrinsics_opt(self, frame_id_to_extrinsics, marker_id_to_extrinsics):
-        self._model_storage.frame_id_to_extrinsics_opt.update(frame_id_to_extrinsics)
+        self._model_storage.frame_id_to_extrinsics_opt = frame_id_to_extrinsics
 
         for marker_id, extrinsics in marker_id_to_extrinsics.items():
             self._model_storage.marker_id_to_extrinsics_opt[marker_id] = extrinsics
             self._model_storage.marker_id_to_points_3d_opt[
                 marker_id
             ] = worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics)
-
-        logger.debug(
-            "{} markers have been registered and updated".format(
-                len(self._model_storage.marker_id_to_extrinsics_opt)
-            )
-        )
 
     def _discard_failed_key_markers(self, frame_ids_failed, marker_ids_failed):
         if not frame_ids_failed or not marker_ids_failed:
@@ -66,8 +60,6 @@ class UpdateModelStorage(Observable):
                 and marker.marker_id in marker_ids_failed
             )
         ]
-
-        logger.debug("discard_failed_frames {0}".format(frame_ids_failed))
 
     # TODO: debug only; to be removed
     def run_init(self, model_init_result):

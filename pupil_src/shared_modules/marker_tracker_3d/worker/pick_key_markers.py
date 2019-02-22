@@ -14,7 +14,7 @@ class PickKeyMarkers:
     def __init__(
         self,
         model_storage,
-        select_key_markers_interval=5,
+        select_key_markers_interval=3,
         min_n_markers_per_frame=2,
         max_n_same_markers_per_bin=1,
     ):
@@ -28,7 +28,7 @@ class PickKeyMarkers:
         self._max_n_same_markers_per_bin = max_n_same_markers_per_bin
 
         self._n_bins_x = 4
-        self._n_bins_y = 4
+        self._n_bins_y = 2
         self._bins_x = np.linspace(0, 1, self._n_bins_x + 1)[1:-1]
         self._bins_y = np.linspace(0, 1, self._n_bins_y + 1)[1:-1]
 
@@ -47,6 +47,7 @@ class PickKeyMarkers:
             key_markers = self._pick_key_markers(
                 marker_id_to_detections, current_frame_id
             )
+
         self._n_frames_passed += 1
         return key_markers
 
@@ -99,7 +100,7 @@ class PickKeyMarkers:
             ) + len(
                 [
                     marker
-                    for marker in self._model_storage.all_key_markers_queue
+                    for marker in self._model_storage.key_markers_queue
                     if marker.marker_id == candidate.marker_id
                     and marker.bin == candidate.bin
                 ]

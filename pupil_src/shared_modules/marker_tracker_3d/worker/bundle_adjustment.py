@@ -11,7 +11,6 @@ OptimizationResult = collections.namedtuple(
         "frame_id_to_extrinsics",
         "marker_id_to_extrinsics",
         "frame_ids_failed",
-        "marker_ids_failed",
         "camera_matrix",
         "dist_coefs",
     ],
@@ -26,7 +25,7 @@ class BundleAdjustment:
         self._camera_intrinsics = camera_intrinsics
         self._optimize_camera_intrinsics = optimize_camera_intrinsics
 
-        self._tol = 1e-8
+        self._tol = 1e-4
         self._diff_step = 1e-3
 
         self._marker_ids = []
@@ -104,12 +103,7 @@ class BundleAdjustment:
             )
 
         x_scale = np.ones_like(initial_guess_array)
-        x_scale[
-            np.prod(self._camera_extrinsics_shape) : np.prod(
-                self._camera_extrinsics_shape
-            )
-            + np.prod(self._marker_extrinsics_shape)
-        ] = 10
+        x_scale[: np.prod(self._camera_extrinsics_shape)] = 10
 
         bounds = self._calculate_bounds()
 
@@ -210,7 +204,7 @@ class BundleAdjustment:
             loss="soft_l1",
             diff_step=self._diff_step,
             jac_sparsity=sparsity_matrix,
-            max_nfev=10,
+            max_nfev=50,
         )
         return result
 
@@ -233,16 +227,14 @@ class BundleAdjustment:
             if marker_index not in marker_indices_failed
         }
         frame_ids_failed = [self._frame_ids[i] for i in frame_indices_failed]
-        marker_ids_failed = [self._marker_ids[i] for i in marker_indices_failed]
 
-        if not self._optimize_camera_intrinsics or len(set(marker_ids_failed)) == len(
-            self._marker_ids
-        ):
+        if not self._optimize_camera_intrinsics or len(
+            set(marker_indices_failed)
+        ) == len(self._marker_ids):
             model_opt_result = OptimizationResult(
                 frame_id_to_extrinsics_opt,
                 marker_id_to_extrinsics_opt,
                 frame_ids_failed,
-                marker_ids_failed,
                 None,
                 None,
             )
@@ -256,7 +248,6 @@ class BundleAdjustment:
                 frame_id_to_extrinsics_opt,
                 marker_id_to_extrinsics_opt,
                 frame_ids_failed,
-                marker_ids_failed,
                 self._camera_intrinsics.K,
                 self._camera_intrinsics.D,
             )
@@ -314,15 +305,26 @@ class BundleAdjustment:
         )
         return markers_points_2d_projected
 
-    def _find_failed_indices(self, residuals, thres=4):
+    def _find_failed_indices(self, residuals, thres_frame=16, thres_marker=8):
         """ find out those frame_indices and marker_indices which cause large
         reprojection errors
         """
 
         residuals.shape = -1, 4, 2
         reprojection_errors = np.linalg.norm(residuals, axis=2).sum(axis=1)
-        frame_indices_failed = self._frame_indices[reprojection_errors > thres]
-        marker_indices_failed = self._marker_indices[reprojection_errors > thres]
+
+        frame_indices_failed = [
+            frame_indice
+            for frame_indice in set(self._frame_indices)
+            if np.min(reprojection_errors[self._frame_indices == frame_indice])
+            > thres_frame
+        ]
+        marker_indices_failed = [
+            marker_indice
+            for marker_indice in set(self._marker_indices)
+            if np.min(reprojection_errors[self._marker_indices == marker_indice])
+            > thres_marker
+        ]
         return frame_indices_failed, marker_indices_failed
 
     @staticmethod

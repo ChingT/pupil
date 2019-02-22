@@ -62,13 +62,18 @@ def _get_frame_id_to_extrinsics_init(
 ):
     """ calculate camera extrinsics based on the known marker extrinsics """
 
-    frame_id_to_extrinsics_init = frame_id_to_extrinsics_prv
-    frame_ids_not_computed = set(frame_ids) - set(frame_id_to_extrinsics_prv.keys())
+    frame_id_to_extrinsics_init = {
+        frame_id: extrinsics
+        for frame_id, extrinsics in frame_id_to_extrinsics_prv.items()
+        if frame_id in frame_ids
+    }
+    frame_ids_not_computed = set(frame_ids) - set(frame_id_to_extrinsics_init.keys())
     for frame_id in frame_ids_not_computed:
         marker_id_to_detections = {
             marker.marker_id: {"verts": marker.verts}
             for marker in key_markers
             if marker.frame_id == frame_id
+            and marker.marker_id in marker_id_to_extrinsics_prv.keys()
         }
 
         camera_extrinsics = worker.localize_camera.localize(
@@ -89,13 +94,18 @@ def _get_marker_id_to_extrinsics_init(
 ):
     """ calculate marker extrinsics based on the known camera extrinsics """
 
-    marker_id_to_extrinsics_init = marker_id_to_extrinsics_prv
-    marker_ids_not_computed = set(marker_ids) - set(marker_id_to_extrinsics_prv.keys())
+    marker_id_to_extrinsics_init = {
+        marker_id: extrinsics
+        for marker_id, extrinsics in marker_id_to_extrinsics_prv.items()
+        if marker_id in marker_ids
+    }
+    marker_ids_not_computed = set(marker_ids) - set(marker_id_to_extrinsics_init.keys())
     for marker_id in marker_ids_not_computed:
         frame_id_to_detections = {
             marker.frame_id: {"verts": marker.verts}
             for marker in key_markers
             if marker.marker_id == marker_id
+            and marker.frame_id in frame_id_to_extrinsics_prv.keys()
         }
 
         marker_extrinsics = worker.localize_markers.localize(

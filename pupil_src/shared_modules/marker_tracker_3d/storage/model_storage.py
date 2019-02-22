@@ -26,7 +26,8 @@ class ModelStorage(Observable):
         self.optimize_model_allowed = True
 
         self.all_key_markers = []
-        self.all_key_markers_queue = []
+        self.key_edges_queue = []
+        self.key_markers_queue = []
 
         # {frame id: optimized camera extrinsics (which is composed of Rodrigues
         # rotation vector and translation vector, which brings points from the world
@@ -96,13 +97,14 @@ class ModelStorage(Observable):
         )
 
     def save_key_markers(self, key_markers, current_frame_id):
-        marker_ids = [marker.marker_id for marker in key_markers]
-        # the node of visibility_graph: marker_id;
-        # the edge of visibility_graph: current_frame_id
-        for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2)):
-            self.visibility_graph.add_edge(marker_id1, marker_id2, key=current_frame_id)
+        self.key_markers_queue += key_markers
 
-        self.all_key_markers_queue += key_markers
+        marker_ids = [marker.marker_id for marker in key_markers]
+        key_edges = [
+            (marker_id1, marker_id2, current_frame_id)
+            for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2))
+        ]
+        self.key_edges_queue += key_edges
 
     def setup_origin_marker_id(self, origin_marker_id):
         if self.origin_marker_id is not None and origin_marker_id is not None:
@@ -134,6 +136,7 @@ class ModelStorage(Observable):
             self.marker_id_to_points_3d_opt = {
                 origin_marker_id: worker.utils.get_marker_points_3d_origin()
             }
+            self.visibility_graph.add_node(origin_marker_id)
         else:
             self.marker_id_to_extrinsics_opt = {}
             self.marker_id_to_points_3d_opt = {}

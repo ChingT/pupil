@@ -18,13 +18,13 @@ class UpdateModelStorage(Observable):
         if not model_opt_result:
             return
 
+        self._discard_failed_key_markers(model_opt_result.frame_ids_failed)
+
         self._update_extrinsics_opt(
             model_opt_result.frame_id_to_extrinsics,
             model_opt_result.marker_id_to_extrinsics,
         )
-        self._discard_failed_key_markers(
-            model_opt_result.frame_ids_failed, model_opt_result.marker_ids_failed
-        )
+
         if model_opt_result.camera_matrix is not None:
             self._camera_intrinsics.update_camera_matrix(model_opt_result.camera_matrix)
             self._camera_intrinsics.update_dist_coefs(model_opt_result.dist_coefs)
@@ -38,24 +38,25 @@ class UpdateModelStorage(Observable):
                 marker_id
             ] = worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics)
 
-    def _discard_failed_key_markers(self, frame_ids_failed, marker_ids_failed):
-        if not frame_ids_failed or not marker_ids_failed:
+        self._model_storage.calculate_points_3d_centroid()
+
+    def _discard_failed_key_markers(self, frame_ids_failed):
+        if not frame_ids_failed:
             return
 
-        instances = list(zip(marker_ids_failed, frame_ids_failed))
         redundant_edges = [
             (node, neighbor, frame_id)
             for node, neighbor, frame_id in self._model_storage.visibility_graph.edges(
                 keys=True
             )
-            if (node, frame_id) in instances or (neighbor, frame_id) in instances
+            if frame_id in frame_ids_failed
         ]
         self._model_storage.visibility_graph.remove_edges_from(redundant_edges)
 
         self._model_storage.all_key_markers = [
             marker
             for marker in self._model_storage.all_key_markers
-            if (marker.marker_id, marker.frame_id) not in instances
+            if marker.frame_id not in frame_ids_failed
         ]
 
     # TODO: debug only; to be removed
@@ -65,7 +66,6 @@ class UpdateModelStorage(Observable):
 
     # TODO: debug only; to be removed
     def _update_extrinsics_init(self, marker_id_to_extrinsics_init):
-        self._model_storage.marker_id_to_points_3d_init = {}
         for marker_id, extrinsics in marker_id_to_extrinsics_init.items():
             self._model_storage.marker_id_to_points_3d_init[
                 marker_id

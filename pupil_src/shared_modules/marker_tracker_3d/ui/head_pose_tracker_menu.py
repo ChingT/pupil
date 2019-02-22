@@ -14,7 +14,7 @@ class HeadPoseTrackerMenu:
 
         self._submenu = ui.Growing_Menu("visualization options", header_pos="headline")
 
-        self._optimize_camera_intrinsics = True
+        self._optimize_camera_intrinsics = False
         self._on_optimize_camera_intrinsics_switch_click(
             self._optimize_camera_intrinsics
         )
@@ -59,8 +59,10 @@ class HeadPoseTrackerMenu:
                     self._create_show_3d_markers_opt_switch(),
                     # TODO: debug only; to be removed
                     self._create_show_3d_markers_init_switch(),
+                    self._create_show_marker_id_switch(),
                     self._create_show_camera_frustum_switch(),
                     self._create_show_camera_trace_switch(),
+                    self._create_show_graph_edges_switch(),
                     self._create_move_rotate_center_to_centroid(),
                 ]
             )
@@ -164,6 +166,13 @@ class HeadPoseTrackerMenu:
             label="Show init markers (debug)",
         )
 
+    def _create_show_marker_id_switch(self):
+        return ui.Switch(
+            "show_marker_id",
+            self._plugin.visualization_3d_window,
+            label="Show marker id",
+        )
+
     def _create_show_camera_frustum_switch(self):
         return ui.Switch(
             "show_camera_frustum",
@@ -176,6 +185,13 @@ class HeadPoseTrackerMenu:
             "show_camera_trace",
             self._plugin.visualization_3d_window,
             label="Show camera trace",
+        )
+
+    def _create_show_graph_edges_switch(self):
+        return ui.Switch(
+            "show_graph_edges",
+            self._plugin.visualization_3d_window,
+            label="Show graph edges (debug)",
         )
 
     def _create_move_rotate_center_to_centroid(self):

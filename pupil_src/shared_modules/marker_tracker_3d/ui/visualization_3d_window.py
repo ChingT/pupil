@@ -1,6 +1,7 @@
 import logging
 
 import OpenGL.GL as gl
+import OpenGL.GLUT as glut
 import numpy as np
 
 import gl_utils
@@ -26,14 +27,18 @@ class Visualization3dWindow:
 
         self.show_markers_opt = True
         # TODO: debug only; to be removed
-        self.show_markers_init = True
+        self.show_markers_init = False
+        self.show_marker_id = False
         self.show_camera_frustum = True
         self.show_camera_trace = True
+        self.show_graph_edges = False
 
         plugin.add_observer("init_ui", self._on_init_ui)
         plugin.add_observer("deinit_ui", self._on_deinit_ui)
         plugin.add_observer("cleanup", self._on_cleanup)
         plugin.add_observer("gl_display", self._on_gl_display)
+
+        glut.glutInit()
 
     def _init_trackball(self):
         self._trackball = gl_utils.trackball.Trackball()
@@ -146,11 +151,19 @@ class Visualization3dWindow:
 
         self._draw_coordinate_in_3d_window()
 
+        if self.show_marker_id:
+            self._draw_marker_id_in_3d_window()
+
         if self.show_markers_opt:
             self._draw_markers_opt_in_3d_window()
+
+        if self.show_graph_edges:
+            self._draw_edges()
+
         # TODO: debug only; to be removed
         if self.show_markers_init:
             self._draw_markers_init_in_3d_window()
+
         if self.show_camera_trace:
             self._draw_camera_trace_in_3d_window()
         if self.show_camera_frustum:
@@ -191,6 +204,14 @@ class Visualization3dWindow:
 
         color = (0, 0, 1, 1)
         self._draw_line_in_3d_window((0, 0, 0), (0, 0, scale), color)
+
+    def _draw_marker_id_in_3d_window(self):
+        color = (1, 0, 0, 1)
+        for (
+            marker_id,
+            points_3d,
+        ) in self._model_storage.marker_id_to_points_3d_opt.items():
+            self._draw_text(str(marker_id), points_3d[0], color)
 
     def _draw_markers_opt_in_3d_window(self):
         for (
@@ -235,6 +256,23 @@ class Visualization3dWindow:
             self._camera_intrinsics.resolution, self._camera_intrinsics.K
         )
 
+    def _draw_edges(self):
+        all_init_keys = self._model_storage.marker_id_to_points_3d_init.keys()
+        edges = self._model_storage.visibility_graph.edges(keys=True)
+        all_edges = set(
+            (node, neighbor)
+            for node, neighbor, frame_id in edges
+            if node in all_init_keys and neighbor in all_init_keys
+        )
+        vertices = []
+        for (node, neighbor) in all_edges:
+            start_point = self._model_storage.marker_id_to_points_3d_init[node][0]
+            end_point = self._model_storage.marker_id_to_points_3d_init[neighbor][0]
+            vertices += [start_point, end_point]
+
+        color = (0.5, 0, 0, 0.05)
+        self._draw_lines_in_3d_window(vertices, color)
+
     def _draw_frustum_in_3d_window(self, img_size, camera_intrinsics, scale=1000):
         x = img_size[0] / scale
         y = img_size[1] / scale
@@ -255,6 +293,14 @@ class Visualization3dWindow:
         gl.glBegin(gl.GL_LINES)
         gl.glVertex3f(*start_point)
         gl.glVertex3f(*end_point)
+        gl.glEnd()
+
+    @staticmethod
+    def _draw_lines_in_3d_window(vertices, color):
+        gl.glColor4f(*color)
+        gl.glBegin(gl.GL_LINES)
+        for vertex in vertices:
+            gl.glVertex3f(*vertex)
         gl.glEnd()
 
     @staticmethod
@@ -281,3 +327,10 @@ class Visualization3dWindow:
         for vertex in vertices:
             gl.glVertex3f(*vertex)
         gl.glEnd()
+
+    @staticmethod
+    def _draw_text(characters, position, color):
+        gl.glColor4f(*color)
+        gl.glRasterPos3f(*position)
+        for character in characters:
+            glut.glutBitmapCharacter(glut.GLUT_BITMAP_8_BY_13, ord(character))

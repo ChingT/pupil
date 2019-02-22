@@ -78,6 +78,8 @@ class ModelStorage(Observable):
                 np.array(extrinsics)
             )
 
+        self.calculate_points_3d_centroid()
+
         logger.info(
             "marker tracker 3d model with {0} markers has been loaded from "
             "{1}".format(len(marker_id_to_extrinsics_opt), self._model_path)
@@ -156,8 +158,6 @@ class ModelStorage(Observable):
             return
 
         if not show_unconnected_nodes:
-            if self.origin_marker_id not in self.visibility_graph:
-                return
             unconnected_nodes = set(graph_vis.nodes) - set(connected_component)
             graph_vis.remove_nodes_from(unconnected_nodes)
 
@@ -168,12 +168,15 @@ class ModelStorage(Observable):
                 graph_vis, pos, nodelist=nodelist, node_color=node_color, node_size=100
             )
 
-        draw_nodes(list(graph_vis.nodes), "green")
-        draw_nodes(connected_component, "orange")
+        all_nodes = list(graph_vis.nodes)
+        draw_nodes(all_nodes, "green")
         draw_nodes(
-            list(set(graph_vis.nodes) & self.marker_id_to_extrinsics_opt.keys()), "red"
+            list(set(all_nodes) & self.marker_id_to_points_3d_init.keys()), "blue"
         )
-        draw_nodes(list(set(graph_vis.nodes) & {self.origin_marker_id}), "brown")
+        draw_nodes(
+            list(set(all_nodes) & self.marker_id_to_extrinsics_opt.keys()), "red"
+        )
+        draw_nodes([self.origin_marker_id], "brown")
 
         nx.draw_networkx_edges(graph_vis, pos, width=1, alpha=0.1)
         nx.draw_networkx_labels(graph_vis, pos, font_size=7)

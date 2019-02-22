@@ -1,3 +1,5 @@
+import numpy as np
+
 from apriltag.python import apriltag
 
 detector_options = apriltag.DetectorOptions(families="tag36h11", nthreads=1)
@@ -9,8 +11,10 @@ def detect(frame):
 
     marker_detections = {
         apriltag_detection.tag_id: {
-            "verts": apriltag_detection.corners[::-1],
-            "centroid": apriltag_detection.center / [frame.width, frame.height],
+            "verts": apriltag_detection.corners[::-1].astype(np.float32),
+            "centroid": (
+                apriltag_detection.center / [frame.width, frame.height]
+            ).astype(np.float32),
         }
         for apriltag_detection in apriltag_detections
     }

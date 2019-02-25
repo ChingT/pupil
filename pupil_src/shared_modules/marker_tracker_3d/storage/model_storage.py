@@ -21,6 +21,8 @@ class ModelStorage(Observable):
         self._predetermined_origin_marker_id = predetermined_origin_marker_id
         self._set_to_default_values()
 
+        self.load_marker_tracker_3d_model_from_file()
+
     def _set_to_default_values(self):
         self.visibility_graph = nx.MultiGraph()
 
@@ -133,7 +135,7 @@ class ModelStorage(Observable):
         else:
             return None
 
-    def export_marker_tracker_3d_model(self):
+    def export_marker_tracker_3d_model_to_file(self):
         if self.marker_id_to_extrinsics_opt:
             marker_id_to_extrinsics_opt = {
                 marker_id: extrinsics.tolist()

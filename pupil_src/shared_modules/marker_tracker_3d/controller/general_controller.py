@@ -29,6 +29,7 @@ class GeneralController:
         )
 
         plugin.add_observer("recent_events", self._on_recent_events)
+        plugin.add_observer("cleanup", self._on_cleanup)
 
     def _on_recent_events(self, events):
         if "frame" in events:
@@ -78,3 +79,7 @@ class GeneralController:
 
     def export_all_camera_poses(self):
         self._controller_storage.export_all_camera_poses()
+
+    def _on_cleanup(self):
+        self._model_storage.export_marker_tracker_3d_model_to_file()
+        self.export_camera_intrinsics()

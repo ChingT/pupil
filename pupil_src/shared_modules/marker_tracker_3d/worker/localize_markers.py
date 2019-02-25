@@ -26,8 +26,8 @@ def localize(camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics):
 def _prepare_data_for_triangulation(
     camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics, id1, id2
 ):
-    proj_mat1 = worker.utils.get_extrinsic_matrix(frame_id_to_extrinsics[id1])[:3, :4]
-    proj_mat2 = worker.utils.get_extrinsic_matrix(frame_id_to_extrinsics[id2])[:3, :4]
+    proj_mat1 = worker.utils.convert_extrinsic_to_matrix(frame_id_to_extrinsics[id1])[:3, :4]
+    proj_mat2 = worker.utils.convert_extrinsic_to_matrix(frame_id_to_extrinsics[id2])[:3, :4]
 
     points1 = frame_id_to_detections[id1]["verts"].reshape((4, 1, 2))
     points2 = frame_id_to_detections[id2]["verts"].reshape((4, 1, 2))

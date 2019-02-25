@@ -23,20 +23,20 @@ class Marker_Tracker_3D(Plugin, Observable):
     icon_chr = chr(0xEC07)
     icon_font = "pupil_icons"
 
-    def __init__(self, g_pool):
+    def __init__(self, g_pool, predetermined_origin_marker_id=None):
         super().__init__(g_pool)
         self._task_manager = PluginTaskManager(plugin=self)
 
-        self._setup_storages()
+        self._setup_storages(predetermined_origin_marker_id)
         self._setup_controller()
         self._setup_ui()
 
-    def _setup_storages(self):
+    def _setup_storages(self, predetermined_origin_marker_id):
         self._controller_storage = storage.ControllerStorage(
             save_path=self.g_pool.user_dir
         )
         self._model_storage = storage.ModelStorage(
-            save_path=self.g_pool.user_dir, predetermined_origin_marker_id=None
+            predetermined_origin_marker_id, save_path=self.g_pool.user_dir
         )
 
     def _setup_controller(self):

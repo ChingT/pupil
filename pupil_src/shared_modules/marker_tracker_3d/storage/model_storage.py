@@ -14,11 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 class ModelStorage(Observable):
-    def __init__(self, save_path, predetermined_origin_marker_id=None):
+    def __init__(self, predetermined_origin_marker_id, save_path):
+        self._predetermined_origin_marker_id = predetermined_origin_marker_id
+
         self._model_path = os.path.join(save_path, "marker_tracker_3d_model")
         self._visibility_graph_path = os.path.join(save_path, "visibility_graph")
 
-        self._predetermined_origin_marker_id = predetermined_origin_marker_id
         self._set_to_default_values()
 
         self.load_marker_tracker_3d_model_from_file()

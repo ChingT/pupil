@@ -14,10 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class ModelStorage(Observable):
-    def __init__(self, save_path):
+    def __init__(self, save_path, predetermined_origin_marker_id=None):
         self._model_path = os.path.join(save_path, "marker_tracker_3d_model")
         self._visibility_graph_path = os.path.join(save_path, "visibility_graph")
 
+        self._predetermined_origin_marker_id = predetermined_origin_marker_id
         self._set_to_default_values()
 
     def _set_to_default_values(self):
@@ -45,8 +46,7 @@ class ModelStorage(Observable):
         # TODO: debug only; to be removed
         self.marker_id_to_points_3d_init = {}
 
-        # TODO: redo origin_marker_id logic
-        self.origin_marker_id = None
+        self.origin_marker_id = self._predetermined_origin_marker_id
 
         self.calculate_points_3d_centroid()
 
@@ -64,19 +64,31 @@ class ModelStorage(Observable):
 
     def load_marker_tracker_3d_model_from_file(self):
         marker_id_to_extrinsics_opt = file_methods.load_object(self._model_path)
+        marker_id_to_extrinsics_opt = {
+            marker_id: np.array(extrinsics)
+            for marker_id, extrinsics in marker_id_to_extrinsics_opt.items()
+        }
 
         origin_marker_id = worker.utils.find_origin_marker_id(
             marker_id_to_extrinsics_opt
         )
-        self.setup_origin_marker_id(origin_marker_id)
 
-        for marker_id, extrinsics in marker_id_to_extrinsics_opt.items():
-            self.marker_id_to_extrinsics_opt[marker_id] = np.array(extrinsics)
+        if self.origin_marker_id is None or self.origin_marker_id == origin_marker_id:
+            marker_id_to_extrinsics_opt_converted = marker_id_to_extrinsics_opt
+            self.origin_marker_id = origin_marker_id
+        else:
+            marker_id_to_extrinsics_opt_converted = self._convert_coordinate_system(
+                marker_id_to_extrinsics_opt, self.marker_id_to_extrinsics_opt
+            )
+            if marker_id_to_extrinsics_opt_converted is None:
+                logger.warning("cannot load marker tracker 3d model from file")
+                return
+
+        for marker_id, extrinsics in marker_id_to_extrinsics_opt_converted.items():
+            self.marker_id_to_extrinsics_opt[marker_id] = extrinsics
             self.marker_id_to_points_3d_opt[
                 marker_id
-            ] = worker.utils.convert_marker_extrinsics_to_points_3d(
-                np.array(extrinsics)
-            )
+            ] = worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics)
 
         self.calculate_points_3d_centroid()
 
@@ -85,44 +97,57 @@ class ModelStorage(Observable):
             "{1}".format(len(marker_id_to_extrinsics_opt), self._model_path)
         )
 
-    def export_marker_tracker_3d_model(self):
-        marker_id_to_extrinsics_opt = {
-            marker_id: extrinsics.tolist()
-            for marker_id, extrinsics in self.marker_id_to_extrinsics_opt.items()
-        }
-        file_methods.save_object(marker_id_to_extrinsics_opt, self._model_path)
+    def _convert_coordinate_system(
+        self, marker_id_to_extrinsics_opt_old, marker_id_to_extrinsics_opt_new
+    ):
+        try:
+            common_key = list(
+                set(marker_id_to_extrinsics_opt_old.keys())
+                & set(marker_id_to_extrinsics_opt_new.keys())
+            )[0]
+        except IndexError:
+            return None
 
-        logger.info(
-            "marker tracker 3d model with {0} markers has been exported to {1}".format(
-                len(marker_id_to_extrinsics_opt), self._model_path
-            )
+        extrinsic_matrix_old = worker.utils.convert_extrinsic_to_matrix(
+            marker_id_to_extrinsics_opt_old[common_key]
+        )
+        extrinsic_matrix_new = worker.utils.convert_extrinsic_to_matrix(
+            marker_id_to_extrinsics_opt_new[common_key]
+        )
+        transform_matrix = np.matmul(
+            extrinsic_matrix_new, np.linalg.inv(extrinsic_matrix_old)
         )
 
-    def save_key_markers(self, key_markers, current_frame_id):
-        self.key_markers_queue += key_markers
-
-        marker_ids = [marker.marker_id for marker in key_markers]
-        key_edges = [
-            (marker_id1, marker_id2, current_frame_id)
-            for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2))
-        ]
-        self.key_edges_queue += key_edges
-
-    def setup_origin_marker_id(self, origin_marker_id):
-        if self.origin_marker_id is not None and origin_marker_id is not None:
-            assert self.origin_marker_id == origin_marker_id, "{0}, {1}".format(
-                self.origin_marker_id, origin_marker_id
+        new = {
+            marker_id: worker.utils.convert_matrix_to_extrinsic(
+                np.matmul(
+                    transform_matrix, worker.utils.convert_extrinsic_to_matrix(extrinsics)
+                )
             )
-        if origin_marker_id is not None:
-            self.origin_marker_id = origin_marker_id
-            self.on_origin_marker_id_set()
+            for marker_id, extrinsics in marker_id_to_extrinsics_opt_old.items()
+        }
+        if self.origin_marker_id not in new or np.allclose(
+            new[self.origin_marker_id], worker.utils.get_marker_extrinsics_origin()
+        ):
+            return new
+        else:
+            return None
+
+    def export_marker_tracker_3d_model(self):
+        if self.marker_id_to_extrinsics_opt:
+            marker_id_to_extrinsics_opt = {
+                marker_id: extrinsics.tolist()
+                for marker_id, extrinsics in self.marker_id_to_extrinsics_opt.items()
+            }
+            file_methods.save_object(marker_id_to_extrinsics_opt, self._model_path)
+
             logger.info(
-                "The marker with id {} is defined as the origin of the coordinate "
-                "system".format(self.origin_marker_id)
+                "marker tracker 3d model with {0} markers has been exported to {1}".format(
+                    len(marker_id_to_extrinsics_opt), self._model_path
+                )
             )
-
-    def on_origin_marker_id_set(self):
-        pass
+        else:
+            logger.info("marker tracker 3d model has not yet built up")
 
     @property
     def origin_marker_id(self):
@@ -139,9 +164,28 @@ class ModelStorage(Observable):
                 origin_marker_id: worker.utils.get_marker_points_3d_origin()
             }
             self.visibility_graph.add_node(origin_marker_id)
+
+            logger.info(
+                "The marker with id {} is defined as the origin of the coordinate "
+                "system".format(origin_marker_id)
+            )
+            self.on_origin_marker_id_set()
         else:
             self.marker_id_to_extrinsics_opt = {}
             self.marker_id_to_points_3d_opt = {}
+
+    def on_origin_marker_id_set(self):
+        pass
+
+    def save_key_markers(self, key_markers, current_frame_id):
+        self.key_markers_queue += key_markers
+
+        marker_ids = [marker.marker_id for marker in key_markers]
+        key_edges = [
+            (marker_id1, marker_id2, current_frame_id)
+            for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2))
+        ]
+        self.key_edges_queue += key_edges
 
     # TODO: debug only; to be removed
     def export_visibility_graph(self, current_frame_id, show_unconnected_nodes=False):

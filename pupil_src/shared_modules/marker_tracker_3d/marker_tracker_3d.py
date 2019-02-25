@@ -35,7 +35,9 @@ class Marker_Tracker_3D(Plugin, Observable):
         self._controller_storage = storage.ControllerStorage(
             save_path=self.g_pool.user_dir
         )
-        self._model_storage = storage.ModelStorage(save_path=self.g_pool.user_dir)
+        self._model_storage = storage.ModelStorage(
+            save_path=self.g_pool.user_dir, predetermined_origin_marker_id=None
+        )
 
     def _setup_controller(self):
         self._general_controller = controller.GeneralController(

@@ -19,14 +19,11 @@ DataForModelInit = collections.namedtuple(
 
 
 class PrepareForModelUpdate:
-    def __init__(
-        self, controller_storage, model_storage, predetermined_origin_marker_id=None
-    ):
+    def __init__(self, controller_storage, model_storage):
 
         self._controller_storage = controller_storage
         self._model_storage = model_storage
 
-        self._predetermined_origin_marker_id = predetermined_origin_marker_id
         self._n_observations_added_once = 20
 
     def run(self):
@@ -116,20 +113,13 @@ class PrepareForModelUpdate:
 
         return paths
 
-    def _set_coordinate_system(self, markers_enough_viewed):
-        origin_marker_id = self._determine_origin_marker_id(markers_enough_viewed)
-        self._model_storage.setup_origin_marker_id(origin_marker_id)
-
-    def _determine_origin_marker_id(self, markers_enough_viewed):
-        if self._predetermined_origin_marker_id is not None:
-            origin_marker_id = self._predetermined_origin_marker_id
+    def _set_coordinate_system(self, all_seen_markers_id):
+        try:
+            origin_marker_id = list(all_seen_markers_id)[0]
+        except IndexError:
+            pass
         else:
-            try:
-                origin_marker_id = list(markers_enough_viewed)[0]
-            except IndexError:
-                origin_marker_id = None
-
-        return origin_marker_id
+            self._model_storage.origin_marker_id = origin_marker_id
 
     def _get_frame_id_to_extrinsics_prv(self, frame_ids_to_be_optimized):
         all_frame_ids = (

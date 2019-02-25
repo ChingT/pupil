@@ -42,6 +42,12 @@ def get_extrinsic_matrix(extrinsics):
     return extrinsic_matrix
 
 
+def convert_matrix_to_extrinsic(extrinsic_matrix):
+    rotation = cv2.Rodrigues(extrinsic_matrix[0:3, 0:3])[0]
+    translation = extrinsic_matrix[0:3, 3]
+    return merge_extrinsics(rotation, translation)
+
+
 def get_camera_pose(camera_extrinsics):
     rotation_ext, translation_ext = split_extrinsics(camera_extrinsics)
     rotation_pose = -rotation_ext

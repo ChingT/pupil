@@ -12,7 +12,7 @@ class ModelUpdateController:
         self._bg_task_opt = None
 
         self._prepare_for_model_update = worker.PrepareForModelUpdate(
-            controller_storage, model_storage, predetermined_origin_marker_id=None
+            controller_storage, model_storage
         )
         self._bundle_adjustment = worker.BundleAdjustment(camera_intrinsics)
         self._update_model_storage = worker.UpdateModelStorage(

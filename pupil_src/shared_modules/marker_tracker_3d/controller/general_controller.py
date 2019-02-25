@@ -46,12 +46,6 @@ class GeneralController:
         self._model_update_controller.reset()
         logger.info("Reset 3D Marker Tracker!")
 
-    def load_marker_tracker_3d_model(self):
-        self._model_storage.load_marker_tracker_3d_model_from_file()
-
-    def export_marker_tracker_3d_model(self):
-        self._model_storage.export_marker_tracker_3d_model()
-
     # TODO: debug only; to be removed
     def export_visibility_graph(self):
         self._model_storage.export_visibility_graph(

@@ -39,15 +39,11 @@ class HeadPoseTrackerMenu:
                 self._create_intro_text(),
                 self._create_origin_marker_text(),
                 self._create_optimize_model_switch(),
-                self._create_reset_button(),
-                self._create_load_model_button(),
-                self._create_export_model_button(),
+                self._create_optimize_camera_intrinsics_switch(),
                 self._create_export_all_camera_poses_button(),
                 # TODO: debug only; to be removed
                 self._create_export_visibility_graph_button(),
-                self._create_optimize_camera_intrinsics_switch(),
-                self._create_load_camera_intrinsics_button(),
-                self._create_export_camera_intrinsics_button(),
+                self._create_reset_button(),
             ]
         )
 
@@ -57,11 +53,12 @@ class HeadPoseTrackerMenu:
             self._submenu.extend(
                 [
                     self._create_show_3d_markers_opt_switch(),
-                    # TODO: debug only; to be removed
-                    self._create_show_3d_markers_init_switch(),
                     self._create_show_marker_id_switch(),
                     self._create_show_camera_frustum_switch(),
                     self._create_show_camera_trace_switch(),
+                    # TODO: debug only; to be removed
+                    self._create_show_3d_markers_init_switch(),
+                    # TODO: debug only; to be removed
                     self._create_show_graph_edges_switch(),
                     self._create_move_rotate_center_to_centroid(),
                 ]
@@ -92,20 +89,6 @@ class HeadPoseTrackerMenu:
     def _create_reset_button(self):
         return ui.Button(label="Reset", function=self._on_reset_button_click)
 
-    def _create_load_model_button(self):
-        return ui.Button(
-            outer_label="Load",
-            label="Marker tracker 3d model",
-            function=self._on_load_marker_tracker_3d_model_button_click,
-        )
-
-    def _create_export_model_button(self):
-        return ui.Button(
-            outer_label="Export",
-            label="Marker tracker 3d model",
-            function=self._on_export_marker_tracker_3d_model_button_click,
-        )
-
     def _create_export_all_camera_poses_button(self):
         return ui.Button(
             outer_label="Export",
@@ -117,7 +100,7 @@ class HeadPoseTrackerMenu:
     def _create_export_visibility_graph_button(self):
         return ui.Button(
             outer_label="Export",
-            label="Visibility graph",
+            label="Visibility graph (debug)",
             function=self._on_export_visibility_graph_button_click,
         )
 
@@ -127,20 +110,6 @@ class HeadPoseTrackerMenu:
             self,
             label="Optimizing camera intrinsic",
             setter=self._on_optimize_camera_intrinsics_switch_click,
-        )
-
-    def _create_load_camera_intrinsics_button(self):
-        return ui.Button(
-            outer_label="Load",
-            label="Camera intrinsics",
-            function=self._on_load_camera_intrinsics_button_click,
-        )
-
-    def _create_export_camera_intrinsics_button(self):
-        return ui.Button(
-            outer_label="Export",
-            label="Camera intrinsics",
-            function=self._on_export_camera_intrinsics_button_click,
         )
 
     def _create_open_3d_window_switch(self):
@@ -216,21 +185,9 @@ class HeadPoseTrackerMenu:
         self._controller.reset()
         self._render()
 
-    def _on_load_marker_tracker_3d_model_button_click(self):
-        self._controller.load_marker_tracker_3d_model()
-
-    def _on_export_marker_tracker_3d_model_button_click(self):
-        self._controller.export_marker_tracker_3d_model()
-
     # TODO: debug only; to be removed
     def _on_export_visibility_graph_button_click(self):
         self._controller.export_visibility_graph()
-
-    def _on_load_camera_intrinsics_button_click(self):
-        self._controller.load_camera_intrinsics()
-
-    def _on_export_camera_intrinsics_button_click(self):
-        self._controller.export_camera_intrinsics()
 
     def _on_export_all_camera_poses_button_click(self):
         self._controller.export_all_camera_poses()

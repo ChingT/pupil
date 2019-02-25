@@ -14,7 +14,11 @@ def localize(camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics):
     )
     for id1, id2 in itertools.combinations(frame_ids_available, 2):
         data_for_triangulation = _prepare_data_for_triangulation(
-            camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics, id1, id2
+            camera_intrinsics,
+            frame_id_to_detections[id1],
+            frame_id_to_detections[id2],
+            frame_id_to_extrinsics[id1],
+            frame_id_to_extrinsics[id2],
         )
         marker_extrinsics = _calculate(data_for_triangulation)
         if marker_extrinsics is not None:
@@ -24,13 +28,13 @@ def localize(camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics):
 
 
 def _prepare_data_for_triangulation(
-    camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics, id1, id2
+    camera_intrinsics, detection_1, detection_2, extrinsics_1, extrinsics_2
 ):
-    proj_mat1 = worker.utils.convert_extrinsic_to_matrix(frame_id_to_extrinsics[id1])[:3, :4]
-    proj_mat2 = worker.utils.convert_extrinsic_to_matrix(frame_id_to_extrinsics[id2])[:3, :4]
+    proj_mat1 = worker.utils.convert_extrinsic_to_matrix(extrinsics_1)[:3, :4]
+    proj_mat2 = worker.utils.convert_extrinsic_to_matrix(extrinsics_2)[:3, :4]
 
-    points1 = frame_id_to_detections[id1]["verts"].reshape((4, 1, 2))
-    points2 = frame_id_to_detections[id2]["verts"].reshape((4, 1, 2))
+    points1 = detection_1["verts"].reshape((4, 1, 2))
+    points2 = detection_2["verts"].reshape((4, 1, 2))
     undistort_points1 = camera_intrinsics.undistortPoints(points1)
     undistort_points2 = camera_intrinsics.undistortPoints(points2)
 

@@ -65,7 +65,11 @@ class ModelStorage(Observable):
             self.points_3d_centroid = np.zeros((3,), dtype=np.float32)
 
     def load_marker_tracker_3d_model_from_file(self):
-        marker_id_to_extrinsics_opt = file_methods.load_object(self._model_path)
+        try:
+            marker_id_to_extrinsics_opt = file_methods.load_object(self._model_path)
+        except FileNotFoundError:
+            return
+
         marker_id_to_extrinsics_opt = {
             marker_id: np.array(extrinsics)
             for marker_id, extrinsics in marker_id_to_extrinsics_opt.items()
@@ -123,7 +127,8 @@ class ModelStorage(Observable):
         new = {
             marker_id: worker.utils.convert_matrix_to_extrinsic(
                 np.matmul(
-                    transform_matrix, worker.utils.convert_extrinsic_to_matrix(extrinsics)
+                    transform_matrix,
+                    worker.utils.convert_extrinsic_to_matrix(extrinsics),
                 )
             )
             for marker_id, extrinsics in marker_id_to_extrinsics_opt_old.items()

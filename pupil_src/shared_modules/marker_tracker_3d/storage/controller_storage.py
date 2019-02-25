@@ -60,7 +60,9 @@ class ControllerStorage:
             self._camera_extrinsics = _camera_extrinsics
 
             camera_poses = worker.utils.get_camera_pose(_camera_extrinsics)
-            self.camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(camera_poses)
+            self.camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(
+                camera_poses
+            )
             self.all_camera_traces.append(camera_poses[3:6])
             self.all_camera_poses[self.current_frame_id] = camera_poses
 

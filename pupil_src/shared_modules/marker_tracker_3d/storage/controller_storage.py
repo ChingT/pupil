@@ -16,6 +16,7 @@ class ControllerStorage:
         self._set_to_default_values()
 
     def _set_to_default_values(self):
+        self._not_localized_count = 0
         self.current_frame_id = 0
         self.frame_id_to_extrinsics_all = {}
 
@@ -67,8 +68,15 @@ class ControllerStorage:
             self.all_camera_poses[self.current_frame_id] = camera_poses
 
             self.frame_id_to_extrinsics_all[self.current_frame_id] = _camera_extrinsics
+            self._not_localized_count = 0
         else:
             # Do not set camera_extrinsics to None to ensure
-            # a decent initial guess for the next solvePnP call
+            # a decent initial guess for the next solvePnP call;
+            # if there are multiple frames which could not be localized,
+            # then set camera_extrinsics to None
+            if self._not_localized_count >= 3:
+                self._camera_extrinsics = None
+
+            self._not_localized_count += 1
             self.camera_pose_matrix = None
             self.all_camera_traces.append(np.full((3,), np.nan))

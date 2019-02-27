@@ -17,6 +17,7 @@ def detect(frame):
             ).astype(np.float32),
         }
         for apriltag_detection in apriltag_detections
+        if apriltag_detection.hamming == 0
     }
     return marker_detections
 

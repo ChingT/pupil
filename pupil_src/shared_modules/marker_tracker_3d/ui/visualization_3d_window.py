@@ -42,7 +42,7 @@ class Visualization3dWindow:
 
     def _init_trackball(self):
         self._trackball = gl_utils.trackball.Trackball()
-        self._trackball.zoom_to(-150)
+        self._trackball.zoom_to(-100)
 
     def _on_init_ui(self):
         self.open()
@@ -186,6 +186,8 @@ class Visualization3dWindow:
     def _draw_centroid():
         gl.glLoadIdentity()
         gl.glPointSize(5)
+        color = (0.2, 0.2, 0.2, 0.1)
+        gl.glColor4f(*color)
         gl.glBegin(gl.GL_POINTS)
         gl.glVertex3f(0, 0, 0)
         gl.glEnd()

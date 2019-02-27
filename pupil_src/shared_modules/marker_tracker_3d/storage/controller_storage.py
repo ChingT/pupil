@@ -76,7 +76,7 @@ class ControllerStorage:
             # then set camera_extrinsics to None
             if self._not_localized_count >= 3:
                 self._camera_extrinsics = None
+                self.camera_pose_matrix = None
 
             self._not_localized_count += 1
-            self.camera_pose_matrix = None
             self.all_camera_traces.append(np.full((3,), np.nan))

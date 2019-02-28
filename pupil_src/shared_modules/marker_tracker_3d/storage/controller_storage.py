@@ -1,3 +1,5 @@
+import collections
+import itertools as it
 import logging
 import os
 
@@ -7,18 +9,24 @@ import file_methods
 from marker_tracker_3d import worker
 
 logger = logging.getLogger(__name__)
+KeyMarker = collections.namedtuple(
+    "KeyMarker", ["frame_id", "marker_id", "verts", "bin"]
+)
 
 
 class ControllerStorage:
     def __init__(self, save_path):
         self._all_camera_poses_path = os.path.join(save_path, "all_camera_poses")
 
+        self._n_bins_x = 4
+        self._n_bins_y = 2
+        self._bins_x = np.linspace(0, 1, self._n_bins_x + 1)[1:-1]
+        self._bins_y = np.linspace(0, 1, self._n_bins_y + 1)[1:-1]
+
         self._set_to_default_values()
 
     def _set_to_default_values(self):
         self._not_localized_count = 0
-        self.current_frame_id = 0
-        self.frame_id_to_extrinsics_all = {}
 
         # for export
         self.all_camera_poses = {}
@@ -31,25 +39,56 @@ class ControllerStorage:
         self._camera_extrinsics = None
         self.camera_extrinsics = None
 
+        self.all_key_markers = []
+        self.key_edges_queue = []
+        self.key_markers_queue = []
+        self.key_markers_bins = {
+            (x, y): [] for x in range(self._n_bins_x) for y in range(self._n_bins_y)
+        }
+
     def reset(self):
         self._set_to_default_values()
 
-    def save_observation(self, marker_id_to_detections, camera_extrinsics):
+    def save_observation(
+        self, marker_id_to_detections, camera_extrinsics, current_frame_id
+    ):
         self.marker_id_to_detections = marker_id_to_detections
         self.camera_extrinsics = camera_extrinsics
 
-    def export_all_camera_poses(self):
-        all_camera_poses_object = {
-            frame_id: camera_poses.tolist()
-            for frame_id, camera_poses in self.all_camera_poses.items()
-        }
-        file_methods.save_object(all_camera_poses_object, self._all_camera_poses_path)
+        self._save_camera_pose(camera_extrinsics, current_frame_id)
 
-        logger.info(
-            "camera poses from {0} frames has been exported to {1}".format(
-                len(all_camera_poses_object), self._all_camera_poses_path
+    @property
+    def marker_id_to_detections(self):
+        return self._marker_id_to_detections
+
+    @marker_id_to_detections.setter
+    def marker_id_to_detections(self, _marker_id_to_detections):
+        for marker_id in _marker_id_to_detections.keys():
+            centroid = _marker_id_to_detections[marker_id]["centroid"]
+            bin_x = int(np.digitize(centroid[0], self._bins_x))
+            bin_y = int(np.digitize(centroid[1], self._bins_y))
+            _marker_id_to_detections[marker_id]["bin"] = (bin_x, bin_y)
+
+        self._marker_id_to_detections = _marker_id_to_detections
+
+    def save_key_markers(self, marker_id_to_detections, current_frame_id):
+        key_markers = [
+            KeyMarker(current_frame_id, marker_id, detection["verts"], detection["bin"])
+            for marker_id, detection in marker_id_to_detections.items()
+        ]
+        self.key_markers_queue += key_markers
+
+        marker_ids = [marker.marker_id for marker in key_markers]
+        key_edges = [
+            (marker_id1, marker_id2, current_frame_id)
+            for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2))
+        ]
+        self.key_edges_queue += key_edges
+
+        for marker_id, detection in marker_id_to_detections.items():
+            self.key_markers_bins[detection["bin"]].append(
+                (current_frame_id, marker_id)
             )
-        )
 
     @property
     def camera_extrinsics(self):

@@ -1,4 +1,3 @@
-import itertools as it
 import logging
 import os
 
@@ -28,10 +27,6 @@ class ModelStorage(Observable):
         self.visibility_graph = nx.MultiGraph()
 
         self.optimize_model_allowed = True
-
-        self.all_key_markers = []
-        self.key_edges_queue = []
-        self.key_markers_queue = []
 
         # {frame id: optimized camera extrinsics (which is composed of Rodrigues
         # rotation vector and translation vector, which brings points from the world
@@ -184,16 +179,6 @@ class ModelStorage(Observable):
 
     def on_origin_marker_id_set(self):
         pass
-
-    def save_key_markers(self, key_markers, current_frame_id):
-        self.key_markers_queue += key_markers
-
-        marker_ids = [marker.marker_id for marker in key_markers]
-        key_edges = [
-            (marker_id1, marker_id2, current_frame_id)
-            for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2))
-        ]
-        self.key_edges_queue += key_edges
 
     # TODO: debug only; to be removed
     def export_visibility_graph(self, show_unconnected_nodes=False):

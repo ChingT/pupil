@@ -6,7 +6,7 @@ from marker_tracker_3d.worker import (
     get_initial_guess,
 )
 from marker_tracker_3d.worker.bundle_adjustment import BundleAdjustment
-from marker_tracker_3d.worker.pick_key_markers import PickKeyMarkers
+from marker_tracker_3d.worker.decide_key_markers import DecideKeyMarkers
 from marker_tracker_3d.worker.prepare_for_model_update import PrepareForModelUpdate
 from marker_tracker_3d.worker.svdt import svdt
 from marker_tracker_3d.worker.update_model_storage import UpdateModelStorage

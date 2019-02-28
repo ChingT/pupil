@@ -23,15 +23,14 @@ class ObservationProcessController:
 
         current_frame_id = frame.timestamp
         self._controller_storage.save_observation(
-            marker_id_to_detections, camera_extrinsics
+            marker_id_to_detections, camera_extrinsics, current_frame_id
         )
 
-        if self._model_storage.optimize_model_allowed:
-            key_markers = self._pick_key_markers.run(
-                marker_id_to_detections, self._controller_storage.current_frame_id
-            )
-            self._model_storage.save_key_markers(
-                key_markers, self._controller_storage.current_frame_id
+        if self._model_storage.optimize_model_allowed and self._decide_key_markers.run(
+            self._controller_storage.marker_id_to_detections
+        ):
+            self._controller_storage.save_key_markers(
+                self._controller_storage.marker_id_to_detections, current_frame_id
             )
 
     def localize(self, marker_id_to_detections):
@@ -44,4 +43,4 @@ class ObservationProcessController:
         )
 
     def reset(self):
-        self._pick_key_markers.reset()
+        self._decide_key_markers.reset()

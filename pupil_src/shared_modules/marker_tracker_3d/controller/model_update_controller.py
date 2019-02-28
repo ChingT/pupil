@@ -16,7 +16,7 @@ class ModelUpdateController:
         )
         self._bundle_adjustment = worker.BundleAdjustment(camera_intrinsics)
         self._update_model_storage = worker.UpdateModelStorage(
-            model_storage, camera_intrinsics
+            controller_storage, model_storage, camera_intrinsics
         )
 
     def run(self):

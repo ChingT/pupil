@@ -7,7 +7,8 @@ logger = logging.getLogger(__name__)
 
 
 class UpdateModelStorage(Observable):
-    def __init__(self, model_storage, camera_intrinsics):
+    def __init__(self, controller_storage, model_storage, camera_intrinsics):
+        self._controller_storage = controller_storage
         self._model_storage = model_storage
         self._camera_intrinsics = camera_intrinsics
 
@@ -53,9 +54,14 @@ class UpdateModelStorage(Observable):
         ]
         self._model_storage.visibility_graph.remove_edges_from(redundant_edges)
 
-        self._model_storage.all_key_markers = [
+        for marker in self._controller_storage.all_key_markers:
+            if marker.frame_id in frame_ids_failed:
+                self._controller_storage.key_markers_bins[marker.bin].remove(
+                    (marker.frame_id, marker.marker_id)
+                )
+        self._controller_storage.all_key_markers = [
             marker
-            for marker in self._model_storage.all_key_markers
+            for marker in self._controller_storage.all_key_markers
             if marker.frame_id not in frame_ids_failed
         ]
 

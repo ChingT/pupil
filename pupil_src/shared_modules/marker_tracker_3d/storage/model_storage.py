@@ -196,7 +196,7 @@ class ModelStorage(Observable):
         self.key_edges_queue += key_edges
 
     # TODO: debug only; to be removed
-    def export_visibility_graph(self, current_frame_id, show_unconnected_nodes=False):
+    def export_visibility_graph(self, show_unconnected_nodes=False):
         if not self.visibility_graph:
             return
 
@@ -236,10 +236,8 @@ class ModelStorage(Observable):
         plt.axis("off")
         save_name = os.path.join(
             self._visibility_graph_path,
-            "frame-{0:03d}-{1}-{2}.png".format(
-                current_frame_id,
-                len(self.visibility_graph),
-                len(self.marker_id_to_extrinsics_opt),
+            "frame-{0}-{1}.png".format(
+                len(self.visibility_graph), len(self.marker_id_to_extrinsics_opt)
             ),
         )
         plt.savefig(save_name, dpi=300)

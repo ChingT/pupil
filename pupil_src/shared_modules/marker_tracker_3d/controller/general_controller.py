@@ -34,7 +34,6 @@ class GeneralController:
     def _on_recent_events(self, events):
         if "frame" in events:
             self._observation_process_controller.run(events["frame"])
-            self._controller_storage.current_frame_id += 1
 
         if self._model_storage.optimize_model_allowed:
             self._model_update_controller.run()
@@ -48,9 +47,7 @@ class GeneralController:
 
     # TODO: debug only; to be removed
     def export_visibility_graph(self):
-        self._model_storage.export_visibility_graph(
-            self._controller_storage.current_frame_id
-        )
+        self._model_storage.export_visibility_graph()
 
     def optimize_camera_intrinsics_switch(self, optimize_camera_intrinsics):
         self._model_update_controller.optimize_camera_intrinsics_switch(

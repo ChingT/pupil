@@ -13,14 +13,15 @@ class ObservationProcessController:
         self._model_storage = model_storage
         self._camera_intrinsics = camera_intrinsics
 
-        self._pick_key_markers = worker.PickKeyMarkers(model_storage)
+        self._decide_key_markers = worker.DecideKeyMarkers(controller_storage)
 
         self._min_n_markers_per_frame = min_n_markers_per_frame
 
     def run(self, frame):
         marker_id_to_detections = worker.detect_markers.detect(frame)
-
         camera_extrinsics = self.localize(marker_id_to_detections)
+
+        current_frame_id = frame.timestamp
         self._controller_storage.save_observation(
             marker_id_to_detections, camera_extrinsics
         )

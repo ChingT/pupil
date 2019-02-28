@@ -38,7 +38,10 @@ class BundleAdjustment:
         if not model_init_result:
             return None
 
-        self._optimize_camera_intrinsics = optimize_camera_intrinsics
+        if len(model_init_result.key_markers) > 50:
+            self._optimize_camera_intrinsics = optimize_camera_intrinsics
+        else:
+            self._optimize_camera_intrinsics = False
 
         self._marker_ids, self._frame_ids = self._set_ids(
             model_init_result.frame_id_to_extrinsics,
@@ -50,11 +53,11 @@ class BundleAdjustment:
         )
         self._prepare_basic_data(model_init_result.key_markers)
 
-        initial_guess_array, x_scale, bounds, sparsity_matrix = self._prepare_parameters(
+        initial_guess_array, bounds, sparsity_matrix = self._prepare_parameters(
             camera_extrinsics_array, marker_extrinsics_array
         )
         least_sq_result = self._least_squares(
-            initial_guess_array, x_scale, bounds, sparsity_matrix
+            initial_guess_array, bounds, sparsity_matrix
         )
 
         model_opt_result = self._get_model_opt_result(least_sq_result)
@@ -104,14 +107,11 @@ class BundleAdjustment:
                 (initial_guess_array, camera_intrinsics_params)
             )
 
-        x_scale = np.ones_like(initial_guess_array)
-        x_scale[: np.prod(self._camera_extrinsics_shape)] = 10
-
         bounds = self._calculate_bounds()
 
         sparsity_matrix = self._construct_sparsity_matrix()
 
-        return initial_guess_array, x_scale, bounds, sparsity_matrix
+        return initial_guess_array, bounds, sparsity_matrix
 
     def _calculate_bounds(self, eps=1e-16, scale=3e2):
         """ calculate the lower and upper bounds on independent variables
@@ -194,7 +194,7 @@ class BundleAdjustment:
         sparsity_matrix = scipy_sparse.lil_matrix(sparsity_matrix)
         return sparsity_matrix
 
-    def _least_squares(self, initial_guess_array, x_scale, bounds, sparsity_matrix):
+    def _least_squares(self, initial_guess_array, bounds, sparsity_matrix):
         result = scipy_optimize.least_squares(
             fun=self._function_compute_residuals,
             x0=initial_guess_array,
@@ -202,7 +202,7 @@ class BundleAdjustment:
             ftol=self._tol,
             xtol=self._tol,
             gtol=self._tol,
-            x_scale=x_scale,
+            x_scale="jac",
             loss="soft_l1",
             diff_step=self._diff_step,
             jac_sparsity=sparsity_matrix,

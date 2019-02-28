@@ -19,7 +19,7 @@ class UpdateModelStorage(Observable):
         if not model_opt_result:
             return
 
-        self._discard_failed_key_markers(model_opt_result.frame_ids_failed)
+        # self._discard_failed_key_markers(model_opt_result.frame_ids_failed)
 
         self._update_extrinsics_opt(
             model_opt_result.frame_id_to_extrinsics,

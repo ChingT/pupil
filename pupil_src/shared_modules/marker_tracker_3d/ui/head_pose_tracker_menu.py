@@ -14,10 +14,6 @@ class HeadPoseTrackerMenu:
 
         self._submenu = ui.Growing_Menu("visualization options", header_pos="headline")
 
-        self._optimize_camera_intrinsics = False
-        self._on_optimize_camera_intrinsics_switch_click(
-            self._optimize_camera_intrinsics
-        )
         self._open_3d_window = True
 
         plugin.add_observer("init_ui", self._on_init_ui)
@@ -83,7 +79,14 @@ class HeadPoseTrackerMenu:
 
     def _create_optimize_model_switch(self):
         return ui.Switch(
-            "optimize_model_allowed", self._model_storage, label="Optimizing the model"
+            "optimize_3d_model", self._model_storage, label="Optimize 3d model"
+        )
+
+    def _create_optimize_camera_intrinsics_switch(self):
+        return ui.Switch(
+            "optimize_camera_intrinsics",
+            self._model_storage,
+            label="Optimize camera intrinsic",
         )
 
     def _create_reset_button(self):
@@ -102,14 +105,6 @@ class HeadPoseTrackerMenu:
             outer_label="Export",
             label="Visibility graph (debug)",
             function=self._on_export_visibility_graph_button_click,
-        )
-
-    def _create_optimize_camera_intrinsics_switch(self):
-        return ui.Switch(
-            "_optimize_camera_intrinsics",
-            self,
-            label="Optimizing camera intrinsic",
-            setter=self._on_optimize_camera_intrinsics_switch_click,
         )
 
     def _create_open_3d_window_switch(self):
@@ -168,10 +163,6 @@ class HeadPoseTrackerMenu:
             label="Move rotate center to centroid",
             function=self._on_move_rotate_center_to_centroid_button_click,
         )
-
-    def _on_optimize_camera_intrinsics_switch_click(self, optimize_camera_intrinsics):
-        self._optimize_camera_intrinsics = optimize_camera_intrinsics
-        self._controller.optimize_camera_intrinsics_switch(optimize_camera_intrinsics)
 
     def _on_3d_window_switch_click(self, open_3d_window):
         self._open_3d_window = open_3d_window

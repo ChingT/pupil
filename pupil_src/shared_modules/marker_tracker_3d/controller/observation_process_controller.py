@@ -26,7 +26,7 @@ class ObservationProcessController:
             marker_id_to_detections, camera_extrinsics, current_frame_id
         )
 
-        if self._model_storage.optimize_model_allowed and self._decide_key_markers.run(
+        if self._model_storage.optimize_3d_model and self._decide_key_markers.run(
             self._controller_storage.marker_id_to_detections
         ):
             self._controller_storage.save_key_markers(

@@ -1,6 +1,5 @@
 import logging
 
-import camera_models
 from marker_tracker_3d import controller
 
 logger = logging.getLogger(__name__)
@@ -35,7 +34,7 @@ class GeneralController:
         if "frame" in events:
             self._observation_process_controller.run(events["frame"])
 
-        if self._model_storage.optimize_model_allowed:
+        if self._model_storage.optimize_3d_model:
             self._model_update_controller.run()
 
     def reset(self):
@@ -45,32 +44,21 @@ class GeneralController:
         self._model_update_controller.reset()
         logger.info("Reset 3D Marker Tracker!")
 
-    # TODO: debug only; to be removed
-    def export_visibility_graph(self):
-        self._model_storage.export_visibility_graph()
+    def export_marker_tracker_3d_model_to_file(self):
+        self._model_storage.export_marker_tracker_3d_model_to_file()
 
-    def optimize_camera_intrinsics_switch(self, optimize_camera_intrinsics):
-        self._model_update_controller.optimize_camera_intrinsics_switch(
-            optimize_camera_intrinsics
-        )
-
-    # TODO: maybe should be moved to other place
-    def load_camera_intrinsics(self):
-        camera_intrinsics = camera_models.load_intrinsics(
-            self._save_path,
-            self._camera_intrinsics.name,
-            self._camera_intrinsics.resolution,
-        )
-        self._camera_intrinsics.update_camera_matrix(camera_intrinsics.K)
-        self._camera_intrinsics.update_dist_coefs(camera_intrinsics.D)
+    def export_all_camera_poses(self):
+        self._controller_storage.export_all_camera_poses()
 
     # TODO: maybe should be moved to other place
     def export_camera_intrinsics(self):
         self._camera_intrinsics.save(self._save_path)
 
-    def export_all_camera_poses(self):
-        self._controller_storage.export_all_camera_poses()
+    # TODO: debug only; to be removed
+    def export_visibility_graph(self):
+        self._model_storage.export_visibility_graph()
 
     def _on_cleanup(self):
-        self._model_storage.export_marker_tracker_3d_model_to_file()
+        self.export_marker_tracker_3d_model_to_file()
+        self.export_all_camera_poses()
         self.export_camera_intrinsics()

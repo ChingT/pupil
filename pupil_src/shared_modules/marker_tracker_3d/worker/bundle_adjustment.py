@@ -21,9 +21,9 @@ OptimizationResult = collections.namedtuple(
 # would be inefficient.
 # (especially true for _function_compute_residuals as a callback)
 class BundleAdjustment:
-    def __init__(self, camera_intrinsics, optimize_camera_intrinsics=True):
+    def __init__(self, camera_intrinsics):
         self._camera_intrinsics = camera_intrinsics
-        self._optimize_camera_intrinsics = optimize_camera_intrinsics
+        self._optimize_camera_intrinsics = False
 
         self._tol = 1e-4
         self._diff_step = 1e-3
@@ -31,12 +31,14 @@ class BundleAdjustment:
         self._marker_ids = []
         self._frame_ids = []
 
-    def calculate(self, model_init_result):
+    def calculate(self, model_init_result, optimize_camera_intrinsics):
         """ run bundle adjustment given the initial guess and then check the result of
         optimization
         """
         if not model_init_result:
             return None
+
+        self._optimize_camera_intrinsics = optimize_camera_intrinsics
 
         self._marker_ids, self._frame_ids = self._set_ids(
             model_init_result.frame_id_to_extrinsics,
@@ -349,6 +351,3 @@ class BundleAdjustment:
 
         self._camera_intrinsics.update_camera_matrix(camera_matrix)
         self._camera_intrinsics.update_dist_coefs(dist_coefs)
-
-    def optimize_camera_intrinsics_switch(self, optimize_camera_intrinsics):
-        self._optimize_camera_intrinsics = optimize_camera_intrinsics

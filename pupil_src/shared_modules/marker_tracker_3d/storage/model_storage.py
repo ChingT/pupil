@@ -24,9 +24,10 @@ class ModelStorage(Observable):
         self.load_marker_tracker_3d_model_from_file()
 
     def _set_to_default_values(self):
-        self.visibility_graph = nx.MultiGraph()
+        self.optimize_3d_model = False
+        self.optimize_camera_intrinsics = False
 
-        self.optimize_model_allowed = True
+        self.visibility_graph = nx.MultiGraph()
 
         # {frame id: optimized camera extrinsics (which is composed of Rodrigues
         # rotation vector and translation vector, which brings points from the world

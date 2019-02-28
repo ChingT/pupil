@@ -6,6 +6,7 @@ class ModelUpdateController:
     def __init__(
         self, controller_storage, model_storage, camera_intrinsics, task_manager
     ):
+        self._model_storage = model_storage
         self._camera_intrinsics = camera_intrinsics
         self._task_manager = task_manager
         self._bg_task_init = None
@@ -48,7 +49,7 @@ class ModelUpdateController:
         self._bg_task_opt = self._task_manager.create_background_task(
             name="bundle_adjustment",
             routine_or_generator_function=self._bundle_adjustment.calculate,
-            args=(model_init_result,),
+            args=(model_init_result, self._model_storage.optimize_camera_intrinsics),
         )
         self._bg_task_opt.add_observer("on_exception", tasklib.raise_exception)
         self._bg_task_opt.add_observer("on_completed", self._update_model_storage.run)
@@ -70,8 +71,3 @@ class ModelUpdateController:
 
     def reset(self):
         self._kill_bg_tasks()
-
-    def optimize_camera_intrinsics_switch(self, optimize_camera_intrinsics):
-        self._bundle_adjustment.optimize_camera_intrinsics_switch(
-            optimize_camera_intrinsics
-        )

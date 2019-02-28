@@ -16,7 +16,6 @@ class Visualization3dWindow:
         self._controller_storage = controller_storage
         self._model_storage = model_storage
 
-        self._max_camera_traces_len = 300
         self._input = {"down": False, "mouse": (0, 0)}
 
         self._init_trackball()
@@ -241,12 +240,10 @@ class Visualization3dWindow:
             self._draw_polygon_in_3d_window(points_3d, color)
 
     def _draw_camera_trace_in_3d_window(self):
-        trace = self._controller_storage.all_camera_traces[
-            -self._max_camera_traces_len :
-        ]
-
         color = (0.2, 0.2, 0.2, 0.1)
-        self._draw_strip_in_3d_window(trace, color)
+        self._draw_strip_in_3d_window(
+            self._controller_storage.recent_camera_traces, color
+        )
 
     def _draw_camera_in_3d_window(self):
         if self._controller_storage.camera_pose_matrix is None:

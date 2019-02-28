@@ -34,7 +34,7 @@ class ControllerStorage:
         self.marker_id_to_detections = {}
 
         # for drawing in 3d window
-        self.all_camera_traces = []
+        self.recent_camera_traces = collections.deque(maxlen=300)
         self.camera_pose_matrix = None
         self._camera_extrinsics = None
         self.camera_extrinsics = None
@@ -98,24 +98,31 @@ class ControllerStorage:
     def camera_extrinsics(self, _camera_extrinsics):
         if _camera_extrinsics is not None:
             self._camera_extrinsics = _camera_extrinsics
-
-            camera_poses = worker.utils.get_camera_pose(_camera_extrinsics)
-            self.camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(
-                camera_poses
-            )
-            self.all_camera_traces.append(camera_poses[3:6])
-            self.all_camera_poses[self.current_frame_id] = camera_poses
-
-            self.frame_id_to_extrinsics_all[self.current_frame_id] = _camera_extrinsics
             self._not_localized_count = 0
         else:
             # Do not set camera_extrinsics to None to ensure
             # a decent initial guess for the next solvePnP call;
-            # if there are multiple frames which could not be localized,
+            # except when there are multiple frames which could not be localized,
             # then set camera_extrinsics to None
             if self._not_localized_count >= 3:
                 self._camera_extrinsics = None
-                self.camera_pose_matrix = None
-
             self._not_localized_count += 1
-            self.all_camera_traces.append(np.full((3,), np.nan))
+
+    def _save_camera_pose(self, camera_extrinsics, current_frame_id):
+        camera_poses = worker.utils.get_camera_pose(camera_extrinsics)
+        self.all_camera_poses[current_frame_id] = camera_poses
+        self.recent_camera_traces.append(camera_poses[3:6])
+        self.camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(camera_poses)
+
+    def export_all_camera_poses(self):
+        all_camera_poses_object = {
+            frame_id: camera_poses.tolist()
+            for frame_id, camera_poses in self.all_camera_poses.items()
+        }
+        file_methods.save_object(all_camera_poses_object, self._all_camera_poses_path)
+
+        logger.info(
+            "camera poses from {0} frames has been exported to {1}".format(
+                len(all_camera_poses_object), self._all_camera_poses_path
+            )
+        )

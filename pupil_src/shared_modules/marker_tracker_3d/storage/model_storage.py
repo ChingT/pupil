@@ -182,7 +182,7 @@ class ModelStorage(Observable):
         pass
 
     # TODO: debug only; to be removed
-    def export_visibility_graph(self, show_unconnected_nodes=False):
+    def export_visibility_graph(self, show_unconnected_nodes=True):
         if not self.visibility_graph:
             return
 
@@ -226,7 +226,12 @@ class ModelStorage(Observable):
                 len(self.visibility_graph), len(self.marker_id_to_extrinsics_opt)
             ),
         )
-        plt.savefig(save_name, dpi=300)
+        try:
+            plt.savefig(save_name, dpi=300)
+        except FileNotFoundError:
+            os.makedirs(self._visibility_graph_path)
+            plt.savefig(save_name, dpi=300)
+
         plt.clf()
 
         logger.info("visibility_graph has been exported to {}".format(save_name))

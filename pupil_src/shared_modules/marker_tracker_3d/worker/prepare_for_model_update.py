@@ -26,15 +26,7 @@ class PrepareForModelUpdate:
         self._n_observations_added_once = 20
 
     def run(self):
-        s = slice(self._n_observations_added_once)
-        self._controller_storage.all_key_markers += self._controller_storage.key_markers_queue[
-            s
-        ]
-        self._model_storage.visibility_graph.add_edges_from(
-            self._controller_storage.key_edges_queue[s]
-        )
-        del self._controller_storage.key_markers_queue[s]
-        del self._controller_storage.key_edges_queue[s]
+        self._add_from_key_markers_queue()
 
         marker_ids_to_be_optimized = self._get_marker_ids_to_be_optimized()
         frame_ids_to_be_optimized = self._get_frame_ids_to_be_optimized(
@@ -66,6 +58,17 @@ class PrepareForModelUpdate:
         )
         return data_for_model_init
 
+    def _add_from_key_markers_queue(self):
+        s = slice(self._n_observations_added_once)
+        self._controller_storage.all_key_markers += self._controller_storage.key_markers_queue[
+            s
+        ]
+        self._model_storage.visibility_graph.add_edges_from(
+            self._controller_storage.key_edges_queue[s]
+        )
+        del self._controller_storage.key_markers_queue[s]
+        del self._controller_storage.key_edges_queue[s]
+
     def _get_marker_ids_to_be_optimized(self):
         try:
             connected_component = nx.node_connected_component(
@@ -87,7 +90,7 @@ class PrepareForModelUpdate:
         frame_ids_to_be_optimized = set()
         for node_1, node_2 in paths:
             frame_ids = list(self._model_storage.visibility_graph[node_1][node_2])
-            frame_ids_to_be_optimized |= set(frame_ids[:3])
+            frame_ids_to_be_optimized |= set(frame_ids[-3:])
 
         frame_ids_to_be_optimized |= set(
             marker.frame_id

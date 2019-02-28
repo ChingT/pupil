@@ -40,8 +40,8 @@ class ControllerStorage:
         self.camera_extrinsics = None
 
         self.all_key_markers = []
-        self.key_edges_queue = []
         self.key_markers_queue = []
+        self.key_edges_queue = []
         self.key_markers_bins = {
             (x, y): [] for x in range(self._n_bins_x) for y in range(self._n_bins_y)
         }

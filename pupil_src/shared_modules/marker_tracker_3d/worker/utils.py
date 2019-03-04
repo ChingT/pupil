@@ -25,7 +25,7 @@ def merge_extrinsics(rotation, translation):
 
 def to_camera_coordinate(pts_3d_world, rotation, translation):
     pts_3d_cam = [
-        np.matmul(cv2.Rodrigues(rotation)[0], p) + translation.ravel()
+        cv2.Rodrigues(rotation)[0] @ p + translation.ravel()
         for p in pts_3d_world.reshape(-1, 3)
     ]
     pts_3d_cam = np.array(pts_3d_cam)
@@ -33,7 +33,8 @@ def to_camera_coordinate(pts_3d_world, rotation, translation):
     return pts_3d_cam
 
 
-def convert_extrinsic_to_matrix(extrinsics):
+# TODO: need to rename
+def get_extrinsic_matrix(extrinsics):
     rotation, translation = split_extrinsics(extrinsics)
     extrinsic_matrix = np.eye(4, dtype=np.float32)
     extrinsic_matrix[0:3, 0:3] = cv2.Rodrigues(rotation)[0]
@@ -41,26 +42,17 @@ def convert_extrinsic_to_matrix(extrinsics):
     return extrinsic_matrix
 
 
-def convert_matrix_to_extrinsic(extrinsic_matrix):
-    rotation = cv2.Rodrigues(extrinsic_matrix[0:3, 0:3])[0]
-    translation = extrinsic_matrix[0:3, 3]
-    return merge_extrinsics(rotation, translation)
-
-
 def get_camera_pose(camera_extrinsics):
-    if camera_extrinsics is None:
-        return np.full((6,), np.nan)
-
     rotation_ext, translation_ext = split_extrinsics(camera_extrinsics)
     rotation_pose = -rotation_ext
-    translation_pose = np.matmul(-cv2.Rodrigues(rotation_ext)[0].T, translation_ext)
+    translation_pose = -cv2.Rodrigues(rotation_ext)[0].T @ translation_ext
     camera_pose = merge_extrinsics(rotation_pose, translation_pose)
     return camera_pose
 
 
 def convert_marker_extrinsics_to_points_3d(marker_extrinsics):
-    mat = convert_extrinsic_to_matrix(marker_extrinsics)
-    marker_transformed_h = np.matmul(mat, get_marker_points_4d_origin().T)
+    mat = get_extrinsic_matrix(marker_extrinsics)
+    marker_transformed_h = mat @ get_marker_points_4d_origin().T
     marker_points_3d = cv2.convertPointsFromHomogeneous(marker_transformed_h.T)
     marker_points_3d.shape = 4, 3
 

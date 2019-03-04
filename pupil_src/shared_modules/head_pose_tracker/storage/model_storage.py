@@ -38,9 +38,6 @@ class ModelStorage(Observable):
         self.load_markers_3d_model_from_file()
 
     def _set_to_default_values(self):
-        self.visibility_graph = nx.MultiGraph()
-        self.origin_marker_id = self._predetermined_origin_marker_id
-
         # {frame id: optimized camera extrinsics (which is composed of Rodrigues
         # rotation vector and translation vector, which brings points from the world
         # coordinate system to the camera coordinate system)}
@@ -59,6 +56,9 @@ class ModelStorage(Observable):
 
         self.calculate_points_3d_centroid()
 
+        self.visibility_graph = nx.MultiGraph()
+        self.origin_marker_id = self._predetermined_origin_marker_id
+
     def reset(self):
         self._set_to_default_values()
 
@@ -75,6 +75,7 @@ class ModelStorage(Observable):
         try:
             marker_id_to_extrinsics_opt = file_methods.load_object(self._model_path)
         except FileNotFoundError:
+            logger.info("no markers 3d model found")
             return
 
         marker_id_to_extrinsics_opt = {
@@ -85,19 +86,9 @@ class ModelStorage(Observable):
         origin_marker_id = worker.utils.find_origin_marker_id(
             marker_id_to_extrinsics_opt
         )
+        self.origin_marker_id = origin_marker_id
 
-        if self.origin_marker_id is None or self.origin_marker_id == origin_marker_id:
-            marker_id_to_extrinsics_opt_converted = marker_id_to_extrinsics_opt
-            self.origin_marker_id = origin_marker_id
-        else:
-            marker_id_to_extrinsics_opt_converted = self._convert_coordinate_system(
-                marker_id_to_extrinsics_opt, self.marker_id_to_extrinsics_opt
-            )
-            if marker_id_to_extrinsics_opt_converted is None:
-                logger.warning("cannot load marker tracker 3d model from file")
-                return
-
-        for marker_id, extrinsics in marker_id_to_extrinsics_opt_converted.items():
+        for marker_id, extrinsics in marker_id_to_extrinsics_opt.items():
             self.marker_id_to_extrinsics_opt[marker_id] = extrinsics
             self.marker_id_to_points_3d_opt[
                 marker_id
@@ -106,8 +97,9 @@ class ModelStorage(Observable):
         self.calculate_points_3d_centroid()
 
         logger.info(
-            "marker tracker 3d model with {0} markers has been loaded from "
-            "{1}".format(len(marker_id_to_extrinsics_opt), self._model_path)
+            "markers 3d model with {0} markers has been loaded from {1}".format(
+                len(marker_id_to_extrinsics_opt), self._model_path
+            )
         )
 
     def _convert_coordinate_system(
@@ -156,12 +148,12 @@ class ModelStorage(Observable):
             file_methods.save_object(marker_id_to_extrinsics_opt, self._model_path)
 
             logger.info(
-                "marker tracker 3d model with {0} markers has been exported to {1}".format(
+                "markers 3d model with {0} markers has been exported to {1}".format(
                     len(marker_id_to_extrinsics_opt), self._model_path
                 )
             )
         else:
-            logger.info("marker tracker 3d model has not yet built up")
+            logger.info("markers 3d model has not yet built up")
 
     @property
     def origin_marker_id(self):

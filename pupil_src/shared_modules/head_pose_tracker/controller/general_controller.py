@@ -49,11 +49,11 @@ class GeneralController:
             self._model_update_controller.run()
 
     def reset(self):
+        logger.info("Reset Markers 3D Model!")
         self._controller_storage.reset()
         self._model_storage.reset()
         self._observation_process_controller.reset()
         self._model_update_controller.reset()
-        logger.info("Reset 3D Marker Tracker!")
 
     def export_markers_3d_model_to_file(self):
         self._model_storage.export_markers_3d_model_to_file()

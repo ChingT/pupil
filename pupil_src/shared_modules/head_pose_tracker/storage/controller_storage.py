@@ -64,7 +64,7 @@ class ControllerStorage:
         self.marker_id_to_detections = marker_id_to_detections
         self.camera_extrinsics = camera_extrinsics
 
-        self._save_camera_pose(camera_extrinsics, current_frame_id)
+        self._save_camera_pose(self.camera_extrinsics, current_frame_id)
 
     @property
     def marker_id_to_detections(self):

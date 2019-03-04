@@ -89,37 +89,12 @@ class PrepareForModelUpdate:
         return marker_ids_to_be_optimized
 
     def _get_frame_ids_to_be_optimized(self, marker_ids_to_be_optimized):
-        paths = self._find_all_paths(marker_ids_to_be_optimized)
-
-        frame_ids_to_be_optimized = set()
-        for node_1, node_2 in paths:
-            frame_ids = list(self._model_storage.visibility_graph[node_1][node_2])
-            frame_ids_to_be_optimized |= set(frame_ids[-3:])
-
-        frame_ids_to_be_optimized |= set(
+        frame_ids_to_be_optimized = set(
             marker.frame_id
             for marker in self._controller_storage.all_key_markers
-            if marker.marker_id not in self._model_storage.marker_id_to_extrinsics_opt
+            if marker.marker_id in marker_ids_to_be_optimized
         )
         return list(frame_ids_to_be_optimized)
-
-    def _find_all_paths(self, marker_ids_to_be_optimized):
-        all_shortest_paths = [
-            list(
-                nx.shortest_path(
-                    self._model_storage.visibility_graph,
-                    source=marker_id,
-                    target=self._model_storage.origin_marker_id,
-                )
-            )
-            for marker_id in marker_ids_to_be_optimized
-        ]
-
-        paths = set()
-        for path in all_shortest_paths:
-            paths |= set(zip(path[::], path[1::]))
-
-        return paths
 
     def _set_coordinate_system(self, all_seen_markers_id):
         try:

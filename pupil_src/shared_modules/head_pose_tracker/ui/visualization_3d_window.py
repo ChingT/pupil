@@ -52,7 +52,7 @@ class Visualization3dWindow:
 
     def _init_trackball(self):
         self._trackball = gl_utils.trackball.Trackball()
-        self._trackball.zoom_to(-100)
+        self._trackball.zoom_to(-150)
 
     def _on_init_ui(self):
         self.open()

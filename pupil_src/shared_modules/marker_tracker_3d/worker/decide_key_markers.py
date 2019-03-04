@@ -49,11 +49,9 @@ class DecideKeyMarkers:
         for marker_id, detection in marker_id_to_detections.items():
             n_same_markers_in_bin = len(
                 [
-                    marker_id
-                    for _, key_marker_id in self._controller_storage.key_markers_bins[
-                        detection["bin"]
-                    ]
-                    if marker_id == key_marker_id
+                    marker
+                    for marker in self._controller_storage.all_key_markers
+                    if marker.marker_id == marker_id and marker.bin == detection["bin"]
                 ]
             )
             if n_same_markers_in_bin < self._max_n_same_markers_per_bin:

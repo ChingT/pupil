@@ -23,10 +23,8 @@ class PrepareForModelUpdate:
         self._controller_storage = controller_storage
         self._model_storage = model_storage
 
-        self._n_observations_added_once = 20
-
     def run(self):
-        self._add_from_key_markers_queue()
+        self._add_from_key_edges_queue()
 
         marker_ids_to_be_optimized = self._get_marker_ids_to_be_optimized()
         frame_ids_to_be_optimized = self._get_frame_ids_to_be_optimized(
@@ -58,16 +56,11 @@ class PrepareForModelUpdate:
         )
         return data_for_model_init
 
-    def _add_from_key_markers_queue(self):
-        s = slice(self._n_observations_added_once)
-        self._controller_storage.all_key_markers += self._controller_storage.key_markers_queue[
-            s
-        ]
+    def _add_from_key_edges_queue(self):
         self._model_storage.visibility_graph.add_edges_from(
-            self._controller_storage.key_edges_queue[s]
+            self._controller_storage.key_edges_queue
         )
-        del self._controller_storage.key_markers_queue[s]
-        del self._controller_storage.key_edges_queue[s]
+        del self._controller_storage.key_edges_queue[:]
 
     def _get_marker_ids_to_be_optimized(self):
         try:

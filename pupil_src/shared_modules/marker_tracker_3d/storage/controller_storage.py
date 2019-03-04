@@ -9,6 +9,8 @@ import file_methods
 from marker_tracker_3d import worker
 
 logger = logging.getLogger(__name__)
+
+
 KeyMarker = collections.namedtuple(
     "KeyMarker", ["frame_id", "marker_id", "verts", "bin"]
 )
@@ -18,7 +20,7 @@ class ControllerStorage:
     def __init__(self, save_path):
         self._all_camera_poses_path = os.path.join(save_path, "all_camera_poses")
 
-        self._n_bins_x = 4
+        self._n_bins_x = 2
         self._n_bins_y = 2
         self._bins_x = np.linspace(0, 1, self._n_bins_x + 1)[1:-1]
         self._bins_y = np.linspace(0, 1, self._n_bins_y + 1)[1:-1]
@@ -40,11 +42,7 @@ class ControllerStorage:
         self.camera_extrinsics = None
 
         self.all_key_markers = []
-        self.key_markers_queue = []
         self.key_edges_queue = []
-        self.key_markers_bins = {
-            (x, y): [] for x in range(self._n_bins_x) for y in range(self._n_bins_y)
-        }
 
     def reset(self):
         self._set_to_default_values()
@@ -63,32 +61,16 @@ class ControllerStorage:
 
     @marker_id_to_detections.setter
     def marker_id_to_detections(self, _marker_id_to_detections):
-        for marker_id in _marker_id_to_detections.keys():
-            centroid = _marker_id_to_detections[marker_id]["centroid"]
-            bin_x = int(np.digitize(centroid[0], self._bins_x))
-            bin_y = int(np.digitize(centroid[1], self._bins_y))
-            _marker_id_to_detections[marker_id]["bin"] = (bin_x, bin_y)
+        for marker_id, detection in _marker_id_to_detections.items():
+            _marker_id_to_detections[marker_id]["bin"] = self._get_bin(detection)
 
         self._marker_id_to_detections = _marker_id_to_detections
 
-    def save_key_markers(self, marker_id_to_detections, current_frame_id):
-        key_markers = [
-            KeyMarker(current_frame_id, marker_id, detection["verts"], detection["bin"])
-            for marker_id, detection in marker_id_to_detections.items()
-        ]
-        self.key_markers_queue += key_markers
-
-        marker_ids = [marker.marker_id for marker in key_markers]
-        key_edges = [
-            (marker_id1, marker_id2, current_frame_id)
-            for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2))
-        ]
-        self.key_edges_queue += key_edges
-
-        for marker_id, detection in marker_id_to_detections.items():
-            self.key_markers_bins[detection["bin"]].append(
-                (current_frame_id, marker_id)
-            )
+    def _get_bin(self, detection):
+        centroid = detection["centroid"]
+        bin_x = int(np.digitize(centroid[0], self._bins_x))
+        bin_y = int(np.digitize(centroid[1], self._bins_y))
+        return bin_x, bin_y
 
     @property
     def camera_extrinsics(self):
@@ -126,3 +108,17 @@ class ControllerStorage:
                 len(all_camera_poses_object), self._all_camera_poses_path
             )
         )
+
+    def save_key_markers(self, marker_id_to_detections, current_frame_id):
+        key_markers = [
+            KeyMarker(current_frame_id, marker_id, detection["verts"], detection["bin"])
+            for marker_id, detection in marker_id_to_detections.items()
+        ]
+        self.all_key_markers += key_markers
+
+        marker_ids = [marker.marker_id for marker in key_markers]
+        key_edges = [
+            (marker_id1, marker_id2, current_frame_id)
+            for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2))
+        ]
+        self.key_edges_queue += key_edges

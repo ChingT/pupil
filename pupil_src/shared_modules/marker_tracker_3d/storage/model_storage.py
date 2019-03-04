@@ -19,15 +19,16 @@ class ModelStorage(Observable):
         self._model_path = os.path.join(save_path, "marker_tracker_3d_model")
         self._visibility_graph_path = os.path.join(save_path, "visibility_graph")
 
+        self.optimize_3d_model = False
+        self.optimize_camera_intrinsics = False
+
         self._set_to_default_values()
 
         self.load_marker_tracker_3d_model_from_file()
 
     def _set_to_default_values(self):
-        self.optimize_3d_model = False
-        self.optimize_camera_intrinsics = False
-
         self.visibility_graph = nx.MultiGraph()
+        self.origin_marker_id = self._predetermined_origin_marker_id
 
         # {frame id: optimized camera extrinsics (which is composed of Rodrigues
         # rotation vector and translation vector, which brings points from the world
@@ -44,8 +45,6 @@ class ModelStorage(Observable):
 
         # TODO: debug only; to be removed
         self.marker_id_to_points_3d_init = {}
-
-        self.origin_marker_id = self._predetermined_origin_marker_id
 
         self.calculate_points_3d_centroid()
 

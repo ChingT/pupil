@@ -19,7 +19,7 @@ class UpdateModelStorage(Observable):
         if not model_opt_result:
             return
 
-        # self._discard_failed_key_markers(model_opt_result.frame_ids_failed)
+        self._discard_failed_key_markers(model_opt_result.frame_ids_failed)
 
         self._update_extrinsics_opt(
             model_opt_result.frame_id_to_extrinsics,
@@ -54,11 +54,6 @@ class UpdateModelStorage(Observable):
         ]
         self._model_storage.visibility_graph.remove_edges_from(redundant_edges)
 
-        for marker in self._controller_storage.all_key_markers:
-            if marker.frame_id in frame_ids_failed:
-                self._controller_storage.key_markers_bins[marker.bin].remove(
-                    (marker.frame_id, marker.marker_id)
-                )
         self._controller_storage.all_key_markers = [
             marker
             for marker in self._controller_storage.all_key_markers

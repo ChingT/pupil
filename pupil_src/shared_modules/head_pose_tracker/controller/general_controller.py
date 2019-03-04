@@ -55,8 +55,8 @@ class GeneralController:
         self._model_update_controller.reset()
         logger.info("Reset 3D Marker Tracker!")
 
-    def export_marker_tracker_3d_model_to_file(self):
-        self._model_storage.export_marker_tracker_3d_model_to_file()
+    def export_markers_3d_model_to_file(self):
+        self._model_storage.export_markers_3d_model_to_file()
 
     def export_all_camera_poses(self):
         self._controller_storage.export_all_camera_poses()
@@ -70,6 +70,6 @@ class GeneralController:
         self._model_storage.export_visibility_graph()
 
     def _on_cleanup(self):
-        self.export_marker_tracker_3d_model_to_file()
+        self.export_markers_3d_model_to_file()
         self.export_all_camera_poses()
         self.export_camera_intrinsics()

@@ -27,7 +27,7 @@ class ModelStorage(Observable):
     def __init__(self, predetermined_origin_marker_id, save_path):
         self._predetermined_origin_marker_id = predetermined_origin_marker_id
 
-        self._model_path = os.path.join(save_path, "marker_tracker_3d_model")
+        self._model_path = os.path.join(save_path, "markers_3d_model")
         self._visibility_graph_path = os.path.join(save_path, "visibility_graph")
 
         self.optimize_3d_model = False
@@ -35,7 +35,7 @@ class ModelStorage(Observable):
 
         self._set_to_default_values()
 
-        self.load_marker_tracker_3d_model_from_file()
+        self.load_markers_3d_model_from_file()
 
     def _set_to_default_values(self):
         self.visibility_graph = nx.MultiGraph()
@@ -71,7 +71,7 @@ class ModelStorage(Observable):
         except IndexError:
             self.points_3d_centroid = np.zeros((3,), dtype=np.float32)
 
-    def load_marker_tracker_3d_model_from_file(self):
+    def load_markers_3d_model_from_file(self):
         try:
             marker_id_to_extrinsics_opt = file_methods.load_object(self._model_path)
         except FileNotFoundError:
@@ -147,7 +147,7 @@ class ModelStorage(Observable):
         else:
             return None
 
-    def export_marker_tracker_3d_model_to_file(self):
+    def export_markers_3d_model_to_file(self):
         if self.marker_id_to_extrinsics_opt:
             marker_id_to_extrinsics_opt = {
                 marker_id: extrinsics.tolist()

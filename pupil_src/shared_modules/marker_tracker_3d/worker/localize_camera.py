@@ -2,26 +2,16 @@ import numpy as np
 
 from marker_tracker_3d import worker
 
-min_n_markers_per_frame = 2
-
 
 def localize(
     camera_intrinsics,
     marker_id_to_detections,
     marker_id_to_extrinsics,
     camera_extrinsics_prv=None,
-    origin_marker_id=None,
+    min_n_markers_per_frame=1,
 ):
-    # marker_ids_available are the id of the markers which have been known
-    # and are detected in this frame.
-    marker_ids_available = list(
-        set(marker_id_to_extrinsics.keys() & set(marker_id_to_detections.keys()))
-    )
     data_for_solvepnp = _prepare_data_for_solvepnp(
-        marker_id_to_detections,
-        marker_id_to_extrinsics,
-        marker_ids_available,
-        origin_marker_id,
+        marker_id_to_detections, marker_id_to_extrinsics, min_n_markers_per_frame
     )
     camera_extrinsics = _calculate(
         camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv
@@ -30,28 +20,24 @@ def localize(
 
 
 def _prepare_data_for_solvepnp(
-    marker_id_to_detections,
-    marker_id_to_extrinsics,
-    marker_ids_available,
-    origin_marker_id,
+    marker_id_to_detections, marker_id_to_extrinsics, min_n_markers_per_frame
 ):
-    if len(marker_ids_available) >= min_n_markers_per_frame:
-        markers_points_3d = [
-            worker.utils.convert_marker_extrinsics_to_points_3d(
-                marker_id_to_extrinsics[i]
-            )
-            for i in marker_ids_available
-        ]
-        markers_points_2d = [
-            marker_id_to_detections[i]["verts"] for i in marker_ids_available
-        ]
-    elif origin_marker_id in marker_ids_available:
-        markers_points_3d = worker.utils.convert_marker_extrinsics_to_points_3d(
-            marker_id_to_extrinsics[origin_marker_id]
-        )
-        markers_points_2d = marker_id_to_detections[origin_marker_id]["verts"]
-    else:
+    # marker_ids_available are the id of the markers which have been known
+    # and are detected in this frame.
+    marker_ids_available = list(
+        set(marker_id_to_extrinsics.keys() & set(marker_id_to_detections.keys()))
+    )
+
+    if len(marker_ids_available) < min_n_markers_per_frame:
         return None
+
+    markers_points_3d = [
+        worker.utils.convert_marker_extrinsics_to_points_3d(marker_id_to_extrinsics[i])
+        for i in marker_ids_available
+    ]
+    markers_points_2d = [
+        marker_id_to_detections[i]["verts"] for i in marker_ids_available
+    ]
 
     markers_points_3d = np.array(markers_points_3d).reshape(-1, 4, 3)
     markers_points_2d = np.array(markers_points_2d).reshape(-1, 4, 2)
@@ -123,7 +109,7 @@ def _check_solvepnp_output_reasonable(retval, rotation, translation, pts_3d_worl
 
     # if magnitude of translation is too large, it is very possible that the output of
     # solvePnP is wrong.
-    if (np.abs(translation) > 1e3).any():
+    if (np.abs(translation) > 2e2).any():
         return False
 
     # the magnitude of rotation should be less than 2*pi

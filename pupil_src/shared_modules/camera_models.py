@@ -170,13 +170,15 @@ def load_intrinsics(directory, cam_name, resolution):
         else:
             logger.info("No pre-recorded calibration available")
             logger.warning("Loading dummy calibration")
-            return Dummy_Camera(resolution, cam_name)
+            intrinsics = {"cam_type": "dummy"}
 
-    if intrinsics["cam_type"] == "fisheye":
+    if intrinsics["cam_type"] == "dummy":
+        return Dummy_Camera(resolution, cam_name)
+    elif intrinsics["cam_type"] == "fisheye":
         return Fisheye_Dist_Camera(
             intrinsics["camera_matrix"], intrinsics["dist_coefs"], resolution, cam_name
         )
-    else:
+    elif intrinsics["cam_type"] == "radial":
         return Radial_Dist_Camera(
             intrinsics["camera_matrix"], intrinsics["dist_coefs"], resolution, cam_name
         )

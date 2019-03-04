@@ -34,12 +34,15 @@ class HeadPoseTrackerMenu:
             [
                 self._create_intro_text(),
                 self._create_origin_marker_text(),
-                self._create_optimize_model_switch(),
-                self._create_optimize_camera_intrinsics_switch(),
+                self._create_min_marker_perimeter_slider(),
+                self._create_optimize_model_allowed_switch(),
+                self._create_reset_button(),
+                self._create_load_model_button(),
+                self._create_export_model_button(),
                 self._create_export_all_camera_poses_button(),
                 # TODO: debug only; to be removed
                 self._create_export_visibility_graph_button(),
-                self._create_reset_button(),
+                self._create_export_camera_intrinsics_button(),
             ]
         )
 
@@ -49,14 +52,10 @@ class HeadPoseTrackerMenu:
             self._submenu.extend(
                 [
                     self._create_show_3d_markers_opt_switch(),
-                    self._create_show_marker_id_switch(),
-                    self._create_show_camera_frustum_switch(),
-                    self._create_show_camera_trace_switch(),
                     # TODO: debug only; to be removed
                     self._create_show_3d_markers_init_switch(),
-                    # TODO: debug only; to be removed
-                    self._create_show_graph_edges_switch(),
-                    self._create_move_rotate_center_to_centroid(),
+                    self._create_show_camera_frustum_switch(),
+                    self._create_show_camera_trace_switch(),
                 ]
             )
         self._plugin.menu.append(self._submenu)
@@ -77,20 +76,37 @@ class HeadPoseTrackerMenu:
             )
         return ui.Info_Text(text)
 
-    def _create_optimize_model_switch(self):
-        return ui.Switch(
-            "optimize_3d_model", self._model_storage, label="Optimize 3d model"
+    def _create_min_marker_perimeter_slider(self):
+        return ui.Slider(
+            "min_marker_perimeter",
+            self._controller_storage,
+            step=1,
+            min=50,
+            max=150,
+            label="Perimeter of markers",
         )
 
-    def _create_optimize_camera_intrinsics_switch(self):
+    def _create_optimize_model_allowed_switch(self):
         return ui.Switch(
-            "optimize_camera_intrinsics",
-            self._model_storage,
-            label="Optimize camera intrinsic",
+            "optimize_model_allowed", self._model_storage, label="Optimizing the model"
         )
 
     def _create_reset_button(self):
         return ui.Button(label="Reset", function=self._on_reset_button_click)
+
+    def _create_load_model_button(self):
+        return ui.Button(
+            outer_label="Load",
+            label="Marker tracker 3d model",
+            function=self._on_load_marker_tracker_3d_model_button_click,
+        )
+
+    def _create_export_model_button(self):
+        return ui.Button(
+            outer_label="Export",
+            label="Marker tracker 3d model",
+            function=self._on_export_marker_tracker_3d_model_button_click,
+        )
 
     def _create_export_all_camera_poses_button(self):
         return ui.Button(
@@ -103,8 +119,16 @@ class HeadPoseTrackerMenu:
     def _create_export_visibility_graph_button(self):
         return ui.Button(
             outer_label="Export",
-            label="Visibility graph (debug)",
+            label="Visibility graph",
             function=self._on_export_visibility_graph_button_click,
+        )
+
+    # TODO: debug only; to be removed
+    def _create_export_camera_intrinsics_button(self):
+        return ui.Button(
+            outer_label="Export",
+            label="Camera intrinsics",
+            function=self._on_export_camera_intrinsics_button_click,
         )
 
     def _create_open_3d_window_switch(self):
@@ -130,13 +154,6 @@ class HeadPoseTrackerMenu:
             label="Show init markers (debug)",
         )
 
-    def _create_show_marker_id_switch(self):
-        return ui.Switch(
-            "show_marker_id",
-            self._plugin.visualization_3d_window,
-            label="Show marker id",
-        )
-
     def _create_show_camera_frustum_switch(self):
         return ui.Switch(
             "show_camera_frustum",
@@ -151,19 +168,6 @@ class HeadPoseTrackerMenu:
             label="Show camera trace",
         )
 
-    def _create_show_graph_edges_switch(self):
-        return ui.Switch(
-            "show_graph_edges",
-            self._plugin.visualization_3d_window,
-            label="Show graph edges (debug)",
-        )
-
-    def _create_move_rotate_center_to_centroid(self):
-        return ui.Button(
-            label="Move rotate center to centroid",
-            function=self._on_move_rotate_center_to_centroid_button_click,
-        )
-
     def _on_3d_window_switch_click(self, open_3d_window):
         self._open_3d_window = open_3d_window
         if open_3d_window:
@@ -176,12 +180,19 @@ class HeadPoseTrackerMenu:
         self._controller.reset()
         self._render()
 
+    def _on_load_marker_tracker_3d_model_button_click(self):
+        self._controller.load_marker_tracker_3d_model()
+
+    def _on_export_marker_tracker_3d_model_button_click(self):
+        self._controller.export_marker_tracker_3d_model()
+
     # TODO: debug only; to be removed
     def _on_export_visibility_graph_button_click(self):
         self._controller.export_visibility_graph()
 
+    # TODO: debug only; to be removed
+    def _on_export_camera_intrinsics_button_click(self):
+        self._controller.export_camera_intrinsics()
+
     def _on_export_all_camera_poses_button_click(self):
         self._controller.export_all_camera_poses()
-
-    def _on_move_rotate_center_to_centroid_button_click(self):
-        self._model_storage.calculate_points_3d_centroid()

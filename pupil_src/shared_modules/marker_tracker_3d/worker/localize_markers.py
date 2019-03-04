@@ -14,11 +14,7 @@ def localize(camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics):
     )
     for id1, id2 in itertools.combinations(frame_ids_available, 2):
         data_for_triangulation = _prepare_data_for_triangulation(
-            camera_intrinsics,
-            frame_id_to_detections[id1],
-            frame_id_to_detections[id2],
-            frame_id_to_extrinsics[id1],
-            frame_id_to_extrinsics[id2],
+            camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics, id1, id2
         )
         marker_extrinsics = _calculate(data_for_triangulation)
         if marker_extrinsics is not None:
@@ -28,13 +24,13 @@ def localize(camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics):
 
 
 def _prepare_data_for_triangulation(
-    camera_intrinsics, detection_1, detection_2, extrinsics_1, extrinsics_2
+    camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics, id1, id2
 ):
-    proj_mat1 = worker.utils.convert_extrinsic_to_matrix(extrinsics_1)[:3, :4]
-    proj_mat2 = worker.utils.convert_extrinsic_to_matrix(extrinsics_2)[:3, :4]
+    proj_mat1 = worker.utils.get_extrinsic_matrix(frame_id_to_extrinsics[id1])[:3, :4]
+    proj_mat2 = worker.utils.get_extrinsic_matrix(frame_id_to_extrinsics[id2])[:3, :4]
 
-    points1 = detection_1["verts"].reshape((4, 1, 2))
-    points2 = detection_2["verts"].reshape((4, 1, 2))
+    points1 = frame_id_to_detections[id1]["verts"].reshape((4, 1, 2))
+    points2 = frame_id_to_detections[id2]["verts"].reshape((4, 1, 2))
     undistort_points1 = camera_intrinsics.undistortPoints(points1)
     undistort_points2 = camera_intrinsics.undistortPoints(points2)
 
@@ -69,14 +65,14 @@ def _check_triangulate_output_reasonable(translation, error):
     # triangulation. So it is necessary to check if the output of triangulation is
     # reasonable.
 
-    # if svdt error is too large, it is very possible that the
-    # triangulate result is wrong.
-    if error > 5e-2:
-        return False
-
     # if magnitude of translation is too large, it is very possible that the
     # triangulate result is wrong.
-    if (np.abs(translation) > 2e2).any():
+    if (np.abs(translation) > 1e3).any():
+        return False
+
+    # if svdt error is too large, it is very possible that the
+    # triangulate result is wrong.
+    if error > 0.05:
         return False
 
     return True

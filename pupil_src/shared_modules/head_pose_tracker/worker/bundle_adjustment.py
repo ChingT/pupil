@@ -36,7 +36,7 @@ class BundleAdjustment:
         self._camera_intrinsics = camera_intrinsics
         self._optimize_camera_intrinsics = False
 
-        self._tol = 1e-4
+        self._tol = 1e-5
         self._diff_step = 1e-3
 
         self._marker_ids = []
@@ -145,10 +145,10 @@ class BundleAdjustment:
         ).ravel()
 
         if self._optimize_camera_intrinsics:
-            camera_matrix_lower_bound = np.full((4,), 0)
-            camera_matrix_upper_bound = np.full((4,), 2000)
-            dist_coefs_lower_bound = np.full((5,), -1)
-            dist_coefs_upper_bound = np.full((5,), 1)
+            camera_matrix_lower_bound = np.full((3,), 0)
+            camera_matrix_upper_bound = np.full((3,), 2000)
+            dist_coefs_lower_bound = np.full((3,), -1)
+            dist_coefs_upper_bound = np.full((3,), 1)
             lower_bound = np.hstack(
                 (lower_bound, camera_matrix_lower_bound, dist_coefs_lower_bound)
             )
@@ -198,7 +198,7 @@ class BundleAdjustment:
 
         if self._optimize_camera_intrinsics:
             mat_camera_intrinsics = np.ones(
-                (self._markers_points_2d_detected.size, 9), dtype=int
+                (self._markers_points_2d_detected.size, 6), dtype=int
             )
             sparsity_matrix = np.hstack((sparsity_matrix, mat_camera_intrinsics))
 
@@ -217,7 +217,7 @@ class BundleAdjustment:
             loss="soft_l1",
             diff_step=self._diff_step,
             jac_sparsity=sparsity_matrix,
-            max_nfev=50,
+            max_nfev=100,
         )
         return result
 
@@ -274,7 +274,7 @@ class BundleAdjustment:
             variables
         )
         if self._optimize_camera_intrinsics:
-            self._unload_camera_intrinsics_params(variables[-9:])
+            self._unload_camera_intrinsics_params(variables[-6:])
 
         markers_points_2d_projected = self._project_markers(
             camera_extrinsics_array, marker_extrinsics_array
@@ -343,22 +343,31 @@ class BundleAdjustment:
     @staticmethod
     def _load_camera_intrinsics_params(camera_matrix, dist_coefs):
         assert camera_matrix.shape == (3, 3) and dist_coefs.size == 5
-        camera_intrinsics_params = np.zeros((9,))
+        camera_intrinsics_params = np.zeros((6,))
+
         camera_intrinsics_params[0] = camera_matrix[0, 0]  # fx
-        camera_intrinsics_params[1] = camera_matrix[1, 1]  # fy
-        camera_intrinsics_params[2] = camera_matrix[0, 2]  # cx
-        camera_intrinsics_params[3] = camera_matrix[1, 2]  # cy
-        camera_intrinsics_params[4:9] = dist_coefs
+        camera_intrinsics_params[1] = camera_matrix[0, 2]  # cx
+        camera_intrinsics_params[2] = camera_matrix[1, 2]  # cy
+
+        camera_intrinsics_params[3] = dist_coefs[0, 0]
+        camera_intrinsics_params[4] = dist_coefs[0, 1]
+        camera_intrinsics_params[5] = dist_coefs[0, 4]
+
         return camera_intrinsics_params
 
     def _unload_camera_intrinsics_params(self, camera_intrinsics_params):
-        assert camera_intrinsics_params.size == 9
+        assert camera_intrinsics_params.size == 6
+
         camera_matrix = np.eye(3)
         camera_matrix[0, 0] = camera_intrinsics_params[0]  # fx
-        camera_matrix[1, 1] = camera_intrinsics_params[1]  # fy
-        camera_matrix[0, 2] = camera_intrinsics_params[2]  # cx
-        camera_matrix[1, 2] = camera_intrinsics_params[3]  # cy
-        dist_coefs = camera_intrinsics_params[4:9]
+        camera_matrix[1, 1] = camera_intrinsics_params[0]  # fx
+        camera_matrix[0, 2] = camera_intrinsics_params[1]  # cx
+        camera_matrix[1, 2] = camera_intrinsics_params[2]  # cy
+
+        dist_coefs = np.zeros((1, 5))
+        dist_coefs[0, 0] = camera_intrinsics_params[3]
+        dist_coefs[0, 1] = camera_intrinsics_params[4]
+        dist_coefs[0, 4] = camera_intrinsics_params[5]
 
         self._camera_intrinsics.update_camera_matrix(camera_matrix)
         self._camera_intrinsics.update_dist_coefs(dist_coefs)

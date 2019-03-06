@@ -28,32 +28,23 @@ class ObservationProcessController:
 
         self._min_n_markers_per_frame = min_n_markers_per_frame
 
-    def run(self, frame):
+    def run(self, frame, optimize_3d_model):
+        frame_id = frame.timestamp
+
+        marker_id_to_detections = self.get_detections(frame)
+
+        self.localize(marker_id_to_detections, frame_id)
+
+        if optimize_3d_model:
+            self.pick_key_markers(marker_id_to_detections, frame_id)
+
+    def get_detections(self, frame):
         current_frame_id = frame.timestamp
-
-        self.get_marker_id_to_detections(frame, current_frame_id)
-        self.localize(
-            self._controller_storage.marker_id_to_detections, current_frame_id
-        )
-        self._controller_storage.update_current_camera_pose(
-            self._controller_storage.camera_extrinsics
-        )
-
-        if self._model_storage.optimize_3d_model:
-            self.pick_key_markers(
-                self._controller_storage.marker_id_to_detections, current_frame_id
-            )
-
-    def get_marker_id_to_detections(self, frame, current_frame_id):
         marker_id_to_detections = worker.detect_markers.detect(frame)
-
-        self._controller_storage.update_current_marker_id_to_detections(
-            marker_id_to_detections
-        )
-
         self._controller_storage.save_all_marker_id_to_detections(
             marker_id_to_detections, current_frame_id
         )
+        return marker_id_to_detections
 
     def localize(self, marker_id_to_detections, current_frame_id):
         camera_extrinsics = worker.localize_camera.localize(
@@ -63,16 +54,37 @@ class ObservationProcessController:
             self._controller_storage.camera_extrinsics,
             self._min_n_markers_per_frame,
         )
-        self._controller_storage.update_current_camera_extrinsics(camera_extrinsics)
         self._controller_storage.save_all_camera_extrinsics(
             camera_extrinsics, current_frame_id
         )
+        return camera_extrinsics
 
     def pick_key_markers(self, marker_id_to_detections, current_frame_id):
         if self._decide_key_markers.run(marker_id_to_detections):
             self._controller_storage.save_key_markers(
                 marker_id_to_detections, current_frame_id
             )
+
+    def visualize_observation(self, current_frame_id):
+        try:
+            marker_id_to_detections = self._controller_storage.all_marker_id_to_detections[
+                current_frame_id
+            ]
+        except KeyError:
+            pass
+        else:
+            self._controller_storage.update_current_marker_id_to_detections(
+                marker_id_to_detections
+            )
+
+        try:
+            camera_extrinsics = self._controller_storage.all_camera_extrinsics[
+                current_frame_id
+            ]
+        except KeyError:
+            pass
+        else:
+            self._controller_storage.update_current_camera_pose(camera_extrinsics)
 
     def reset(self):
         self._decide_key_markers.reset()

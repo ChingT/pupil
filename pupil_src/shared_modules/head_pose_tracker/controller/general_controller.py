@@ -198,7 +198,6 @@ class OfflineGeneralController:
 
     def _on_cleanup(self):
         self.export_markers_3d_model_to_file()
-        self.export_all_key_markers_and_edges()
         self.export_all_camera_extrinsics()
 
     def reset(self):

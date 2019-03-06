@@ -52,8 +52,6 @@ class ControllerStorage:
 
         self.load_all_camera_extrinsics()
         self.load_all_marker_id_to_detections()
-        self.load_all_key_markers()
-        self.load_all_key_edges()
 
     def _set_to_default_values(self):
         self._not_localized_count = 0
@@ -144,6 +142,9 @@ class ControllerStorage:
         self.all_key_edges += key_edges
 
     def export_all_marker_id_to_detections(self):
+        if not self.all_marker_id_to_detections:
+            return
+
         file_methods.save_object(
             self.all_marker_id_to_detections, self._all_marker_id_to_detections_path
         )
@@ -174,6 +175,9 @@ class ControllerStorage:
         )
 
     def export_all_camera_extrinsics(self):
+        if not self.all_camera_extrinsics:
+            return
+
         file_methods.save_object(
             self.all_camera_extrinsics, self._all_camera_extrinsics_path
         )
@@ -201,6 +205,9 @@ class ControllerStorage:
         )
 
     def export_all_key_markers(self):
+        if not self.all_key_markers:
+            return
+
         file_methods.save_object(self.all_key_markers, self._all_key_markers_path)
 
         logger.info(
@@ -226,6 +233,9 @@ class ControllerStorage:
         )
 
     def export_all_key_edges(self):
+        if not self.all_key_edges:
+            return
+
         file_methods.save_object(self.all_key_edges, self._all_key_edges_path)
 
         logger.info(

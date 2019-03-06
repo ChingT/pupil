@@ -30,6 +30,7 @@ class OfflineHeadPoseTrackerMenu:
         plugin.add_observer("init_ui", self._on_init_ui)
         plugin.add_observer("deinit_ui", self._on_deinit_ui)
         model_storage.add_observer("on_origin_marker_id_set", self._render)
+        controller.add_observer("on_new_status", self._render)
 
     def _on_init_ui(self):
         self._plugin.add_menu()
@@ -44,6 +45,7 @@ class OfflineHeadPoseTrackerMenu:
         self._plugin.menu.extend(
             [
                 self._create_intro_text(),
+                self._create_status_text(),
                 self._create_origin_marker_text(),
                 self._create_start_optimize_model_button(),
                 self._create_start_localize_button(),
@@ -76,6 +78,12 @@ class OfflineHeadPoseTrackerMenu:
         return ui.Info_Text(
             "This plugin outputs current camera pose in relation to the printed "
             "markers in the scene"
+        )
+
+    def _create_status_text(self):
+        print(self._controller_storage.status)
+        return ui.Text_Input(
+            "status", self._controller_storage, label="Marker Detection Status"
         )
 
     def _create_origin_marker_text(self):

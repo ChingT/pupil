@@ -10,11 +10,22 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import logging
+import multiprocessing
+import platform
 
 import video_capture
 from head_pose_tracker import controller
+from observable import Observable
 
+if platform.system() == "Darwin":
+    mp = multiprocessing.get_context("fork")
+else:
+    mp = multiprocessing.get_context()
 logger = logging.getLogger(__name__)
+
+
+class Global_Container(object):
+    pass
 
 
 class GeneralController:
@@ -84,7 +95,7 @@ class GeneralController:
         self.export_camera_intrinsics()
 
 
-class OfflineGeneralController:
+class OfflineGeneralController(Observable):
     def __init__(
         self,
         controller_storage,
@@ -108,6 +119,13 @@ class OfflineGeneralController:
             controller_storage, model_storage, camera_intrinsics, task_manager
         )
 
+        if len(self._controller_storage.all_marker_id_to_detections) < len(
+            plugin.g_pool.timestamps
+        ):
+            self.init_marker_cacher()
+        else:
+            self._controller_storage.progress = 100
+
         plugin.add_observer("recent_events", self._on_recent_events)
         plugin.add_observer("cleanup", self._on_cleanup)
 
@@ -122,31 +140,40 @@ class OfflineGeneralController:
             "on_update_model_storage_done", self._optimize
         )
 
-        if not self._controller_storage.all_marker_id_to_detections:
-            self._get_all_marker_id_to_detections()
-
         self._optimize()
 
     def start_localize(self):
-        if not self._controller_storage.all_marker_id_to_detections:
-            self._get_all_marker_id_to_detections()
-
         self._localize()
 
-    def _get_all_marker_id_to_detections(self):
-        cap = video_capture.File_Source(
-            self._plugin.g_pool,
-            source_path=self._plugin.g_pool.capture.source_path,
-            timing=None,
+    def init_marker_cacher(self):
+        video_file_path = self._plugin.g_pool.capture.source_path
+        self.cacher = mp.Process(
+            target=self._get_all_marker_id_to_detections, args=(video_file_path,)
         )
+        self.cacher.start()
+
+    def _get_all_marker_id_to_detections(self, video_file_path):
+        cap = video_capture.File_Source(
+            Global_Container(), source_path=video_file_path, timing=None, fill_gaps=True
+        )
+
         while True:
             try:
                 frame = cap.get_frame()
             except video_capture.EndofVideoError:
-                self._one_end_of_video()
+                self.export_all_marker_id_to_detections()
                 break
             else:
                 self._observation_process_controller.get_detections(frame)
+                self._controller_storage.progress = (
+                    cap.get_frame_index() + 1
+                ) / cap.get_frame_count()
+                self.on_new_status()
+
+        cap.cleanup()
+
+    def on_new_status(self):
+        pass
 
     def _optimize(self):
         self._pick_all_key_markers()
@@ -203,10 +230,8 @@ class OfflineGeneralController:
             self._model_storage.marker_id_to_points_3d_init.keys(),
         )
 
-    def _one_end_of_video(self):
-        self.export_all_marker_id_to_detections()
-
     def _on_cleanup(self):
+        self.export_all_marker_id_to_detections()
         self.export_markers_3d_model_to_file()
         self.export_all_camera_extrinsics()
 

@@ -53,6 +53,8 @@ class ControllerStorage:
         self.load_all_camera_extrinsics()
         self.load_all_marker_id_to_detections()
 
+        self.progress = 0
+
     def _set_to_default_values(self):
         self._not_localized_count = 0
 
@@ -84,6 +86,19 @@ class ControllerStorage:
         self, marker_id_to_detections, current_frame_id
     ):
         self.all_marker_id_to_detections[current_frame_id] = marker_id_to_detections
+
+    @property
+    def progress(self):
+        return self._progress
+
+    @progress.setter
+    def progress(self, _progress):
+        self._progress = _progress
+
+        if _progress == 100:
+            self.status = "Successfully completed"
+        else:
+            self.status = "{:.0f}% complete".format(self.progress * 100)
 
     @property
     def marker_id_to_detections(self):

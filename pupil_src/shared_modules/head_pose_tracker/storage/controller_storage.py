@@ -72,6 +72,7 @@ class ControllerStorage:
 
         self.all_key_markers = []
         self.all_key_edges = []
+        self.n_key_markers_processed = 0
 
     def reset(self):
         self._set_to_default_values()

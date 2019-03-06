@@ -120,6 +120,10 @@ class OfflineGeneralController:
             pass
 
     def start_optimize(self):
+        self._model_update_controller.update_model_storage.add_observer(
+            "on_update_model_storage_done", self._optimize
+        )
+
         if not self._controller_storage.all_marker_id_to_detections:
             self._get_all_marker_id_to_detections()
 
@@ -149,6 +153,14 @@ class OfflineGeneralController:
     def _optimize(self):
         self._pick_all_key_markers()
         self._model_update_controller.run()
+
+        if self._controller_storage.n_key_markers_processed == len(
+            self._controller_storage.all_key_markers
+        ):
+            self._model_update_controller.update_model_storage.remove_observer(
+                "on_update_model_storage_done", self._optimize
+            )
+            self._controller_storage.n_key_markers_processed = 0
 
     def _pick_all_key_markers(self):
         for (

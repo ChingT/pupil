@@ -24,6 +24,7 @@ class UpdateModelStorage(Observable):
         marker_id_to_extrinsics_opt and marker_id_to_points_3d_opt """
 
         if not model_opt_result:
+            self.on_update_model_storage_done()
             return
 
         self._discard_failed_key_markers(model_opt_result.frame_ids_failed)
@@ -36,6 +37,11 @@ class UpdateModelStorage(Observable):
         if model_opt_result.camera_matrix is not None:
             self._camera_intrinsics.update_camera_matrix(model_opt_result.camera_matrix)
             self._camera_intrinsics.update_dist_coefs(model_opt_result.dist_coefs)
+
+        self.on_update_model_storage_done()
+
+    def on_update_model_storage_done(self):
+        pass
 
     def _update_extrinsics_opt(self, frame_id_to_extrinsics, marker_id_to_extrinsics):
         self._model_storage.frame_id_to_extrinsics_opt.update(frame_id_to_extrinsics)

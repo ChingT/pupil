@@ -35,9 +35,19 @@ class PrepareForModelUpdate:
         self._model_storage = model_storage
 
     def run(self):
+        key_markers_proccessed = self._controller_storage.all_key_markers[
+            : self._controller_storage.n_key_markers_processed + 20
+        ]
+        self._controller_storage.n_key_markers_processed = len(key_markers_proccessed)
+        print(
+            "_n_key_markers_processed",
+            self._controller_storage.n_key_markers_processed,
+            len(self._controller_storage.all_key_markers),
+        )
+
         marker_ids_to_be_optimized = self._get_marker_ids_to_be_optimized()
         frame_ids_to_be_optimized = self._get_frame_ids_to_be_optimized(
-            marker_ids_to_be_optimized
+            marker_ids_to_be_optimized, key_markers_proccessed
         )
 
         if not frame_ids_to_be_optimized:
@@ -45,7 +55,7 @@ class PrepareForModelUpdate:
 
         key_markers = [
             marker
-            for marker in self._controller_storage.all_key_markers
+            for marker in key_markers_proccessed
             if (
                 marker.frame_id in frame_ids_to_be_optimized
                 and marker.marker_id in marker_ids_to_be_optimized
@@ -80,10 +90,10 @@ class PrepareForModelUpdate:
         )
         return marker_ids_to_be_optimized
 
-    def _get_frame_ids_to_be_optimized(self, marker_ids_to_be_optimized):
+    def _get_frame_ids_to_be_optimized(self, marker_ids_to_be_optimized, key_markers):
         frame_ids_to_be_optimized = set(
             marker.frame_id
-            for marker in self._controller_storage.all_key_markers
+            for marker in key_markers
             if marker.marker_id in marker_ids_to_be_optimized
         )
         return list(frame_ids_to_be_optimized)

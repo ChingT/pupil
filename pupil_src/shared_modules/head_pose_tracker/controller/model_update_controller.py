@@ -27,7 +27,7 @@ class ModelUpdateController:
             controller_storage, model_storage
         )
         self._bundle_adjustment = worker.BundleAdjustment(camera_intrinsics)
-        self._update_model_storage = worker.UpdateModelStorage(
+        self.update_model_storage = worker.UpdateModelStorage(
             controller_storage, model_storage, camera_intrinsics
         )
 
@@ -50,7 +50,7 @@ class ModelUpdateController:
         self._bg_task_init.add_observer("on_completed", self._run_model_optimization)
         # TODO: debug only; to be removed
         self._bg_task_init.add_observer(
-            "on_completed", self._update_model_storage.run_init
+            "on_completed", self.update_model_storage.run_init
         )
         self._bg_task_init.start()
 
@@ -63,7 +63,7 @@ class ModelUpdateController:
             args=(model_init_result, self._model_storage.optimize_camera_intrinsics),
         )
         self._bg_task_opt.add_observer("on_exception", tasklib.raise_exception)
-        self._bg_task_opt.add_observer("on_completed", self._update_model_storage.run)
+        self._bg_task_opt.add_observer("on_completed", self.update_model_storage.run)
         self._bg_task_opt.start()
 
     def _check_bg_tasks_running(self):

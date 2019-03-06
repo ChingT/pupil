@@ -28,15 +28,26 @@ class ObservationProcessController:
 
         self._min_n_markers_per_frame = min_n_markers_per_frame
 
-    def run(self, frame, optimize_3d_model):
+    def run(self, frame):
         frame_id = frame.timestamp
 
-        marker_id_to_detections = self.get_detections(frame)
+        try:
+            marker_id_to_detections = self._controller_storage.all_marker_id_to_detections[
+                frame_id
+            ]
+        except KeyError:
+            marker_id_to_detections = self.get_detections(frame)
 
-        self.localize(marker_id_to_detections, frame_id)
+        self._controller_storage.update_current_marker_id_to_detections(
+            marker_id_to_detections
+        )
 
-        if optimize_3d_model:
-            self.pick_key_markers(marker_id_to_detections, frame_id)
+        try:
+            camera_extrinsics = self._controller_storage.all_camera_extrinsics[frame_id]
+        except KeyError:
+            camera_extrinsics = self.localize(marker_id_to_detections, frame_id)
+
+        self._controller_storage.update_current_camera_pose(camera_extrinsics)
 
     def get_detections(self, frame):
         current_frame_id = frame.timestamp
@@ -64,27 +75,6 @@ class ObservationProcessController:
             self._controller_storage.save_key_markers(
                 marker_id_to_detections, current_frame_id
             )
-
-    def visualize_observation(self, current_frame_id):
-        try:
-            marker_id_to_detections = self._controller_storage.all_marker_id_to_detections[
-                current_frame_id
-            ]
-        except KeyError:
-            pass
-        else:
-            self._controller_storage.update_current_marker_id_to_detections(
-                marker_id_to_detections
-            )
-
-        try:
-            camera_extrinsics = self._controller_storage.all_camera_extrinsics[
-                current_frame_id
-            ]
-        except KeyError:
-            pass
-        else:
-            self._controller_storage.update_current_camera_pose(camera_extrinsics)
 
     def reset(self):
         self._decide_key_markers.reset()

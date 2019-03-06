@@ -45,12 +45,12 @@ class GeneralController:
 
     def _on_recent_events(self, events):
         try:
-            self._observation_process_controller.run(
-                events["frame"], self._model_storage.optimize_3d_model
+            self._observation_process_controller.run(events["frame"])
+            self._observation_process_controller.pick_key_markers(
+                self._controller_storage.marker_id_to_detections,
+                events["frame"].timestamp,
             )
-            self._observation_process_controller.visualize_observation(
-                events["frame"].timestamp
-            )
+
         except KeyError:
             pass
 
@@ -113,9 +113,7 @@ class OfflineGeneralController:
 
     def _on_recent_events(self, events):
         try:
-            self._observation_process_controller.visualize_observation(
-                events["frame"].timestamp
-            )
+            self._observation_process_controller.run(events["frame"])
         except KeyError:
             pass
 

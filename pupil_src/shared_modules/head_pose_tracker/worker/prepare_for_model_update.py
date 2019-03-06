@@ -68,11 +68,11 @@ class PrepareForModelUpdate:
     def _get_marker_ids_to_be_optimized(self):
         try:
             connected_component = nx.node_connected_component(
-                self._model_storage.visibility_graph,
+                self._controller_storage.visibility_graph,
                 self._model_storage.origin_marker_id,
             )
         except KeyError:
-            self._set_coordinate_system(self._model_storage.visibility_graph.nodes)
+            self._set_coordinate_system(self._controller_storage.visibility_graph.nodes)
             return []
 
         marker_ids_to_be_optimized = [self._model_storage.origin_marker_id] + list(

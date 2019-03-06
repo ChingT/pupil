@@ -268,10 +268,9 @@ class Visualization3dWindow:
 
     def _draw_edges(self):
         all_init_keys = self._model_storage.marker_id_to_points_3d_init.keys()
-        edges = self._model_storage.visibility_graph.edges(keys=True)
         all_edges = set(
             (node, neighbor)
-            for node, neighbor, frame_id in edges
+            for node, neighbor, frame_id in self._controller_storage.all_key_edges
             if node in all_init_keys and neighbor in all_init_keys
         )
         vertices = []

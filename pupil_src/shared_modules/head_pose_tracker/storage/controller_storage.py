@@ -14,6 +14,9 @@ import itertools as it
 import logging
 import os
 
+import matplotlib.pyplot as plt
+import networkx as nx
+
 import file_methods
 from head_pose_tracker import worker
 
@@ -40,6 +43,7 @@ class ControllerStorage:
         self._all_key_edges_path = os.path.join(
             save_path, "offline_data", "all_key_edges"
         )
+        self._visibility_graph_path = os.path.join(save_path, "visibility_graph")
 
         self._set_to_default_values()
 
@@ -54,6 +58,8 @@ class ControllerStorage:
     def _set_to_default_values(self):
         self._not_localized_count = 0
 
+        self.visibility_graph = nx.MultiGraph()
+
         # for export
         self.all_camera_extrinsics = {}
 
@@ -66,7 +72,6 @@ class ControllerStorage:
         self._camera_extrinsics = None
         self.camera_extrinsics = None
 
-        self.key_edges_queue = []
         self.all_key_markers = []
         self.all_key_edges = []
 
@@ -133,7 +138,9 @@ class ControllerStorage:
             (marker_id1, marker_id2, current_frame_id)
             for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2))
         ]
-        self.key_edges_queue += key_edges
+
+        self.visibility_graph.add_edges_from(key_edges)
+
         self.all_key_edges += key_edges
 
     def export_all_marker_id_to_detections(self):
@@ -234,10 +241,67 @@ class ControllerStorage:
             return
 
         self.all_key_edges = all_key_edges
-        self.key_edges_queue = all_key_edges
+        self.visibility_graph.add_edges_from(all_key_edges)
 
         logger.info(
             "{0} all_key_edges has been loaded from {1}".format(
                 len(self.all_key_edges), self._all_key_edges_path
             )
         )
+
+    # TODO: debug only; to be removed
+    def export_visibility_graph(
+        self,
+        origin_marker_id,
+        marker_id_to_extrinsics_opt_keys,
+        marker_id_to_extrinsics_init_keys,
+        show_unconnected_nodes=True,
+    ):
+        if not self.visibility_graph:
+            return
+
+        graph_vis = self.visibility_graph.copy()
+
+        try:
+            connected_component = nx.node_connected_component(
+                self.visibility_graph, origin_marker_id
+            )
+        except KeyError:
+            return
+
+        if not show_unconnected_nodes:
+            unconnected_nodes = set(graph_vis.nodes) - set(connected_component)
+            graph_vis.remove_nodes_from(unconnected_nodes)
+
+        pos = nx.spring_layout(graph_vis, seed=0)
+
+        def draw_nodes(nodelist, node_color):
+            nx.draw_networkx_nodes(
+                graph_vis, pos, nodelist=nodelist, node_color=node_color, node_size=100
+            )
+
+        all_nodes = list(graph_vis.nodes)
+        draw_nodes(all_nodes, "green")
+        draw_nodes(list(set(all_nodes) & marker_id_to_extrinsics_init_keys), "blue")
+        draw_nodes(list(set(all_nodes) & marker_id_to_extrinsics_opt_keys), "red")
+        draw_nodes([origin_marker_id], "brown")
+
+        nx.draw_networkx_edges(graph_vis, pos, width=1, alpha=0.1)
+        nx.draw_networkx_labels(graph_vis, pos, font_size=7)
+
+        plt.axis("off")
+        save_name = os.path.join(
+            self._visibility_graph_path,
+            "frame-{0}-{1}.png".format(
+                len(self.visibility_graph), len(marker_id_to_extrinsics_opt_keys)
+            ),
+        )
+        try:
+            plt.savefig(save_name, dpi=300)
+        except FileNotFoundError:
+            os.makedirs(self._visibility_graph_path)
+            plt.savefig(save_name, dpi=300)
+
+        plt.clf()
+
+        logger.info("visibility_graph has been exported to {}".format(save_name))

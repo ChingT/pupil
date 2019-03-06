@@ -54,12 +54,12 @@ class UpdateModelStorage(Observable):
 
         redundant_edges = [
             (node, neighbor, frame_id)
-            for node, neighbor, frame_id in self._model_storage.visibility_graph.edges(
+            for node, neighbor, frame_id in self._controller_storage.visibility_graph.edges(
                 keys=True
             )
             if frame_id in frame_ids_failed
         ]
-        self._model_storage.visibility_graph.remove_edges_from(redundant_edges)
+        self._controller_storage.visibility_graph.remove_edges_from(redundant_edges)
 
         self._controller_storage.all_key_markers = [
             marker

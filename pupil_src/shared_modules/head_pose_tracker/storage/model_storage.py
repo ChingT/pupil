@@ -12,8 +12,6 @@ See COPYING and COPYING.LESSER for license details.
 import logging
 import os
 
-import matplotlib.pyplot as plt
-import networkx as nx
 import numpy as np
 
 import file_methods
@@ -28,7 +26,6 @@ class ModelStorage(Observable):
         self._predetermined_origin_marker_id = predetermined_origin_marker_id
 
         self._model_path = os.path.join(save_path, "markers_3d_model")
-        self._visibility_graph_path = os.path.join(save_path, "visibility_graph")
 
         self.optimize_3d_model = False
         self.optimize_camera_intrinsics = False
@@ -56,7 +53,6 @@ class ModelStorage(Observable):
 
         self.calculate_points_3d_centroid()
 
-        self.visibility_graph = nx.MultiGraph()
         self.origin_marker_id = self._predetermined_origin_marker_id
 
     def reset(self):
@@ -169,7 +165,6 @@ class ModelStorage(Observable):
             self.marker_id_to_points_3d_opt = {
                 origin_marker_id: worker.utils.get_marker_points_3d_origin()
             }
-            self.visibility_graph.add_node(origin_marker_id)
 
             logger.info(
                 "The marker with id {} is defined as the origin of the coordinate "
@@ -182,58 +177,3 @@ class ModelStorage(Observable):
 
     def on_origin_marker_id_set(self):
         pass
-
-    # TODO: debug only; to be removed
-    def export_visibility_graph(self, show_unconnected_nodes=True):
-        if not self.visibility_graph:
-            return
-
-        graph_vis = self.visibility_graph.copy()
-
-        try:
-            connected_component = nx.node_connected_component(
-                self.visibility_graph, self.origin_marker_id
-            )
-        except KeyError:
-            return
-
-        if not show_unconnected_nodes:
-            unconnected_nodes = set(graph_vis.nodes) - set(connected_component)
-            graph_vis.remove_nodes_from(unconnected_nodes)
-
-        pos = nx.spring_layout(graph_vis, seed=0)
-
-        def draw_nodes(nodelist, node_color):
-            nx.draw_networkx_nodes(
-                graph_vis, pos, nodelist=nodelist, node_color=node_color, node_size=100
-            )
-
-        all_nodes = list(graph_vis.nodes)
-        draw_nodes(all_nodes, "green")
-        draw_nodes(
-            list(set(all_nodes) & self.marker_id_to_points_3d_init.keys()), "blue"
-        )
-        draw_nodes(
-            list(set(all_nodes) & self.marker_id_to_extrinsics_opt.keys()), "red"
-        )
-        draw_nodes([self.origin_marker_id], "brown")
-
-        nx.draw_networkx_edges(graph_vis, pos, width=1, alpha=0.1)
-        nx.draw_networkx_labels(graph_vis, pos, font_size=7)
-
-        plt.axis("off")
-        save_name = os.path.join(
-            self._visibility_graph_path,
-            "frame-{0}-{1}.png".format(
-                len(self.visibility_graph), len(self.marker_id_to_extrinsics_opt)
-            ),
-        )
-        try:
-            plt.savefig(save_name, dpi=300)
-        except FileNotFoundError:
-            os.makedirs(self._visibility_graph_path)
-            plt.savefig(save_name, dpi=300)
-
-        plt.clf()
-
-        logger.info("visibility_graph has been exported to {}".format(save_name))

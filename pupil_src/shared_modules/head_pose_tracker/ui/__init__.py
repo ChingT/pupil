@@ -11,4 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 
 from head_pose_tracker.ui.head_pose_tracker_menu import HeadPoseTrackerMenu
 from head_pose_tracker.ui.marker_renderer import MarkerRenderer
+from head_pose_tracker.ui.offline_head_pose_tracker_menu import (
+    OfflineHeadPoseTrackerMenu,
+)
 from head_pose_tracker.ui.visualization_3d_window import Visualization3dWindow

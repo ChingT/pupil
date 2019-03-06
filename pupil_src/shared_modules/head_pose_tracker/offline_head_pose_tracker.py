@@ -41,7 +41,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
 
     def _setup_controller(self):
-        self._general_controller = controller.GeneralController(
+        self._general_controller = controller.OfflineGeneralController(
             self._controller_storage,
             self._model_storage,
             self.g_pool.capture.intrinsics,
@@ -51,7 +51,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
 
     def _setup_ui(self):
-        self._head_pose_tracker_menu = plugin_ui.HeadPoseTrackerMenu(
+        self._head_pose_tracker_menu = plugin_ui.OfflineHeadPoseTrackerMenu(
             self._general_controller,
             self._controller_storage,
             self._model_storage,

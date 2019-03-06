@@ -56,7 +56,7 @@ class MarkerRenderer:
             detection,
         ) in self._controller_storage.marker_id_to_detections.items():
             perspective_matrix = cv2.getPerspectiveTransform(
-                self.square_definition, detection["verts"]
+                self.square_definition, np.array(detection["verts"], dtype=np.float32)
             )
             hat_points = cv2.perspectiveTransform(
                 self.hat_definition, perspective_matrix

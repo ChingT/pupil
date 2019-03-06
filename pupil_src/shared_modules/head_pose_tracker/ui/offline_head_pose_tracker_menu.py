@@ -16,7 +16,7 @@ from pyglui import ui
 logger = logging.getLogger(__name__)
 
 
-class HeadPoseTrackerMenu:
+class OfflineHeadPoseTrackerMenu:
     def __init__(self, controller, controller_storage, model_storage, plugin):
         self._controller = controller
         self._controller_storage = controller_storage
@@ -45,7 +45,8 @@ class HeadPoseTrackerMenu:
             [
                 self._create_intro_text(),
                 self._create_origin_marker_text(),
-                self._create_optimize_model_switch(),
+                self._create_start_optimize_model_button(),
+                self._create_start_localize_button(),
                 self._create_optimize_camera_intrinsics_switch(),
                 # TODO: debug only; to be removed
                 self._create_export_visibility_graph_button(),
@@ -87,10 +88,13 @@ class HeadPoseTrackerMenu:
             )
         return ui.Info_Text(text)
 
-    def _create_optimize_model_switch(self):
-        return ui.Switch(
-            "optimize_3d_model", self._model_storage, label="Optimize 3d model"
+    def _create_start_optimize_model_button(self):
+        return ui.Button(
+            label="Start optimize markers 3d model", function=self._on_start_optimize
         )
+
+    def _create_start_localize_button(self):
+        return ui.Button(label="Start localize", function=self._on_start_localize)
 
     def _create_optimize_camera_intrinsics_switch(self):
         return ui.Switch(
@@ -185,3 +189,9 @@ class HeadPoseTrackerMenu:
 
     def _on_move_rotate_center_to_centroid_button_click(self):
         self._model_storage.calculate_points_3d_centroid()
+
+    def _on_start_optimize(self):
+        self._controller.start_optimize()
+
+    def _on_start_localize(self):
+        self._controller.start_localize()

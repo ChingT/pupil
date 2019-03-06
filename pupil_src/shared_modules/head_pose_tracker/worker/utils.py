@@ -62,6 +62,7 @@ def get_camera_pose(camera_extrinsics):
     if camera_extrinsics is None:
         return np.full((6,), np.nan)
 
+    camera_extrinsics = np.array(camera_extrinsics)
     rotation_ext, translation_ext = split_extrinsics(camera_extrinsics)
     rotation_pose = -rotation_ext
     translation_pose = np.matmul(-cv2.Rodrigues(rotation_ext)[0].T, translation_ext)

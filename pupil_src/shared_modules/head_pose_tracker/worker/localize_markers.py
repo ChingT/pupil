@@ -44,8 +44,8 @@ def _prepare_data_for_triangulation(
     proj_mat1 = worker.utils.convert_extrinsic_to_matrix(extrinsics_1)[:3, :4]
     proj_mat2 = worker.utils.convert_extrinsic_to_matrix(extrinsics_2)[:3, :4]
 
-    points1 = detection_1["verts"].reshape((4, 1, 2))
-    points2 = detection_2["verts"].reshape((4, 1, 2))
+    points1 = np.array(detection_1["verts"], dtype=np.float32).reshape((4, 1, 2))
+    points2 = np.array(detection_2["verts"], dtype=np.float32).reshape((4, 1, 2))
     undistort_points1 = camera_intrinsics.undistortPoints(points1)
     undistort_points2 = camera_intrinsics.undistortPoints(points2)
 

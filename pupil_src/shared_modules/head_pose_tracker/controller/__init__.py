@@ -9,7 +9,10 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from head_pose_tracker.controller.general_controller import GeneralController
+from head_pose_tracker.controller.general_controller import (
+    GeneralController,
+    OfflineGeneralController,
+)
 from head_pose_tracker.controller.model_update_controller import ModelUpdateController
 from head_pose_tracker.controller.observation_process_controller import (
     ObservationProcessController,

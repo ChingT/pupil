@@ -41,7 +41,7 @@ class Head_Pose_Tracker(Plugin, Observable):
         )
 
     def _setup_controller(self):
-        self._general_controller = controller.GeneralController(
+        self._general_controller = controller.OnlineGeneralController(
             self._controller_storage,
             self._model_storage,
             self.g_pool.capture.intrinsics,

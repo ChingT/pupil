@@ -17,6 +17,7 @@ from head_pose_tracker.worker import (
     get_initial_guess,
 )
 from head_pose_tracker.worker.bundle_adjustment import BundleAdjustment
+from head_pose_tracker.worker.cache import Cache
 from head_pose_tracker.worker.decide_key_markers import DecideKeyMarkers
 from head_pose_tracker.worker.prepare_for_model_update import PrepareForModelUpdate
 from head_pose_tracker.worker.svdt import svdt

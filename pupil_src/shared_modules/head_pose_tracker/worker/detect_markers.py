@@ -50,3 +50,13 @@ def _get_bin(apriltag_detection, frame_shape):
     bin_x = int(np.digitize(centroid[0], _bins_x))
     bin_y = int(np.digitize(centroid[1], _bins_y))
     return bin_x, bin_y
+
+
+class marker_detection_callable:
+    def __init__(self):
+        pass
+
+    def __call__(self, frame):
+        detection = detect(frame)
+        # print(detection)
+        return detection

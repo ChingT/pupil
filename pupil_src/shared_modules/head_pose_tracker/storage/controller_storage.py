@@ -30,11 +30,11 @@ KeyMarker = collections.namedtuple(
 
 class ControllerStorage:
     def __init__(self, save_path):
-        self._all_camera_extrinsics_path = os.path.join(
-            save_path, "offline_data", "all_camera_extrinsics"
+        self._camera_extrinsics_cache_path = os.path.join(
+            save_path, "offline_data", "camera_extrinsics_cache"
         )
-        self._all_marker_id_to_detections_path = os.path.join(
-            save_path, "offline_data", "all_marker_id_to_detections"
+        self._marker_cache_save_path = os.path.join(
+            save_path, "offline_data", "marker_cache"
         )
         self._all_key_markers_path = os.path.join(
             save_path, "offline_data", "all_key_markers"
@@ -48,12 +48,9 @@ class ControllerStorage:
         self._set_to_default_values()
 
         # for cache
-        self.all_marker_id_to_detections = {}
-
-        self.load_all_camera_extrinsics()
-        self.load_all_marker_id_to_detections()
-
-        self.progress = 0
+        self.MARKER_CACHE_VERSION = 0
+        self.marker_cache = None
+        # self.load_camera_extrinsics_cache()
 
     def _set_to_default_values(self):
         self._not_localized_count = 0
@@ -61,7 +58,7 @@ class ControllerStorage:
         self.visibility_graph = nx.MultiGraph()
 
         # for export
-        self.all_camera_extrinsics = {}
+        self.camera_extrinsics_cache = None
 
         # for drawing in 2d window
         self.marker_id_to_detections = {}
@@ -80,25 +77,10 @@ class ControllerStorage:
         self._set_to_default_values()
 
     def update_current_marker_id_to_detections(self, marker_id_to_detections):
-        self.marker_id_to_detections = marker_id_to_detections
-
-    def save_all_marker_id_to_detections(
-        self, marker_id_to_detections, current_frame_id
-    ):
-        self.all_marker_id_to_detections[current_frame_id] = marker_id_to_detections
-
-    @property
-    def progress(self):
-        return self._progress
-
-    @progress.setter
-    def progress(self, _progress):
-        self._progress = _progress
-
-        if _progress == 100:
-            self.status = "Successfully completed"
+        if marker_id_to_detections is None:
+            self.marker_id_to_detections = {}
         else:
-            self.status = "{:.0f}% complete".format(self.progress * 100)
+            self.marker_id_to_detections = marker_id_to_detections
 
     @property
     def marker_id_to_detections(self):
@@ -116,11 +98,11 @@ class ControllerStorage:
         self.recent_camera_traces.append(camera_poses[3:6])
         self.camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(camera_poses)
 
-    def save_all_camera_extrinsics(self, camera_extrinsics, current_frame_id):
+    def save_camera_extrinsics_cache(self, camera_extrinsics, current_frame_id):
         try:
-            self.all_camera_extrinsics[current_frame_id] = camera_extrinsics.tolist()
+            self.camera_extrinsics_cache[current_frame_id] = camera_extrinsics.tolist()
         except AttributeError:
-            self.all_camera_extrinsics[current_frame_id] = None
+            self.camera_extrinsics_cache[current_frame_id] = None
 
     @property
     def camera_extrinsics(self):
@@ -145,6 +127,7 @@ class ControllerStorage:
             KeyMarker(current_frame_id, marker_id, detection["verts"], detection["bin"])
             for marker_id, detection in marker_id_to_detections.items()
         ]
+        print(key_markers)
         self.all_key_markers += key_markers
 
         marker_ids = [marker.marker_id for marker in key_markers]
@@ -157,68 +140,36 @@ class ControllerStorage:
 
         self.all_key_edges += key_edges
 
-    def export_all_marker_id_to_detections(self):
-        if not self.all_marker_id_to_detections:
-            return
+    def export_marker_cache(self):
+        marker_cache_file = file_methods.Persistent_Dict(self._marker_cache_save_path)
+        print("export_marker_cache")
+        print(self.marker_cache.visited_ranges)
+        # print(self.marker_cache.positive_ranges)
+        marker_cache_file["marker_cache"] = list(self.marker_cache)
+        marker_cache_file["version"] = self.MARKER_CACHE_VERSION
+        marker_cache_file.save()
 
-        file_methods.save_object(
-            self.all_marker_id_to_detections, self._all_marker_id_to_detections_path
+    def load_marker_cache(self):
+        previous_cache = file_methods.Persistent_Dict(self._marker_cache_save_path)
+        cache = previous_cache.get("marker_cache", None)
+        version = previous_cache.get("version", 0)
+        return cache, version
+
+    def export_camera_extrinsics_cache(self):
+        camera_extrinsics_cache_file = file_methods.Persistent_Dict(
+            self._camera_extrinsics_cache_path
         )
+        print("camera_extrinsics_cache")
 
-        logger.info(
-            "all_marker_id_to_detections from {0} frames has been exported to "
-            "{1}".format(
-                len(self.all_marker_id_to_detections),
-                self._all_marker_id_to_detections_path,
-            )
+        camera_extrinsics_cache_file["camera_extrinsics_cache"] = list(
+            self.camera_extrinsics_cache
         )
+        camera_extrinsics_cache_file.save()
 
-    def load_all_marker_id_to_detections(self):
-        try:
-            all_marker_id_to_detections = file_methods.load_object(
-                self._all_marker_id_to_detections_path
-            )
-        except FileNotFoundError:
-            return
-
-        self.all_marker_id_to_detections = all_marker_id_to_detections
-
-        logger.info(
-            "all_marker_id_to_detections from {0} frames has been loaded from "
-            "{1}".format(
-                len(all_marker_id_to_detections), self._all_marker_id_to_detections_path
-            )
-        )
-
-    def export_all_camera_extrinsics(self):
-        if not self.all_camera_extrinsics:
-            return
-
-        file_methods.save_object(
-            self.all_camera_extrinsics, self._all_camera_extrinsics_path
-        )
-
-        logger.info(
-            "camera extrinsics from {0} frames has been exported to {1}".format(
-                len(self.all_camera_extrinsics), self._all_camera_extrinsics_path
-            )
-        )
-
-    def load_all_camera_extrinsics(self):
-        try:
-            all_camera_extrinsics = file_methods.load_object(
-                self._all_camera_extrinsics_path
-            )
-        except FileNotFoundError:
-            return
-
-        self.all_camera_extrinsics = all_camera_extrinsics
-
-        logger.info(
-            "all_camera_extrinsics from {0} frames has been loaded from {1}".format(
-                len(all_camera_extrinsics), self._all_camera_extrinsics_path
-            )
-        )
+    def load_camera_extrinsics_cache(self):
+        previous_cache = file_methods.Persistent_Dict(self.camera_extrinsics_cache)
+        cache = previous_cache.get("camera_extrinsics_cache", None)
+        return cache
 
     def export_all_key_markers(self):
         if not self.all_key_markers:

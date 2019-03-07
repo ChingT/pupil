@@ -12,7 +12,7 @@ See COPYING and COPYING.LESSER for license details.
 from head_pose_tracker import worker
 
 
-class ObservationProcessController:
+class OnlineObservationController:
     def __init__(
         self,
         controller_storage,

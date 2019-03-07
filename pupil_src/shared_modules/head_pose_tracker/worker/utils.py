@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def split_extrinsics(extrinsics):
+    extrinsics = np.array(extrinsics)
     assert extrinsics.size == 6
     # extrinsics could be of shape (6,) or (1, 6), so ravel() is needed.
     rotation = extrinsics.ravel()[0:3]
@@ -60,7 +61,7 @@ def convert_matrix_to_extrinsic(extrinsic_matrix):
 
 def get_camera_pose(camera_extrinsics):
     if camera_extrinsics is None:
-        return np.full((6,), np.nan)
+        return get_none_camera_extrinsics()
 
     camera_extrinsics = np.array(camera_extrinsics)
     rotation_ext, translation_ext = split_extrinsics(camera_extrinsics)
@@ -98,6 +99,10 @@ def get_marker_points_4d_origin():
 
 def get_marker_extrinsics_origin():
     return np.array([0, 0, 0, 0, 0, 0.0], dtype=np.float32)
+
+
+def get_none_camera_extrinsics():
+    return np.full((6,), np.nan)
 
 
 def timer(func):

@@ -27,7 +27,7 @@ def localize(
     camera_extrinsics = _calculate(
         camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv
     )
-    return camera_extrinsics
+    return camera_extrinsics.tolist()
 
 
 def _prepare_data_for_solvepnp(
@@ -58,7 +58,7 @@ def _prepare_data_for_solvepnp(
 
 def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
     if not data_for_solvepnp:
-        return None
+        return worker.utils.get_none_camera_extrinsics()
 
     markers_points_3d, markers_points_2d = data_for_solvepnp
 
@@ -82,7 +82,7 @@ def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
         camera_extrinsics = worker.utils.merge_extrinsics(rotation, translation)
         return camera_extrinsics
     else:
-        return None
+        return worker.utils.get_none_camera_extrinsics()
 
 
 def _run_solvepnp(
@@ -92,7 +92,7 @@ def _run_solvepnp(
     assert markers_points_3d.shape[1:] == (4, 3)
     assert markers_points_2d.shape[1:] == (4, 2)
 
-    if camera_extrinsics_prv is None:
+    if camera_extrinsics_prv is None or np.isnan(camera_extrinsics_prv).any():
         retval, rotation, translation = camera_intrinsics.solvePnP(
             markers_points_3d, markers_points_2d
         )

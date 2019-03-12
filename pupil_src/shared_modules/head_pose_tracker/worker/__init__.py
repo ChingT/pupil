@@ -17,7 +17,7 @@ from head_pose_tracker.worker import (
     localize_markers,
     get_initial_guess,
     create_optimization,
-    map_gaze,
+    localize_pose,
 )
 from head_pose_tracker.worker.bundle_adjustment import BundleAdjustment
 from head_pose_tracker.worker.decide_key_markers import DecideKeyMarkers

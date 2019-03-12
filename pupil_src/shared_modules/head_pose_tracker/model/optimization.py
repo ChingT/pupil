@@ -15,7 +15,7 @@ import numpy as np
 from head_pose_tracker import model
 
 # this plugin does not care about the content of the result, it just receives it from
-# the optimization routine and handles it to the gaze mapper
+# the optimization routine and handles it to the camera localizer
 OptimizationResult = namedtuple(
     "OptimizationResult", ["mapping_plugin_name", "mapper_args"]
 )
@@ -29,21 +29,15 @@ class Optimization(model.storage.StorageItem):
         unique_id,
         name,
         recording_uuid,
-        mapping_method,
         frame_index_range,
-        minimum_confidence,
         status="Not calculated yet",
-        is_offline_optimization=True,
         result=None,
     ):
         self.unique_id = unique_id
         self.name = name
         self.recording_uuid = recording_uuid
-        self.mapping_method = mapping_method
         self.frame_index_range = frame_index_range
-        self.minimum_confidence = minimum_confidence
         self.status = status
-        self.is_offline_optimization = is_offline_optimization
 
         if result:
             self.result = {key: np.array(value) for key, value in result.items()}
@@ -56,15 +50,15 @@ class Optimization(model.storage.StorageItem):
 
     @property
     def as_tuple(self):
-        result = {key: value.tolist() for key, value in self.result.items()}
+        if self.result:
+            result = {key: value.tolist() for key, value in self.result.items()}
+        else:
+            result = {}
         return (
             self.unique_id,
             self.name,
             self.recording_uuid,
-            self.mapping_method,
             self.frame_index_range,
-            self.minimum_confidence,
             self.status,
-            self.is_offline_optimization,
             result,
         )

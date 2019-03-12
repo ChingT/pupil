@@ -20,37 +20,25 @@ class CameraLocalizer(model.storage.StorageItem):
         unique_id,
         name,
         optimization_unique_id,
-        mapping_index_range,
-        validation_index_range,
-        validation_outlier_threshold_deg,
-        manual_correction_x=0.0,
-        manual_correction_y=0.0,
-        activate_gaze=True,
+        localization_index_range,
+        activate_pose=True,
         status="Not calculated yet",
-        accuracy_result="",
-        precision_result="",
-        gaze=[],
-        gaze_ts=[],
+        pose=[],
+        pose_ts=[],
     ):
         self.unique_id = unique_id
         self.name = name
         self.optimization_unique_id = optimization_unique_id
-        self.mapping_index_range = tuple(mapping_index_range)
-        self.validation_index_range = tuple(validation_index_range)
-        self.validation_outlier_threshold_deg = validation_outlier_threshold_deg
-        self.manual_correction_x = manual_correction_x
-        self.manual_correction_y = manual_correction_y
-        self.activate_gaze = activate_gaze
+        self.localization_index_range = tuple(localization_index_range)
+        self.activate_pose = activate_pose
         self.status = status
-        self.accuracy_result = accuracy_result
-        self.precision_result = precision_result
-        self.gaze = gaze
-        self.gaze_ts = gaze_ts
+        self.pose = pose
+        self.pose_ts = pose_ts
 
     @property
     def calculate_complete(self):
-        # we cannot just use `self.gaze and self.gaze_ts` because this ands the arrays
-        return len(self.gaze) > 0 and len(self.gaze_ts) > 0
+        # we cannot just use `self.pose and self.pose_ts` because this ands the arrays
+        return len(self.pose) > 0 and len(self.pose_ts) > 0
 
     @staticmethod
     def from_tuple(tuple_):
@@ -62,13 +50,7 @@ class CameraLocalizer(model.storage.StorageItem):
             self.unique_id,
             self.name,
             self.optimization_unique_id,
-            self.mapping_index_range,
-            self.validation_index_range,
-            self.validation_outlier_threshold_deg,
-            self.manual_correction_x,
-            self.manual_correction_y,
-            self.activate_gaze,
+            self.localization_index_range,
+            self.activate_pose,
             self.status,
-            self.accuracy_result,
-            self.precision_result,
         )

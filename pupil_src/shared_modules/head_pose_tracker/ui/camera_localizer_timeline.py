@@ -12,8 +12,8 @@ from plugin_timeline import Row, RangeElementFrameIdx
 
 
 # TODO: add an observer to refresh the timeline when the selected optimization of a
-#  gaze mapping changes. This is currently not easily possible, but will be easy with
-#  attribute observers
+#  camera localization changes. This is currently not easily possible,
+#  but will be easy with attribute observers
 
 
 class CameraLocalizerTimeline:
@@ -31,21 +31,18 @@ class CameraLocalizerTimeline:
         self._optimization_controller = optimization_controller
 
         self._camera_localizer_storage.add_observer(
-            "add", self._on_mapper_storage_changed
+            "add", self._on_localizer_storage_changed
         )
         self._camera_localizer_storage.add_observer(
-            "delete", self._on_mapper_storage_changed
+            "delete", self._on_localizer_storage_changed
         )
         self._camera_localizer_storage.add_observer(
-            "rename", self._on_mapper_storage_changed
+            "rename", self._on_localizer_storage_changed
         )
 
         self._camera_localizer_controller.add_observer(
-            "set_mapping_range_from_current_trim_marks", self._on_mapper_ranges_changed
-        )
-        self._camera_localizer_controller.add_observer(
-            "set_validation_range_from_current_trim_marks",
-            self._on_mapper_ranges_changed,
+            "set_localization_range_from_current_trim_marks",
+            self._on_localizer_ranges_changed,
         )
         self._optimization_controller.add_observer(
             "set_optimization_range_from_current_trim_marks",
@@ -57,17 +54,16 @@ class CameraLocalizerTimeline:
     def create_rows(self):
         rows = []
         for camera_localizer in self._camera_localizer_storage:
-            alpha = 0.9 if camera_localizer.activate_gaze else 0.4
+            alpha = 0.9 if camera_localizer.activate_pose else 0.4
             elements = [
-                self._create_mapping_range(camera_localizer, alpha),
+                self._create_localization_range(camera_localizer, alpha),
                 self._create_optimization_range(camera_localizer, alpha),
-                self._create_validation_range(camera_localizer, alpha),
             ]
             rows.append(Row(label=camera_localizer.name, elements=elements))
         return rows
 
-    def _create_mapping_range(self, camera_localizer, alpha):
-        from_idx, to_idx = camera_localizer.mapping_index_range
+    def _create_localization_range(self, camera_localizer, alpha):
+        from_idx, to_idx = camera_localizer.localization_index_range
         # TODO: find some final color scheme
         color = (
             [0.3, 0.5, 0.5, alpha]
@@ -94,27 +90,19 @@ class CameraLocalizerTimeline:
         else:
             return RangeElementFrameIdx(from_idx=0, to_idx=0)
 
-    def _create_validation_range(self, camera_localizer, alpha):
-        from_idx, to_idx = camera_localizer.validation_index_range
-        color = [0.9, 0.9, 0.2, alpha]
-        # color = [27 / 255, 158 / 255, 119 / 255, alpha]
-        return RangeElementFrameIdx(
-            from_idx, to_idx, color_rgba=color, height=3, offset=3.5
-        )
-
-    def _on_mapper_storage_changed(self, *args, **kwargs):
+    def _on_localizer_storage_changed(self, *args, **kwargs):
         self.render_parent_timeline()
 
-    def _on_mapper_ranges_changed(self, _):
+    def _on_localizer_ranges_changed(self, _):
         self.render_parent_timeline()
 
-    def _on_publish_enabled_mappers(self):
-        """Triggered when activate_gaze changes and mapping tasks are complete"""
+    def _on_publish_enabled_localizers(self):
+        """Triggered when activate_pose changes and localization tasks are complete"""
         self.render_parent_timeline()
 
     def _on_optimization_range_changed(self, _):
         self.render_parent_timeline()
 
     def _on_optimization_deleted(self, _):
-        # the deleted optimization might be used by one of the gaze mappers
+        # the deleted optimization might be used by one of the camera localizers
         self.render_parent_timeline()

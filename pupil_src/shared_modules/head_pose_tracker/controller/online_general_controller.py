@@ -63,9 +63,6 @@ class OnlineGeneralController:
         self._online_observation_controller.reset()
         self._model_update_controller.reset()
 
-    def export_markers_3d_model_to_file(self):
-        self._model_storage.export_markers_3d_model_to_file()
-
     def export_camera_extrinsics_cache(self):
         self._controller_storage.export_camera_extrinsics_cache()
 
@@ -78,6 +75,5 @@ class OnlineGeneralController:
         self._model_storage.export_visibility_graph()
 
     def _on_cleanup(self):
-        self.export_markers_3d_model_to_file()
         self.export_camera_extrinsics_cache()
         self.export_camera_intrinsics()

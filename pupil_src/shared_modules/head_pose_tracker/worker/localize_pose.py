@@ -26,7 +26,7 @@ def create_task(camera_localizer, optimization, all_marker_locations):
     name = "Create camera localizer {}".format(camera_localizer.name)
     return tasklib.background.create(
         name,
-        _map_gaze,
+        _localize_pose,
         args=args,
         patches=[bg_patches.IPCLoggingPatch()],
         pass_shared_memory=True,
@@ -37,7 +37,7 @@ def _create_ref_dict(ref):
     return {"marker_detection": ref.marker_detection, "timestamp": ref.timestamp}
 
 
-def _map_gaze(
+def _localize_pose(
     camera_intrinsics, optimization_result, ref_dicts_in_opt_range, shared_memory
 ):
     for idx_incoming, ref in enumerate(ref_dicts_in_opt_range):

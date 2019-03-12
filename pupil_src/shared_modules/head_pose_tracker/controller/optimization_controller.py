@@ -36,7 +36,6 @@ class OptimizationController(Observable):
     def calculate(self, optimization):
         def on_optimization_yield(result):
             optimization.result = result
-            self._optimization_storage.save_to_disk()
             self._model_storage.update_extrinsics_opt(optimization.result)
 
         task = worker.create_optimization.create_task(

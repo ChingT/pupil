@@ -29,7 +29,7 @@ class CalculateAllController:
 
     def calculate_all(self):
         """
-        (Re)Calculate all optimizations and gaze mappings with their respective
+        (Re)Calculate all optimizations and camera localization with their respective
         current settings. If there are no marker locations in the storage,
         first the current marker detector is run.
         """

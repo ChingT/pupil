@@ -45,9 +45,7 @@ class OptimizationStorage(model.storage.Storage, Observable):
             unique_id=model.Optimization.create_new_unique_id(),
             name=make_unique.by_number_at_end("Default Optimization", self.item_names),
             recording_uuid=self._recording_uuid,
-            mapping_method="3d",
             frame_index_range=self._get_recording_index_range(),
-            minimum_confidence=0.8,
         )
 
     def duplicate_optimization(self, optimization):
@@ -69,7 +67,7 @@ class OptimizationStorage(model.storage.Storage, Observable):
         self._optimizations.sort(key=lambda c: c.name)
 
         if optimization.result:
-            self._model_storage.update_extrinsics_opt(optimization.result)
+            self._model_storage.load_markers_3d_model_from_file(optimization.result)
 
     def delete(self, optimization):
         self._optimizations.remove(optimization)
@@ -135,7 +133,6 @@ class OptimizationStorage(model.storage.Storage, Observable):
                 except KeyError:
                     # notifications from old recordings will not have these fields!
                     continue
-                mapping_method = "2d" if "2d" in data["optimization_method"] else "3d"
                 # the unique id needs to be the same at every start or otherwise the
                 # same optimizations would be added again and again. The timestamp is
                 # the easiest datum that differs between optimizations but is the same
@@ -149,10 +146,7 @@ class OptimizationStorage(model.storage.Storage, Observable):
                         "Recorded Optimization", self.item_names
                     ),
                     recording_uuid=self._recording_uuid,
-                    mapping_method=mapping_method,
                     frame_index_range=self._get_recording_index_range(),
-                    minimum_confidence=0.8,
-                    is_offline_optimization=False,
                     result=opt_result,
                 )
                 self.add(optimization)

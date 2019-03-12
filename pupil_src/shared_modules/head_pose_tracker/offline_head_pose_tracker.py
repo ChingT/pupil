@@ -28,7 +28,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
     icon_chr = chr(0xEC07)
     icon_font = "pupil_icons"
 
-    def __init__(self, g_pool, predetermined_origin_marker_id=22):
+    def __init__(self, g_pool, predetermined_origin_marker_id=None):
         super().__init__(g_pool)
 
         self.inject_plugin_dependencies()
@@ -152,9 +152,9 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
 
         create_optimization.g_pool = self.g_pool
 
-        from head_pose_tracker.worker import map_gaze
+        from head_pose_tracker.worker import localize_pose
 
-        map_gaze.g_pool = self.g_pool
+        localize_pose.g_pool = self.g_pool
 
     def _seek_to_frame(self, frame_index):
         self.notify_all({"subject": "seek_control.should_seek", "index": frame_index})

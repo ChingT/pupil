@@ -13,14 +13,14 @@ See COPYING and COPYING.LESSER for license details.
 class CalculateAllController:
     def __init__(
         self,
-        marker_detection_controller,
+        marker_location_controller,
         marker_location_storage,
         optimization_controller,
         optimization_storage,
         camera_localizer_controller,
         camera_localizer_storage,
     ):
-        self._marker_detection_controller = marker_detection_controller
+        self._marker_location_controller = marker_location_controller
         self._marker_location_storage = marker_location_storage
         self._optimization_controller = optimization_controller
         self._optimization_storage = optimization_storage
@@ -34,7 +34,7 @@ class CalculateAllController:
         first the current marker detector is run.
         """
         if self.does_detect_markers:
-            task = self._marker_detection_controller.start_detection()
+            task = self._marker_location_controller.start_detection()
             task.add_observer("on_completed", self._on_marker_detection_completed)
         else:
             self._calculate_all_optimizations()

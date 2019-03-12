@@ -29,24 +29,6 @@ class MarkerLocationStorage(model.SingleFileStorage, Observable):
     def get_or_none(self, frame_index):
         return self._marker_locations.get(frame_index, None)
 
-    def get_next(self, frame_index):
-        found_index = min(
-            idx for idx in self._marker_locations.keys() if idx > frame_index
-        )
-        return self._marker_locations[found_index]
-
-    def get_previous(self, frame_index):
-        found_index = max(
-            idx for idx in self._marker_locations.keys() if idx < frame_index
-        )
-        return self._marker_locations[found_index]
-
-    def get_in_range(self, frame_index_range):
-        def in_range(ref):
-            return frame_index_range[0] <= ref.frame_index <= frame_index_range[1]
-
-        return [ref for ref in self._marker_locations.values() if in_range(ref)]
-
     def delete(self, marker_location):
         del self._marker_locations[marker_location.frame_index]
 

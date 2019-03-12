@@ -17,15 +17,19 @@ from pyglui.pyfontstash import fontstash
 from pyglui.ui import get_opensans_font_path
 
 
-class MarkerRenderer:
+class MarkerLocationRenderer:
     """
-    Renders markers in the world video.
+    Renders marker locations in the world video.
     """
 
-    def __init__(self, controller_storage, model_storage, plugin):
-        self._controller_storage = controller_storage
-        self._model_storage = model_storage
-        self._plugin = plugin
+    # we not only draw marker locations in the current frame, but also from close
+    # frames in a certain range
+    close_ref_range = 4
+
+    def __init__(
+        self, marker_location_storage, plugin, frame_size, get_current_frame_index
+    ):
+        self._marker_location_storage = marker_location_storage
 
         self.square_definition = np.array(
             ((0, 0), (1, 0), (1, 1), (0, 1)), dtype=np.float32
@@ -35,6 +39,9 @@ class MarkerRenderer:
         )
 
         self._setup_glfont()
+
+        self._frame_size = frame_size
+        self._get_current_frame_index = get_current_frame_index
 
         plugin.add_observer("gl_display", self.on_gl_display)
 
@@ -46,15 +53,16 @@ class MarkerRenderer:
         self.glfont.set_align_string(v_align="center")
 
     def on_gl_display(self):
-        self._draw_marker_boundary()
-        if self._plugin.visualization_3d_window.show_marker_id:
-            self._draw_marker_id()
+        self._render_marker_locations()
 
-    def _draw_marker_boundary(self):
-        for (
-            marker_id,
-            detection,
-        ) in self._controller_storage.marker_id_to_detections.items():
+    def _render_marker_locations(self):
+        current_index = self._get_current_frame_index()
+        current_markers = self._marker_location_storage.get_or_none(current_index)
+        if current_markers:
+            self._draw_marker_boundary(current_markers.marker_detection)
+
+    def _draw_marker_boundary(self, marker_detection):
+        for marker_id, detection in marker_detection.items():
             perspective_matrix = cv2.getPerspectiveTransform(
                 self.square_definition, np.array(detection["verts"], dtype=np.float32)
             )
@@ -63,26 +71,14 @@ class MarkerRenderer:
             )
             hat_points.shape = 6, 2
 
-            if marker_id == self._model_storage.origin_marker_id:
-                color = (0.8, 0.2, 0.1, 0.5)
-            elif marker_id in self._model_storage.marker_id_to_extrinsics_opt:
-                color = (0.8, 0.2, 0.1, 0.2)
-            # TODO: debug only; to be removed
-            elif marker_id in self._model_storage.marker_id_to_points_3d_init:
-                color = (0.0, 0.0, 1.0, 0.2)
-            else:
-                color = (0.0, 1.0, 1.0, 0.2)
-
+            color = (0.0, 1.0, 1.0, 0.2)
             self._draw_hat(hat_points, color)
 
     @staticmethod
     def _draw_hat(points, color):
         cygl_utils.draw_polyline(points, 1, cygl_utils.RGBA(*color), gl.GL_POLYGON)
 
-    def _draw_marker_id(self):
-        for (
-            marker_id,
-            detection,
-        ) in self._controller_storage.marker_id_to_detections.items():
+    def _draw_marker_id(self, marker_detection):
+        for (marker_id, detection) in marker_detection.items():
             point = np.max(detection["verts"], axis=0)
             self.glfont.draw_text(point[0], point[1], str(marker_id))

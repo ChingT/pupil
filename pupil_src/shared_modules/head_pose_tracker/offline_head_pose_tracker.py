@@ -71,7 +71,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
 
     def _setup_controllers(self):
-        self._marker_detection_controller = controller.MarkerDetectionController(
+        self._marker_location_controller = controller.MarkerLocationController(
             self._task_manager, self._marker_location_storage
         )
 
@@ -94,7 +94,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
 
         self._calculate_all_controller = controller.CalculateAllController(
-            self._marker_detection_controller,
+            self._marker_location_controller,
             self._marker_location_storage,
             self._optimization_controller,
             self._optimization_storage,
@@ -103,22 +103,45 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
 
     def _setup_ui(self):
-        self._head_pose_tracker_menu = plugin_ui.OfflineHeadPoseTrackerMenu(
-            self._controller_storage, self._model_storage, plugin=self
-        )
+        # self._head_pose_tracker_menu = plugin_ui.OfflineHeadPoseTrackerMenu(
+        #     self._controller_storage, self._model_storage, plugin=self
+        # )
         self.visualization_3d_window = plugin_ui.Visualization3dWindow(
             self.g_pool.capture.intrinsics,
             self._controller_storage,
             self._model_storage,
+            self._camera_localizer_storage,
             plugin=self,
+            get_current_frame_index=self.g_pool.capture.get_frame_index,
         )
-        self._marker_renderer = plugin_ui.MarkerRenderer(
-            self._controller_storage, self._model_storage, plugin=self
+        self._marker_location_renderer = plugin_ui.MarkerLocationRenderer(
+            self._marker_location_storage,
+            plugin=self,
+            frame_size=self.g_pool.capture.frame_size,
+            get_current_frame_index=self.g_pool.capture.get_frame_index,
+        )
+        self._on_top_menu = plugin_ui.OnTopMenu(
+            self._calculate_all_controller, self._marker_location_storage
+        )
+        self._marker_location_menu = plugin_ui.MarkerLocationMenu(
+            self._marker_location_controller, self._marker_location_storage
+        )
+        self._optimization_menu = plugin_ui.OptimizationMenu(
+            self._model_storage,
+            self._optimization_storage,
+            self._optimization_controller,
+            index_range_as_str=self._index_range_as_str,
+        )
+        self._camera_localizer_menu = plugin_ui.CameraLocalizerMenu(
+            self._camera_localizer_controller,
+            self._camera_localizer_storage,
+            self._optimization_storage,
+            index_range_as_str=self._index_range_as_str,
         )
 
     def _setup_timelines(self):
         self._marker_location_timeline = plugin_ui.MarkerLocationTimeline(
-            self._marker_detection_controller, self._marker_location_storage
+            self._marker_location_controller, self._marker_location_storage
         )
         self._camera_localizer_timeline = plugin_ui.CameraLocalizerTimeline(
             self._camera_localizer_storage,
@@ -139,6 +162,13 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             plugin=self,
         )
 
+    # def recent_events(self, events):
+    #     # TODO: comments or method extraction
+    #     if "frame" in events:
+    #         frame_idx = events["frame"].index
+    #         window = pm.enclosing_window(self.g_pool.timestamps, frame_idx)
+    #         events["gaze"] = self.g_pool.gaze_positions.by_ts_window(window)
+
     def inject_plugin_dependencies(self):
         from head_pose_tracker.worker.detect_square_markers import (
             SquareMarkerDetectionTask,
@@ -155,6 +185,21 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         from head_pose_tracker.worker import localize_pose
 
         localize_pose.g_pool = self.g_pool
+
+    def init_ui(self):
+        self.add_menu()
+
+        self.menu.label = "Head Pose Tracker From Offline Optimization"
+        self._on_top_menu.render(self.menu)
+        self._marker_location_menu.render()
+        self.menu.append(self._marker_location_menu.menu)
+        self._optimization_menu.render()
+        self.menu.append(self._optimization_menu.menu)
+        self._camera_localizer_menu.render()
+        self.menu.append(self._camera_localizer_menu.menu)
+
+    def _on_deinit_ui(self):
+        self.remove_menu()
 
     def _seek_to_frame(self, frame_index):
         self.notify_all({"subject": "seek_control.should_seek", "index": frame_index})

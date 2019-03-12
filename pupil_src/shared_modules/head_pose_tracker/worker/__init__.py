@@ -11,7 +11,6 @@ See COPYING and COPYING.LESSER for license details.
 
 from head_pose_tracker.worker import (
     utils,
-    detect_markers,
     detect_square_markers,
     localize_camera,
     localize_markers,

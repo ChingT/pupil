@@ -12,13 +12,13 @@ from plugin_timeline import Row, BarsElementTs, RangeElementFramePerc
 
 
 class MarkerLocationTimeline:
-    def __init__(self, marker_detection_controller, marker_location_storage):
+    def __init__(self, marker_location_controller, marker_location_storage):
         self.render_parent_timeline = None
 
-        self._marker_detection_controller = marker_detection_controller
+        self._marker_location_controller = marker_location_controller
         self._marker_location_storage = marker_location_storage
 
-        self._marker_detection_controller.add_observer(
+        self._marker_location_controller.add_observer(
             "on_detection_started", self._on_start_marker_detection
         )
         self._marker_location_storage.add_observer(
@@ -33,13 +33,13 @@ class MarkerLocationTimeline:
 
     def create_row(self):
         elements = []
-        if self._marker_detection_controller.is_running_detection:
+        if self._marker_location_controller.is_running_detection:
             elements.append(self._create_progress_indication())
         elements.append(self._create_marker_location_bars())
         return Row(label="Marker detection", elements=elements)
 
     def _create_progress_indication(self):
-        progress = self._marker_detection_controller.detection_progress
+        progress = self._marker_location_controller.detection_progress
         return RangeElementFramePerc(
             from_perc=0, to_perc=progress, color_rgba=(1.0, 0.5, 0.5, 0.5)
         )

@@ -17,15 +17,25 @@ import numpy as np
 
 import gl_utils
 import glfw
+from head_pose_tracker import worker
 
 logger = logging.getLogger(__name__)
 
 
 class Visualization3dWindow:
-    def __init__(self, camera_intrinsics, controller_storage, model_storage, plugin):
+    def __init__(
+        self,
+        camera_intrinsics,
+        controller_storage,
+        model_storage,
+        camera_localizer_storage,
+        plugin,
+        get_current_frame_index,
+    ):
         self._camera_intrinsics = camera_intrinsics
         self._controller_storage = controller_storage
         self._model_storage = model_storage
+        self._camera_localizer_storage = camera_localizer_storage
 
         self._input = {"down": False, "mouse": (0, 0)}
 
@@ -37,11 +47,13 @@ class Visualization3dWindow:
 
         self.show_markers_opt = True
         # TODO: debug only; to be removed
-        self.show_markers_init = False
-        self.show_marker_id = False
+        self.show_markers_init = True
+        self.show_marker_id = True
         self.show_camera_frustum = True
         self.show_camera_trace = True
         self.show_graph_edges = False
+
+        self._get_current_frame_index = get_current_frame_index
 
         plugin.add_observer("init_ui", self._on_init_ui)
         plugin.add_observer("deinit_ui", self._on_deinit_ui)
@@ -177,12 +189,30 @@ class Visualization3dWindow:
         if self.show_camera_trace:
             self._draw_camera_trace_in_3d_window()
         if self.show_camera_frustum:
-            self._draw_camera_in_3d_window()
+            camera_pose_matrix = self._get_camera_pose_matrix()
+            self._draw_camera_in_3d_window(camera_pose_matrix)
 
         self._trackball.pop()
 
         glfw.glfwSwapBuffers(window)
         glfw.glfwMakeContextCurrent(active_window)
+
+    def _get_camera_pose_matrix(self):
+        current_index = self._get_current_frame_index()
+
+        try:
+            current_pose = (
+                self._camera_localizer_storage.items[0]
+                .pose[current_index]
+                ._data["camera_extrinsics"]
+            )
+        except IndexError:
+            current_pose = worker.utils.get_none_camera_extrinsics()
+        except TypeError:
+            current_pose = worker.utils.get_none_camera_extrinsics()
+
+        camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(current_pose)
+        return camera_pose_matrix
 
     @staticmethod
     def _init_3d_window():
@@ -256,11 +286,8 @@ class Visualization3dWindow:
             self._controller_storage.recent_camera_traces, color
         )
 
-    def _draw_camera_in_3d_window(self):
-        if self._controller_storage.camera_pose_matrix is None:
-            return
-
-        gl.glMultTransposeMatrixf(self._controller_storage.camera_pose_matrix)
+    def _draw_camera_in_3d_window(self, camera_pose_matrix):
+        gl.glMultTransposeMatrixf(camera_pose_matrix)
         self._draw_coordinate_in_3d_window()
         self._draw_frustum_in_3d_window(
             self._camera_intrinsics.resolution, self._camera_intrinsics.K

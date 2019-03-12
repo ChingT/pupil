@@ -19,10 +19,17 @@ logger = logging.getLogger(__name__)
 g_pool = None  # set by the plugin
 
 
-def create_task(controller_storage, model_storage, all_marker_locations):
+def create_task(optimization, controller_storage, model_storage, all_marker_locations):
     assert g_pool, "You forgot to set g_pool by the plugin"
 
-    ref_dicts_in_opt_range = [_create_ref_dict(ref) for ref in all_marker_locations]
+    frame_start = optimization.frame_index_range[0]
+    frame_end = optimization.frame_index_range[1]
+
+    ref_dicts_in_opt_range = [
+        _create_ref_dict(ref)
+        for ref in all_marker_locations
+        if frame_start <= ref.frame_index <= frame_end
+    ]
 
     args = (
         g_pool.capture.intrinsics,
@@ -30,7 +37,7 @@ def create_task(controller_storage, model_storage, all_marker_locations):
         model_storage,
         ref_dicts_in_opt_range,
     )
-    name = "Create optimization"
+    name = "Create calibration {}".format(optimization.name)
     return tasklib.background.create(
         name,
         _create_optimization,
@@ -63,7 +70,7 @@ def _create_optimization(
         controller_storage, model_storage, camera_intrinsics
     )
 
-    times = len(controller_storage.all_key_markers) // 50 + 5
+    times = len(controller_storage.all_key_markers) // 50 + 1
 
     for _iter in range(times):
         data_for_model_init = prepare_for_model_update.run()

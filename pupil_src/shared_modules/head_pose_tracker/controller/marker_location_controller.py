@@ -18,7 +18,7 @@ from observable import Observable
 logger = logging.getLogger(__name__)
 
 
-class MarkerDetectionController(Observable):
+class MarkerLocationController(Observable):
     def __init__(self, task_manager, marker_location_storage):
         self._task_manager = task_manager
         self._marker_location_storage = marker_location_storage

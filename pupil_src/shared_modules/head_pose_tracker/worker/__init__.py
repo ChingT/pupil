@@ -12,12 +12,14 @@ See COPYING and COPYING.LESSER for license details.
 from head_pose_tracker.worker import (
     utils,
     detect_markers,
+    detect_square_markers,
     localize_camera,
     localize_markers,
     get_initial_guess,
+    create_optimization,
+    map_gaze,
 )
 from head_pose_tracker.worker.bundle_adjustment import BundleAdjustment
-from head_pose_tracker.worker.cache import Cache
 from head_pose_tracker.worker.decide_key_markers import DecideKeyMarkers
 from head_pose_tracker.worker.prepare_for_model_update import PrepareForModelUpdate
 from head_pose_tracker.worker.svdt import svdt

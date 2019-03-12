@@ -16,7 +16,7 @@ from pyglui import ui
 logger = logging.getLogger(__name__)
 
 
-class HeadPoseTrackerMenu:
+class OnlineHeadPoseTrackerMenu:
     def __init__(self, controller, controller_storage, model_storage, plugin):
         self._controller = controller
         self._controller_storage = controller_storage

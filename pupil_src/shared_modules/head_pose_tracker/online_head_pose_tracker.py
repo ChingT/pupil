@@ -9,13 +9,13 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from head_pose_tracker import ui as plugin_ui, controller, storage
+from head_pose_tracker import ui as plugin_ui, controller, model
 from observable import Observable
 from plugin import Plugin
 from tasklib.manager import PluginTaskManager
 
 
-class Head_Pose_Tracker(Plugin, Observable):
+class Online_Head_Pose_Tracker(Plugin, Observable):
     """
     This plugin tracks the pose of the scene camera based on fiducial markers in the
     environment.
@@ -33,10 +33,10 @@ class Head_Pose_Tracker(Plugin, Observable):
         self._setup_ui()
 
     def _setup_storages(self, predetermined_origin_marker_id):
-        self._controller_storage = storage.ControllerStorage(
+        self._controller_storage = model.ControllerStorage(
             save_path=self.g_pool.user_dir
         )
-        self._model_storage = storage.ModelStorage(
+        self._model_storage = model.ModelStorage(
             predetermined_origin_marker_id, save_path=self.g_pool.user_dir
         )
 
@@ -51,7 +51,7 @@ class Head_Pose_Tracker(Plugin, Observable):
         )
 
     def _setup_ui(self):
-        self._head_pose_tracker_menu = plugin_ui.HeadPoseTrackerMenu(
+        self._head_pose_tracker_menu = plugin_ui.OnlineHeadPoseTrackerMenu(
             self._general_controller,
             self._controller_storage,
             self._model_storage,

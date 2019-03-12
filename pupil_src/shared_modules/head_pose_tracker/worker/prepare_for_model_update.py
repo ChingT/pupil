@@ -36,7 +36,7 @@ class PrepareForModelUpdate:
 
     def run(self):
         key_markers_proccessed = self._controller_storage.all_key_markers[
-            : self._controller_storage.n_key_markers_processed + 20
+            : self._controller_storage.n_key_markers_processed + 50
         ]
         self._controller_storage.n_key_markers_processed = len(key_markers_proccessed)
         print(

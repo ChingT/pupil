@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class OfflineHeadPoseTrackerMenu:
-    def __init__(self, controller, controller_storage, model_storage, plugin):
-        self._controller = controller
+    def __init__(self, controller_storage, model_storage, plugin):
         self._controller_storage = controller_storage
         self._model_storage = model_storage
         self._plugin = plugin
@@ -45,17 +44,17 @@ class OfflineHeadPoseTrackerMenu:
             [
                 self._create_intro_text(),
                 self._create_origin_marker_text(),
-                self._create_start_optimize_model_button(),
-                self._create_start_localize_button(),
+                # self._create_start_optimize_model_button(),
+                # self._create_start_localize_button(),
                 self._create_optimize_camera_intrinsics_switch(),
                 # TODO: debug only; to be removed
-                self._create_export_visibility_graph_button(),
-                self._create_reset_button(),
+                # self._create_export_visibility_graph_button(),
+                # self._create_reset_button(),
             ]
         )
 
         self._submenu.elements.clear()
-        self._submenu.append(self._create_open_3d_window_switch())
+        # self._submenu.append(self._create_open_3d_window_switch())
         if self._open_3d_window:
             self._submenu.extend(
                 [
@@ -67,7 +66,7 @@ class OfflineHeadPoseTrackerMenu:
                     self._create_show_3d_markers_init_switch(),
                     # TODO: debug only; to be removed
                     self._create_show_graph_edges_switch(),
-                    self._create_move_rotate_center_to_centroid(),
+                    # self._create_move_rotate_center_to_centroid(),
                 ]
             )
         self._plugin.menu.append(self._submenu)
@@ -88,13 +87,13 @@ class OfflineHeadPoseTrackerMenu:
             )
         return ui.Info_Text(text)
 
-    def _create_start_optimize_model_button(self):
-        return ui.Button(
-            label="Start optimize markers 3d model", function=self._on_start_optimize
-        )
+    # def _create_start_optimize_model_button(self):
+    #     return ui.Button(
+    #         label="Start optimize markers 3d model", function=self._on_start_optimize
+    #     )
 
-    def _create_start_localize_button(self):
-        return ui.Button(label="Start localize", function=self._on_start_localize)
+    # def _create_start_localize_button(self):
+    #     return ui.Button(label="Start localize", function=self._on_start_localize)
 
     def _create_optimize_camera_intrinsics_switch(self):
         return ui.Switch(
@@ -103,24 +102,24 @@ class OfflineHeadPoseTrackerMenu:
             label="Optimize camera intrinsic",
         )
 
-    def _create_reset_button(self):
-        return ui.Button(label="Reset", function=self._on_reset_button_click)
+    # def _create_reset_button(self):
+    #     return ui.Button(label="Reset", function=self._on_reset_button_click)
 
     # TODO: debug only; to be removed
-    def _create_export_visibility_graph_button(self):
-        return ui.Button(
-            outer_label="Export",
-            label="Visibility graph (debug)",
-            function=self._on_export_visibility_graph_button_click,
-        )
+    # def _create_export_visibility_graph_button(self):
+    #     return ui.Button(
+    #         outer_label="Export",
+    #         label="Visibility graph (debug)",
+    #         function=self._on_export_visibility_graph_button_click,
+    #     )
 
-    def _create_open_3d_window_switch(self):
-        return ui.Switch(
-            "_open_3d_window",
-            self,
-            label="Open 3d visualization window",
-            setter=self._on_3d_window_switch_click,
-        )
+    # def _create_open_3d_window_switch(self):
+    #     return ui.Switch(
+    #         "_open_3d_window",
+    #         self,
+    #         label="Open 3d visualization window",
+    #         setter=self._on_3d_window_switch_click,
+    #     )
 
     def _create_show_3d_markers_opt_switch(self):
         return ui.Switch(
@@ -165,33 +164,33 @@ class OfflineHeadPoseTrackerMenu:
             label="Show graph edges (debug)",
         )
 
-    def _create_move_rotate_center_to_centroid(self):
-        return ui.Button(
-            label="Move rotate center to centroid",
-            function=self._on_move_rotate_center_to_centroid_button_click,
-        )
+    # def _create_move_rotate_center_to_centroid(self):
+    #     return ui.Button(
+    #         label="Move rotate center to centroid",
+    #         function=self._on_move_rotate_center_to_centroid_button_click,
+    #     )
 
-    def _on_3d_window_switch_click(self, open_3d_window):
-        self._open_3d_window = open_3d_window
-        if open_3d_window:
-            self._plugin.visualization_3d_window.open()
-        else:
-            self._plugin.visualization_3d_window.close()
-        self._render()
+    # def _on_3d_window_switch_click(self, open_3d_window):
+    #     self._open_3d_window = open_3d_window
+    #     if open_3d_window:
+    #         self._plugin.visualization_3d_window.open()
+    #     else:
+    #         self._plugin.visualization_3d_window.close()
+    #     self._render()
 
-    def _on_reset_button_click(self):
-        self._controller.reset()
-        self._render()
-
-    # TODO: debug only; to be removed
-    def _on_export_visibility_graph_button_click(self):
-        self._controller.export_visibility_graph()
-
-    def _on_move_rotate_center_to_centroid_button_click(self):
-        self._model_storage.calculate_points_3d_centroid()
-
-    def _on_start_optimize(self):
-        self._controller.start_optimize()
-
-    def _on_start_localize(self):
-        self._controller.start_localize()
+    # def _on_reset_button_click(self):
+    #     self._controller.reset()
+    #     self._render()
+    #
+    # # TODO: debug only; to be removed
+    # def _on_export_visibility_graph_button_click(self):
+    #     self._controller.export_visibility_graph()
+    #
+    # def _on_move_rotate_center_to_centroid_button_click(self):
+    #     self._model_storage.calculate_points_3d_centroid()
+    #
+    # def _on_start_optimize(self):
+    #     self._controller.start_optimize()
+    #
+    # def _on_start_localize(self):
+    #     self._controller.start_localize()

@@ -32,7 +32,7 @@ class ModelStorage(Observable):
 
         self._set_to_default_values()
 
-        self.load_markers_3d_model_from_file()
+        # self.load_markers_3d_model_from_file()
 
     def _set_to_default_values(self):
         # {frame id: optimized camera extrinsics (which is composed of Rodrigues
@@ -177,3 +177,11 @@ class ModelStorage(Observable):
 
     def on_origin_marker_id_set(self):
         pass
+
+    def update_extrinsics_opt(self, marker_id_to_extrinsics):
+        for marker_id, extrinsics in marker_id_to_extrinsics.items():
+            self.marker_id_to_extrinsics_opt[marker_id] = extrinsics
+            self.marker_id_to_points_3d_opt[
+                marker_id
+            ] = worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics)
+        self.calculate_points_3d_centroid()

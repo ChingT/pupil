@@ -42,10 +42,14 @@ class BundleAdjustment:
         self._marker_ids = []
         self._frame_ids = []
 
-    def calculate(self, model_init_result, optimize_camera_intrinsics):
+    def calculate(self, data_for_model_init, optimize_camera_intrinsics=False):
         """ run bundle adjustment given the initial guess and then check the result of
         optimization
         """
+        model_init_result = worker.get_initial_guess.calculate(
+            self._camera_intrinsics, data_for_model_init
+        )
+
         if not model_init_result:
             return None
 

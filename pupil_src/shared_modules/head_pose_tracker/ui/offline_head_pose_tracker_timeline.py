@@ -23,6 +23,7 @@ class OfflineHeadPoseTrackerTimeline:
         self._camera_localizer_timeline = camera_localizer_timeline
 
         marker_location_timeline.render_parent_timeline = self.render
+        camera_localizer_timeline.render_parent_timeline = self.render
 
         plugin.add_observer("init_ui", self._on_init_ui)
 

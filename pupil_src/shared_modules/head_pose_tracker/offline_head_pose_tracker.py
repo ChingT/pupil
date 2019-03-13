@@ -45,12 +45,8 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         self._calculate_all_controller.calculate_all()
 
     def _setup_storages(self, predetermined_origin_marker_id):
-        self._controller_storage = model.ControllerStorage(
-            save_path=self.g_pool.rec_dir
-        )
-        self._model_storage = model.ModelStorage(
-            predetermined_origin_marker_id, save_path=self.g_pool.rec_dir
-        )
+        self._controller_storage = model.ControllerStorage()
+        self._model_storage = model.ModelStorage(predetermined_origin_marker_id)
 
         self._marker_location_storage = model.MarkerLocationStorage(
             self.g_pool.rec_dir, plugin=self

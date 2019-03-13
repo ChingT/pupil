@@ -67,7 +67,7 @@ class OptimizationStorage(model.storage.Storage, Observable):
         self._optimizations.sort(key=lambda c: c.name)
 
         if optimization.result:
-            self._model_storage.load_markers_3d_model_from_file(optimization.result)
+            self._model_storage.add_optimization_result(optimization.result)
 
     def delete(self, optimization):
         self._optimizations.remove(optimization)

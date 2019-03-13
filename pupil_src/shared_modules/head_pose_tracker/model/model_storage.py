@@ -10,7 +10,6 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import logging
-import os
 
 import numpy as np
 
@@ -21,10 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 class ModelStorage(Observable):
-    def __init__(self, predetermined_origin_marker_id, save_path):
+    def __init__(self, predetermined_origin_marker_id=None):
         self._predetermined_origin_marker_id = predetermined_origin_marker_id
-
-        self._model_path = os.path.join(save_path, "markers_3d_model")
 
         self.optimize_3d_model = False
         self.optimize_camera_intrinsics = False
@@ -64,19 +61,13 @@ class ModelStorage(Observable):
         except IndexError:
             self.points_3d_centroid = np.zeros((3,), dtype=np.float32)
 
-    def load_markers_3d_model_from_file(self, marker_id_to_extrinsics_opt):
+    def add_optimization_result(self, marker_id_to_extrinsics_opt):
         origin_marker_id = worker.utils.find_origin_marker_id(
             marker_id_to_extrinsics_opt
         )
         self.origin_marker_id = origin_marker_id
 
         self.update_extrinsics_opt(marker_id_to_extrinsics_opt)
-
-        logger.info(
-            "markers 3d model with {0} markers has been loaded from {1}".format(
-                len(marker_id_to_extrinsics_opt), self._model_path
-            )
-        )
 
     def update_extrinsics_opt(self, marker_id_to_extrinsics):
         for marker_id, extrinsics in marker_id_to_extrinsics.items():

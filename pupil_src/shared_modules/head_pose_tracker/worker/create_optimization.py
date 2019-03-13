@@ -12,14 +12,14 @@ import logging
 
 import tasklib.background
 import tasklib.background.patches as bg_patches
-from head_pose_tracker import worker
+from head_pose_tracker import worker, model
 
 logger = logging.getLogger(__name__)
 
 g_pool = None  # set by the plugin
 
 
-def create_task(optimization, controller_storage, model_storage, all_marker_locations):
+def create_task(optimization, all_marker_locations):
     assert g_pool, "You forgot to set g_pool by the plugin"
 
     frame_start = optimization.frame_index_range[0]
@@ -31,12 +31,7 @@ def create_task(optimization, controller_storage, model_storage, all_marker_loca
         if frame_start <= ref.frame_index <= frame_end
     ]
 
-    args = (
-        g_pool.capture.intrinsics,
-        controller_storage,
-        model_storage,
-        ref_dicts_in_opt_range,
-    )
+    args = (g_pool.capture.intrinsics, ref_dicts_in_opt_range)
     name = "Create calibration {}".format(optimization.name)
     return tasklib.background.create(
         name,
@@ -51,13 +46,10 @@ def _create_ref_dict(ref):
     return {"marker_detection": ref.marker_detection, "timestamp": ref.timestamp}
 
 
-def _create_optimization(
-    camera_intrinsics,
-    controller_storage,
-    model_storage,
-    ref_dicts_in_opt_range,
-    shared_memory,
-):
+def _create_optimization(camera_intrinsics, ref_dicts_in_opt_range, shared_memory):
+    model_storage = model.ModelStorage(predetermined_origin_marker_id=1)
+    controller_storage = model.ControllerStorage()
+
     pick_all_key_markers(controller_storage, ref_dicts_in_opt_range)
 
     prepare_for_model_update = worker.PrepareForModelUpdate(

@@ -47,8 +47,6 @@ class OnlineHeadPoseTrackerMenu:
                 self._create_origin_marker_text(),
                 self._create_optimize_model_switch(),
                 self._create_optimize_camera_intrinsics_switch(),
-                # TODO: debug only; to be removed
-                self._create_export_visibility_graph_button(),
                 self._create_reset_button(),
             ]
         )
@@ -102,13 +100,6 @@ class OnlineHeadPoseTrackerMenu:
     def _create_reset_button(self):
         return ui.Button(label="Reset", function=self._on_reset_button_click)
 
-    # TODO: debug only; to be removed
-    def _create_export_visibility_graph_button(self):
-        return ui.Button(
-            outer_label="Export",
-            label="Visibility graph (debug)",
-            function=self._on_export_visibility_graph_button_click,
-        )
 
     def _create_open_3d_window_switch(self):
         return ui.Switch(
@@ -178,10 +169,6 @@ class OnlineHeadPoseTrackerMenu:
     def _on_reset_button_click(self):
         self._controller.reset()
         self._render()
-
-    # TODO: debug only; to be removed
-    def _on_export_visibility_graph_button_click(self):
-        self._controller.export_visibility_graph()
 
     def _on_move_rotate_center_to_centroid_button_click(self):
         self._model_storage.calculate_points_3d_centroid()

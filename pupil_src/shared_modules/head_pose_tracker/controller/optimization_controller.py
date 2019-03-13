@@ -47,11 +47,9 @@ class OptimizationController(Observable):
                 self._optimization_storage.save_to_disk()
                 self.on_optimization_computed(optimization)
 
+        self._model_storage.reset()
         task = worker.create_optimization.create_task(
-            optimization,
-            self._controller_storage,
-            self._model_storage,
-            all_marker_locations=self._marker_location_storage,
+            optimization, all_marker_locations=self._marker_location_storage
         )
         task.add_observer("on_yield", on_yield_optimization)
         task.add_observer("on_exception", tasklib.raise_exception)

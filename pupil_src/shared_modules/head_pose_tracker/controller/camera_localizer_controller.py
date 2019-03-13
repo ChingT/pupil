@@ -11,6 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
+import player_methods as pm
 import tasklib
 from head_pose_tracker import worker
 from observable import Observable
@@ -32,6 +33,9 @@ class CameraLocalizerController(Observable):
         self._marker_location_storage = marker_location_storage
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
+
+        # make localizations loaded from disk known to Player
+        self.save_all_enabled_localizers()
 
     def set_localization_range_from_current_trim_marks(self, camera_localizer):
         camera_localizer.localization_index_range = self._get_current_trim_mark_range()
@@ -62,6 +66,7 @@ class CameraLocalizerController(Observable):
         camera_localizer.status = error_message
         self.on_calculation_could_not_be_started()
         # the pose from this localizer got cleared, so don't show it anymore
+        self.save_all_enabled_localizers()
 
     def on_calculation_could_not_be_started(self):
         pass
@@ -85,6 +90,7 @@ class CameraLocalizerController(Observable):
 
         def on_completed_localization(_):
             camera_localizer.status = "Successfully completed localization"
+            self.save_all_enabled_localizers()
             self._camera_localizer_storage.save_to_disk()
             self.on_camera_localization_calculated(camera_localizer)
             logger.info(
@@ -95,6 +101,20 @@ class CameraLocalizerController(Observable):
         task.add_observer("on_completed", on_completed_localization)
         task.add_observer("on_exception", tasklib.raise_exception)
         return task
+
+    def save_all_enabled_localizers(self):
+        """
+        Save pose data to e.g. render it in Player or to trigger other plugins
+        that operate on pose data. The save logic is implemented in the plugin.
+        """
+        for localizer in self._camera_localizer_storage:
+            pose_bisector = self._create_pose_bisector_from_localizer(localizer)
+            self._camera_localizer_storage.save_pose_bisector(localizer, pose_bisector)
+
+    def _create_pose_bisector_from_localizer(self, localizer):
+        pose_data = list(localizer.pose)
+        pose_ts = list(localizer.pose_ts)
+        return pm.Bisector(pose_data, pose_ts)
 
     def on_camera_localization_calculated(self, camera_localizer):
         pass

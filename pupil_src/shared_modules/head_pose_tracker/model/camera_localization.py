@@ -9,6 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import player_methods as pm
 from head_pose_tracker import model
 
 
@@ -25,6 +26,7 @@ class CameraLocalizer(model.storage.StorageItem):
         status="Not calculated yet",
         pose=[],
         pose_ts=[],
+        pose_bisector=pm.Bisector(),
     ):
         self.unique_id = unique_id
         self.name = name
@@ -34,6 +36,7 @@ class CameraLocalizer(model.storage.StorageItem):
         self.status = status
         self.pose = pose
         self.pose_ts = pose_ts
+        self.pose_bisector = pose_bisector
 
     @property
     def calculate_complete(self):

@@ -168,3 +168,7 @@ class CameraLocalizerStorage(model.SingleFileStorage, Observable):
             self._camera_localizations_directory,
             self._camera_localization_file_name(camera_localizer),
         )
+
+    @staticmethod
+    def save_pose_bisector(localizer, pose_bisector):
+        localizer.pose_bisector = pose_bisector

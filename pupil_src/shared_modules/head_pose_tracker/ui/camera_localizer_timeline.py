@@ -44,6 +44,9 @@ class CameraLocalizerTimeline:
             "set_localization_range_from_current_trim_marks",
             self._on_localizer_ranges_changed,
         )
+        self._camera_localizer_controller.add_observer(
+            "save_all_enabled_localizers", self._on_save_enabled_localizers
+        )
         self._optimization_controller.add_observer(
             "set_optimization_range_from_current_trim_marks",
             self._on_optimization_range_changed,
@@ -96,7 +99,7 @@ class CameraLocalizerTimeline:
     def _on_localizer_ranges_changed(self, _):
         self.render_parent_timeline()
 
-    def _on_publish_enabled_localizers(self):
+    def _on_save_enabled_localizers(self):
         """Triggered when activate_pose changes and localization tasks are complete"""
         self.render_parent_timeline()
 

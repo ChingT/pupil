@@ -146,6 +146,7 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
 
     def _on_activate_pose_changed(self, new_value):
         self.current_item.activate_pose = new_value
+        self._camera_localizer_controller.save_all_enabled_localizers()
 
     def _on_click_calculate(self):
         self._camera_localizer_controller.calculate(self.current_item)

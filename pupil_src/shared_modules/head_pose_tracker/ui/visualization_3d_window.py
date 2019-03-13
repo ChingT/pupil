@@ -9,6 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import collections
 import logging
 
 import OpenGL.GL as gl
@@ -17,7 +18,6 @@ import numpy as np
 
 import gl_utils
 import glfw
-from head_pose_tracker import worker
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ class Visualization3dWindow:
         self._controller_storage = controller_storage
         self._model_storage = model_storage
         self._camera_localizer_storage = camera_localizer_storage
+        self._plugin = plugin
 
         self._input = {"down": False, "mouse": (0, 0)}
 
@@ -46,13 +47,12 @@ class Visualization3dWindow:
         self._window_size = 1280, 1335
 
         self.show_markers_opt = True
-        # TODO: debug only; to be removed
-        self.show_markers_init = True
-        self.show_marker_id = True
+        self.show_marker_id = False
         self.show_camera_frustum = True
         self.show_camera_trace = True
         self.show_graph_edges = False
 
+        self.recent_camera_traces = collections.deque(maxlen=300)
         self._get_current_frame_index = get_current_frame_index
 
         plugin.add_observer("init_ui", self._on_init_ui)
@@ -182,37 +182,38 @@ class Visualization3dWindow:
         if self.show_graph_edges:
             self._draw_edges()
 
-        # TODO: debug only; to be removed
-        if self.show_markers_init:
-            self._draw_markers_init_in_3d_window()
-
-        if self.show_camera_trace:
-            self._draw_camera_trace_in_3d_window()
-        if self.show_camera_frustum:
-            camera_pose_matrix = self._get_camera_pose_matrix()
-            self._draw_camera_in_3d_window(camera_pose_matrix)
+        self._show_camera()
 
         self._trackball.pop()
 
         glfw.glfwSwapBuffers(window)
         glfw.glfwMakeContextCurrent(active_window)
 
-    def _get_camera_pose_matrix(self):
-        current_index = self._get_current_frame_index()
+    def _show_camera(self):
+        current_frame_index = self._get_current_frame_index()
+        ts = self._plugin.g_pool.timestamps[current_frame_index]
 
-        try:
-            current_pose = (
-                self._camera_localizer_storage.items[0]
-                .pose[current_index]
-                ._data["camera_extrinsics"]
-            )
-        except IndexError:
-            current_pose = worker.utils.get_none_camera_extrinsics()
-        except TypeError:
-            current_pose = worker.utils.get_none_camera_extrinsics()
+        for localizer in self._camera_localizer_storage:
+            if not localizer.activate_pose:
+                continue
+            try:
+                pose_datum = localizer.pose_bisector.by_ts(ts)
+            except ValueError:
+                camera_trace = np.full((3,), np.nan)
+                camera_pose_matrix = np.full((4, 4), np.nan)
+            else:
+                camera_trace = pose_datum["camera_trace"]
+                camera_pose_matrix = pose_datum["camera_pose_matrix"]
 
-        camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(current_pose)
-        return camera_pose_matrix
+            self.recent_camera_traces.append(camera_trace)
+            self._shift_rotate_center()
+
+            if self.show_camera_trace:
+                self._draw_camera_trace_in_3d_window(self.recent_camera_traces)
+            if self.show_camera_frustum:
+                self._draw_camera_in_3d_window(camera_pose_matrix)
+
+            return
 
     @staticmethod
     def _init_3d_window():
@@ -280,18 +281,17 @@ class Visualization3dWindow:
 
             self._draw_polygon_in_3d_window(points_3d, color)
 
-    def _draw_camera_trace_in_3d_window(self):
+    def _draw_camera_trace_in_3d_window(self, recent_camera_traces):
         color = (0.2, 0.2, 0.2, 0.1)
-        self._draw_strip_in_3d_window(
-            self._controller_storage.recent_camera_traces, color
-        )
+        self._draw_strip_in_3d_window(recent_camera_traces, color)
 
     def _draw_camera_in_3d_window(self, camera_pose_matrix):
-        gl.glMultTransposeMatrixf(camera_pose_matrix)
-        self._draw_coordinate_in_3d_window()
-        self._draw_frustum_in_3d_window(
-            self._camera_intrinsics.resolution, self._camera_intrinsics.K
-        )
+        if camera_pose_matrix is not None:
+            gl.glMultTransposeMatrixf(camera_pose_matrix)
+            self._draw_coordinate_in_3d_window()
+            self._draw_frustum_in_3d_window(
+                self._camera_intrinsics.resolution, self._camera_intrinsics.K
+            )
 
     def _draw_edges(self):
         all_init_keys = self._model_storage.marker_id_to_points_3d_init.keys()

@@ -194,8 +194,6 @@ class Visualization3dWindow:
         ts = self._plugin.g_pool.timestamps[current_frame_index]
 
         for localizer in self._camera_localizer_storage:
-            if not localizer.activate_pose:
-                continue
             try:
                 pose_datum = localizer.pose_bisector.by_ts(ts)
             except ValueError:

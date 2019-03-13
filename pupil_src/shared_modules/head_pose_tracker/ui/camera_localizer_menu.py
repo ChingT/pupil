@@ -15,10 +15,7 @@ from head_pose_tracker import ui as plugin_ui
 
 
 class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
-    menu_label = "Camera Localizers"
-    selector_label = "Edit Camera Localizer:"
-    new_button_label = "New Camera Localizer"
-    duplicate_button_label = "Duplicate Current Camera Localizer"
+    menu_label = "Camera Localizer"
 
     def __init__(
         self,
@@ -33,14 +30,11 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
         self._optimization_storage = optimization_storage
         self._index_range_as_str = index_range_as_str
 
-        self.menu.collapsed = True
+        self.menu.collapsed = False
 
         optimization_storage.add_observer("add", self._on_optimization_storage_changed)
         optimization_storage.add_observer(
             "rename", self._on_optimization_storage_changed
-        )
-        optimization_storage.add_observer(
-            "delete", self._on_optimization_storage_changed
         )
 
         camera_localizer_controller.add_observer(
@@ -54,23 +48,13 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
     def _item_label(self, camera_localizer):
         return camera_localizer.name
 
-    def _new_item(self):
-        return self._camera_localizer_storage.create_default_camera_localizer()
-
-    def _duplicate_item(self, camera_localizer):
-        return self._camera_localizer_storage.duplicate_camera_localizer(
-            camera_localizer
-        )
-
     def _render_custom_ui(self, camera_localizer, menu):
         menu.extend(
             [
                 self._create_name_input(camera_localizer),
-                self._create_status_text(camera_localizer),
-                self._create_calculate_button(camera_localizer),
-                self._create_optimization_selector(camera_localizer),
                 self._create_localization_range_selector(camera_localizer),
-                self._create_activate_pose_switch(camera_localizer),
+                self._create_calculate_button(camera_localizer),
+                self._create_status_text(camera_localizer),
             ]
         )
 
@@ -90,27 +74,6 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
             function=self._on_click_calculate,
         )
 
-    def _create_optimization_selector(self, camera_localizer):
-        labels = [optimization.name for optimization in self._optimization_storage]
-        selection = [
-            optimization.unique_id for optimization in self._optimization_storage
-        ]
-
-        optimization = self._camera_localizer_controller.get_valid_optimization_or_none(
-            camera_localizer
-        )
-        if not optimization:
-            labels.append("[Invalid Optimization]")
-            selection.append(camera_localizer.optimization_unique_id)
-
-        return ui.Selector(
-            "optimization_unique_id",
-            camera_localizer,
-            label="Optimization",
-            selection=selection,
-            labels=labels,
-        )
-
     def _create_localization_range_selector(self, camera_localizer):
         range_string = "Localize camera in: " + self._index_range_as_str(
             camera_localizer.localization_index_range
@@ -119,14 +82,6 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
             outer_label=range_string,
             label="Set From Trim Marks",
             function=self._on_set_localization_range_from_trim_marks,
-        )
-
-    def _create_activate_pose_switch(self, camera_localizer):
-        return ui.Switch(
-            "activate_pose",
-            camera_localizer,
-            label="Activate Pose",
-            setter=self._on_activate_pose_changed,
         )
 
     def _on_optimization_storage_changed(self, *args, **kwargs):
@@ -144,12 +99,8 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
         )
         self.render()
 
-    def _on_activate_pose_changed(self, new_value):
-        self.current_item.activate_pose = new_value
-        self._camera_localizer_controller.save_all_enabled_localizers()
-
     def _on_click_calculate(self):
-        self._camera_localizer_controller.calculate(self.current_item)
+        self._camera_localizer_controller.calculate()
 
     def _on_camera_localization_calculated(self, camera_localization):
         if camera_localization == self.current_item:

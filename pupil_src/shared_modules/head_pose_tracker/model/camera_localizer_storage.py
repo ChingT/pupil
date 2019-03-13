@@ -36,17 +36,11 @@ class CameraLocalizerStorage(model.SingleFileStorage, Observable):
         self.add(self.create_default_camera_localizer())
 
     def create_default_camera_localizer(self):
-        default_optimization = self._optimization_storage.get_first_or_none()
-        if default_optimization:
-            optimization_unique_id = default_optimization.unique_id
-        else:
-            optimization_unique_id = ""
         return model.CameraLocalizer(
             unique_id=model.CameraLocalizer.create_new_unique_id(),
             name=make_unique.by_number_at_end(
                 "Default Camera Localizer", self.item_names
             ),
-            optimization_unique_id=optimization_unique_id,
             localization_index_range=self._get_recording_index_range(),
         )
 
@@ -56,9 +50,7 @@ class CameraLocalizerStorage(model.SingleFileStorage, Observable):
             name=make_unique.by_number_at_end(
                 camera_localizer.name + " Copy", self.item_names
             ),
-            optimization_unique_id=camera_localizer.optimization_unique_id,
             localization_index_range=camera_localizer.localization_index_range,
-            activate_pose=camera_localizer.activate_pose,
             # We cannot deep copy pose, so we don't.
             # All others left at their default.
         )
@@ -172,3 +164,9 @@ class CameraLocalizerStorage(model.SingleFileStorage, Observable):
     @staticmethod
     def save_pose_bisector(localizer, pose_bisector):
         localizer.pose_bisector = pose_bisector
+
+    def get_or_none(self):
+        try:
+            return next(c for c in self._camera_localizers)
+        except StopIteration:
+            return None

@@ -100,7 +100,6 @@ class OnlineHeadPoseTrackerMenu:
     def _create_reset_button(self):
         return ui.Button(label="Reset", function=self._on_reset_button_click)
 
-
     def _create_open_3d_window_switch(self):
         return ui.Switch(
             "_open_3d_window",

@@ -12,7 +12,6 @@ import copy
 import logging
 import os
 
-import file_methods as fm
 import make_unique
 from head_pose_tracker import model
 from observable import Observable
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class OptimizationStorage(model.storage.Storage, Observable):
-    _optimization_suffix = "plcal"
+    _optimization_suffix = "plopt"
 
     def __init__(
         self, rec_dir, plugin, get_recording_index_range, recording_uuid, model_storage
@@ -94,21 +93,29 @@ class OptimizationStorage(model.storage.Storage, Observable):
         else:
             return None
 
-    def get_or_none(self, unique_id):
+    def get_or_none(self):
         try:
-            return next(c for c in self._optimizations if c.unique_id == unique_id)
+            return next(c for c in self._optimizations)
         except StopIteration:
             return None
 
     def _load_from_disk(self):
         try:
-            # we sort because listdir sometimes returns files in weird order
-            for file_name in sorted(os.listdir(self._optimization_folder)):
-                if file_name.endswith(self._optimization_suffix):
-                    self._load_optimization_from_file(file_name)
+            optimization_files = [
+                file_name
+                for file_name in os.listdir(self._optimization_folder)
+                if file_name.endswith(self._optimization_suffix)
+            ]
         except FileNotFoundError:
-            pass
-        self._load_recorded_optimizations()
+            return
+
+        if len(optimization_files) > 1:
+            raise RuntimeError(
+                "There should be only one optimization file in "
+                "marker_3d_model folder."
+            )
+        elif len(optimization_files) == 1:
+            self._load_optimization_from_file(optimization_files[0])
 
     def _load_optimization_from_file(self, file_name):
         file_path = os.path.join(self._optimization_folder, file_name)
@@ -120,36 +127,6 @@ class OptimizationStorage(model.storage.Storage, Observable):
                 # to confusion if it is rendered somewhere
                 optimization.frame_index_range = [0, 0]
             self.add(optimization)
-
-    def _load_recorded_optimizations(self):
-        notifications = fm.load_pldata_file(self._rec_dir, "notify")
-        for topic, data in zip(notifications.topics, notifications.data):
-            if topic == "notify.optimization.optimization_data":
-                try:
-                    opt_result = model.OptimizationResult(
-                        mapping_plugin_name=data["mapper_name"],
-                        mapper_args=data["mapper_args"],
-                    )
-                except KeyError:
-                    # notifications from old recordings will not have these fields!
-                    continue
-                # the unique id needs to be the same at every start or otherwise the
-                # same optimizations would be added again and again. The timestamp is
-                # the easiest datum that differs between optimizations but is the same
-                # for every start
-                unique_id = model.Optimization.create_unique_id_from_string(
-                    str(data["timestamp"])
-                )
-                optimization = model.Optimization(
-                    unique_id=unique_id,
-                    name=make_unique.by_number_at_end(
-                        "Recorded Optimization", self.item_names
-                    ),
-                    recording_uuid=self._recording_uuid,
-                    frame_index_range=self._get_recording_index_range(),
-                    result=opt_result,
-                )
-                self.add(optimization)
 
     def save_to_disk(self):
         os.makedirs(self._optimization_folder, exist_ok=True)

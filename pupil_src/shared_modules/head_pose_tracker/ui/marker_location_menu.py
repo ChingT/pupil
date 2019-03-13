@@ -16,8 +16,8 @@ class MarkerLocationMenu:
     def __init__(self, marker_location_controller, marker_location_storage):
         self._marker_location_controller = marker_location_controller
         self._marker_location_storage = marker_location_storage
-        self.menu = ui.Growing_Menu("Marker Locations")
-        self.menu.collapsed = True
+        self.menu = ui.Growing_Menu("Marker Detection")
+        self.menu.collapsed = False
 
         marker_location_controller.add_observer(
             "on_detection_started", self._on_started_marker_detection
@@ -25,13 +25,7 @@ class MarkerLocationMenu:
 
     def render(self):
         self.menu.elements.clear()
-        self.menu.extend(
-            [
-                self._create_toggle_marker_detection_button(),
-                ui.Separator(),
-                self._create_clear_all_button(),
-            ]
-        )
+        self.menu.extend([self._create_toggle_marker_detection_button()])
 
     def _create_toggle_marker_detection_button(self):
         if self._marker_location_controller.is_running_detection:
@@ -40,9 +34,6 @@ class MarkerLocationMenu:
             return ui.Button(
                 "Detect Apriltags in Recording", self._on_click_start_marker_detection
             )
-
-    def _create_clear_all_button(self):
-        return ui.Button("Clear All Marker Detections", self._on_clear_all_refs)
 
     def _on_click_start_marker_detection(self):
         self._marker_location_controller.start_detection()
@@ -56,6 +47,3 @@ class MarkerLocationMenu:
 
     def _on_ended_marker_detection(self):
         self.render()
-
-    def _on_clear_all_refs(self):
-        self._marker_location_storage.delete_all()

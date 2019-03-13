@@ -53,20 +53,4 @@ class CalculateAllController:
     def _calculate_all_optimizations(self):
         for optimization in self._optimization_storage:
             if not optimization.result:
-                task = self._optimization_controller.calculate(optimization)
-                task.add_observer(
-                    "on_completed",
-                    self._create_optimization_complete_handler(optimization),
-                )
-            else:
-                self._calculate_camera_localizers_based_on_optimization(optimization)
-
-    def _create_optimization_complete_handler(self, optimization):
-        return lambda _: self._calculate_camera_localizers_based_on_optimization(
-            optimization
-        )
-
-    def _calculate_camera_localizers_based_on_optimization(self, optimization):
-        for camera_localizer in self._camera_localizer_storage:
-            if camera_localizer.optimization_unique_id == optimization.unique_id:
-                self._camera_localizer_controller.calculate(camera_localizer)
+                self._optimization_controller.calculate(optimization)

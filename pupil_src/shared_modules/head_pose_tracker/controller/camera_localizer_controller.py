@@ -22,12 +22,14 @@ logger = logging.getLogger(__name__)
 class CameraLocalizerController(Observable):
     def __init__(
         self,
+        optimization_controller,
         camera_localizer_storage,
         optimization_storage,
         marker_location_storage,
         task_manager,
         get_current_trim_mark_range,
     ):
+        self._optimization_controller = optimization_controller
         self._camera_localizer_storage = camera_localizer_storage
         self._optimization_storage = optimization_storage
         self._marker_location_storage = marker_location_storage
@@ -37,17 +39,28 @@ class CameraLocalizerController(Observable):
         # make localizations loaded from disk known to Player
         self.save_all_enabled_localizers()
 
+        self._optimization_controller.add_observer(
+            "on_optimization_computed", self.calculate
+        )
+
     def set_localization_range_from_current_trim_marks(self, camera_localizer):
         camera_localizer.localization_index_range = self._get_current_trim_mark_range()
 
-    def calculate(self, camera_localizer):
+    def calculate(self, optimization=None):
+        camera_localizer = self._camera_localizer_storage.get_or_none()
+        if camera_localizer is None:
+            return
+
         self._reset_camera_localizer_results(camera_localizer)
-        optimization = self.get_valid_optimization_or_none(camera_localizer)
+
+        if optimization is None:
+            optimization = self.get_valid_optimization_or_none()
+
         if optimization is None:
             self._abort_calculation(
                 camera_localizer,
-                "The optimization was not found for the pose localizer '{}', "
-                "please select a different optimization!".format(camera_localizer.name),
+                "The optimization was not found for the pose localizer "
+                "'{}'".format(camera_localizer.name),
             )
             return None
         if optimization.result is None:
@@ -119,7 +132,5 @@ class CameraLocalizerController(Observable):
     def on_camera_localization_calculated(self, camera_localizer):
         pass
 
-    def get_valid_optimization_or_none(self, camera_localizer):
-        return self._optimization_storage.get_or_none(
-            camera_localizer.optimization_unique_id
-        )
+    def get_valid_optimization_or_none(self):
+        return self._optimization_storage.get_or_none()

@@ -20,9 +20,7 @@ class CameraLocalizer(model.storage.StorageItem):
         self,
         unique_id,
         name,
-        optimization_unique_id,
         localization_index_range,
-        activate_pose=True,
         status="Not calculated yet",
         pose=[],
         pose_ts=[],
@@ -30,9 +28,7 @@ class CameraLocalizer(model.storage.StorageItem):
     ):
         self.unique_id = unique_id
         self.name = name
-        self.optimization_unique_id = optimization_unique_id
         self.localization_index_range = tuple(localization_index_range)
-        self.activate_pose = activate_pose
         self.status = status
         self.pose = pose
         self.pose_ts = pose_ts
@@ -49,11 +45,4 @@ class CameraLocalizer(model.storage.StorageItem):
 
     @property
     def as_tuple(self):
-        return (
-            self.unique_id,
-            self.name,
-            self.optimization_unique_id,
-            self.localization_index_range,
-            self.activate_pose,
-            self.status,
-        )
+        return (self.unique_id, self.name, self.localization_index_range, self.status)

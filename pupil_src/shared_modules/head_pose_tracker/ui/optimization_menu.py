@@ -18,10 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class OptimizationMenu(plugin_ui.StorageEditMenu):
-    menu_label = "Optimizations"
-    selector_label = "Edit Optimization:"
-    new_button_label = "New Optimization"
-    duplicate_button_label = "Duplicate Current Optimization"
+    menu_label = "Optimization"
 
     def __init__(
         self,
@@ -36,7 +33,7 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
         self._optimization_controller = optimization_controller
         self._index_range_as_str = index_range_as_str
 
-        self.menu.collapsed = True
+        self.menu.collapsed = False
 
         optimization_controller.add_observer(
             "on_optimization_computed", self._on_optimization_computed
@@ -44,12 +41,6 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
 
     def _item_label(self, optimization):
         return optimization.name
-
-    def _new_item(self):
-        return self._optimization_storage.create_default_optimization()
-
-    def _duplicate_item(self, optimization):
-        return self._optimization_storage.duplicate_optimization(optimization)
 
     def _render_custom_ui(self, optimization, menu):
         if not self._optimization_controller.is_from_same_recording(optimization):
@@ -63,8 +54,8 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
                 self._create_origin_marker_text(),
                 self._create_name_input(optimization),
                 self._create_range_selector(optimization),
-                self._create_status_display(optimization),
                 self._create_calculate_button(optimization),
+                self._create_status_display(optimization),
             ]
         )
 
@@ -131,12 +122,6 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
             "This optimization was created before or during the recording. "
             "It is ready to be used in camera localizers."
         )
-
-    def _on_click_duplicate_button(self):
-        if self._optimization_controller.is_from_same_recording(self.current_item):
-            super()._on_click_duplicate_button()
-        else:
-            logger.error("Cannot duplicate optimizations from other recordings!")
 
     def _on_name_change(self, new_name):
         self._optimization_storage.rename(self.current_item, new_name)

@@ -34,9 +34,6 @@ class CameraLocalizerTimeline:
             "add", self._on_localizer_storage_changed
         )
         self._camera_localizer_storage.add_observer(
-            "delete", self._on_localizer_storage_changed
-        )
-        self._camera_localizer_storage.add_observer(
             "rename", self._on_localizer_storage_changed
         )
 
@@ -52,15 +49,13 @@ class CameraLocalizerTimeline:
             self._on_optimization_range_changed,
         )
 
-        optimization_storage.add_observer("delete", self._on_optimization_deleted)
-
     def create_rows(self):
         rows = []
         for camera_localizer in self._camera_localizer_storage:
-            alpha = 0.9 if camera_localizer.activate_pose else 0.4
+            alpha = 0.9
             elements = [
                 self._create_localization_range(camera_localizer, alpha),
-                self._create_optimization_range(camera_localizer, alpha),
+                self._create_optimization_range(alpha),
             ]
             rows.append(Row(label=camera_localizer.name, elements=elements))
         return rows
@@ -76,9 +71,9 @@ class CameraLocalizerTimeline:
         )
         return RangeElementFrameIdx(from_idx, to_idx, color_rgba=color, height=10)
 
-    def _create_optimization_range(self, camera_localizer, alpha):
-        optimization = self._camera_localizer_controller.get_valid_optimization_or_none(
-            camera_localizer
+    def _create_optimization_range(self, alpha):
+        optimization = (
+            self._camera_localizer_controller.get_valid_optimization_or_none()
         )
         color = [0.6, 0.2, 0.8, alpha]
         # color = [217 / 255, 95 / 255, 2 / 255, alpha]
@@ -104,8 +99,4 @@ class CameraLocalizerTimeline:
         self.render_parent_timeline()
 
     def _on_optimization_range_changed(self, _):
-        self.render_parent_timeline()
-
-    def _on_optimization_deleted(self, _):
-        # the deleted optimization might be used by one of the camera localizers
         self.render_parent_timeline()

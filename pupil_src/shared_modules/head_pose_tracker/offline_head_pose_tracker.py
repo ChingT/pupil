@@ -82,6 +82,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
 
         self._camera_localizer_controller = controller.CameraLocalizerController(
+            self._optimization_controller,
             self._camera_localizer_storage,
             self._optimization_storage,
             self._marker_location_storage,
@@ -116,9 +117,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             frame_size=self.g_pool.capture.frame_size,
             get_current_frame_index=self.g_pool.capture.get_frame_index,
         )
-        self._on_top_menu = plugin_ui.OnTopMenu(
-            self._calculate_all_controller, self._marker_location_storage
-        )
+        self._on_top_menu = plugin_ui.OnTopMenu()
         self._marker_location_menu = plugin_ui.MarkerLocationMenu(
             self._marker_location_controller, self._marker_location_storage
         )

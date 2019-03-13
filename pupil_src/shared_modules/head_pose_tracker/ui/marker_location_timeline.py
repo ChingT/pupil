@@ -24,12 +24,6 @@ class MarkerLocationTimeline:
         self._marker_location_storage.add_observer(
             "add", self._on_marker_storage_changed
         )
-        self._marker_location_storage.add_observer(
-            "delete", self._on_marker_storage_changed
-        )
-        self._marker_location_storage.add_observer(
-            "delete_all", self._on_marker_storage_changed
-        )
 
     def create_row(self):
         elements = []

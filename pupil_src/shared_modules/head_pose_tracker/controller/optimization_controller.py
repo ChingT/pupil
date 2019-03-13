@@ -33,28 +33,32 @@ class OptimizationController(Observable):
         self._get_current_trim_mark_range = get_current_trim_mark_range
         self._recording_uuid = recording_uuid
 
+        self._task = None
+
     def calculate(self, optimization):
         def on_yield_optimization(result):
             optimization.result = result
             self._model_storage.update_extrinsics_opt(optimization.result)
 
-            if task.progress < 1:
+            if self._task.progress < 1:
                 optimization.status = "Optimization {:.0f}% complete".format(
-                    task.progress * 100
+                    self._task.progress * 100
                 )
             else:
                 optimization.status = "Optimization successful"
                 self._optimization_storage.save_to_disk()
                 self.on_optimization_computed(optimization)
 
+        if self._task is not None and self._task.running:
+            self._task.kill(None)
         self._model_storage.reset()
-        task = worker.create_optimization.create_task(
+        self._task = worker.create_optimization.create_task(
             optimization, all_marker_locations=self._marker_location_storage
         )
-        task.add_observer("on_yield", on_yield_optimization)
-        task.add_observer("on_exception", tasklib.raise_exception)
-        self._task_manager.add_task(task)
-        return task
+        self._task.add_observer("on_yield", on_yield_optimization)
+        self._task.add_observer("on_exception", tasklib.raise_exception)
+        self._task_manager.add_task(self._task)
+        return self._task
 
     def on_optimization_computed(self, optimization):
         pass

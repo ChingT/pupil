@@ -120,13 +120,18 @@ class CameraLocalizerController(Observable):
         Save pose data to e.g. render it in Player or to trigger other plugins
         that operate on pose data. The save logic is implemented in the plugin.
         """
-        for localizer in self._camera_localizer_storage:
-            pose_bisector = self._create_pose_bisector_from_localizer(localizer)
-            self._camera_localizer_storage.save_pose_bisector(localizer, pose_bisector)
+        camera_localizer = self._camera_localizer_storage.get_or_none()
+        if camera_localizer is None:
+            return
 
-    def _create_pose_bisector_from_localizer(self, localizer):
-        pose_data = list(localizer.pose)
-        pose_ts = list(localizer.pose_ts)
+        pose_bisector = self._create_pose_bisector_from_localizer(camera_localizer)
+        self._camera_localizer_storage.save_pose_bisector(
+            camera_localizer, pose_bisector
+        )
+
+    def _create_pose_bisector_from_localizer(self, camera_localizer):
+        pose_data = list(camera_localizer.pose)
+        pose_ts = list(camera_localizer.pose_ts)
         return pm.Bisector(pose_data, pose_ts)
 
     def on_camera_localization_calculated(self, camera_localizer):

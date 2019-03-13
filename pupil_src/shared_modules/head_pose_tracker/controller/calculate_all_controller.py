@@ -51,6 +51,6 @@ class CalculateAllController:
         self._calculate_all_optimizations()
 
     def _calculate_all_optimizations(self):
-        for optimization in self._optimization_storage:
-            if not optimization.result:
-                self._optimization_controller.calculate(optimization)
+        optimization = self._optimization_storage.get_or_none()
+        if optimization is not None and not optimization.result:
+            self._optimization_controller.calculate(optimization)

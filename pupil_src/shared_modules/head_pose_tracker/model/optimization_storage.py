@@ -8,7 +8,6 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
-import copy
 import logging
 import os
 
@@ -47,14 +46,6 @@ class OptimizationStorage(model.storage.Storage, Observable):
             frame_index_range=self._get_recording_index_range(),
         )
 
-    def duplicate_optimization(self, optimization):
-        new_optimization = copy.deepcopy(optimization)
-        new_optimization.name = make_unique.by_number_at_end(
-            new_optimization.name + " Copy", self.item_names
-        )
-        new_optimization.unique_id = model.Optimization.create_new_unique_id()
-        return new_optimization
-
     def add(self, optimization):
         if any(c.unique_id == optimization.unique_id for c in self._optimizations):
             logger.warning(
@@ -67,16 +58,6 @@ class OptimizationStorage(model.storage.Storage, Observable):
 
         if optimization.result:
             self._model_storage.add_optimization_result(optimization.result)
-
-    def delete(self, optimization):
-        self._optimizations.remove(optimization)
-        self._delete_optimization_file(optimization)
-
-    def _delete_optimization_file(self, optimization):
-        try:
-            os.remove(self._optimization_file_path(optimization))
-        except FileNotFoundError:
-            pass
 
     def rename(self, optimization, new_name):
         old_optimization_file_path = self._optimization_file_path(optimization)

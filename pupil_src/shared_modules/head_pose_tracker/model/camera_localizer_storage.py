@@ -44,32 +44,9 @@ class CameraLocalizerStorage(model.SingleFileStorage, Observable):
             localization_index_range=self._get_recording_index_range(),
         )
 
-    def duplicate_camera_localizer(self, camera_localizer):
-        return model.CameraLocalizer(
-            unique_id=camera_localizer.create_new_unique_id(),
-            name=make_unique.by_number_at_end(
-                camera_localizer.name + " Copy", self.item_names
-            ),
-            localization_index_range=camera_localizer.localization_index_range,
-            # We cannot deep copy pose, so we don't.
-            # All others left at their default.
-        )
-
     def add(self, camera_localizer):
         self._camera_localizers.append(camera_localizer)
         self._camera_localizers.sort(key=lambda g: g.name)
-
-    def delete(self, camera_localizer):
-        self._camera_localizers.remove(camera_localizer)
-        self._delete_localization_file(camera_localizer)
-
-    def _delete_localization_file(self, camera_localizer):
-        localization_file_path = self._camera_localization_file_path(camera_localizer)
-        try:
-            os.remove(localization_file_path + ".pldata")
-            os.remove(localization_file_path + "_timestamps.npy")
-        except FileNotFoundError:
-            pass
 
     def rename(self, camera_localizer, new_name):
         old_localization_file_path = self._camera_localization_file_path(

@@ -62,14 +62,6 @@ class Storage(abc.ABC):
     def __iter__(self):
         return iter(self.items)
 
-    @abc.abstractmethod
-    def add(self, item):
-        pass
-
-    @abc.abstractmethod
-    def delete(self, item):
-        pass
-
     @property
     @abc.abstractmethod
     def items(self):

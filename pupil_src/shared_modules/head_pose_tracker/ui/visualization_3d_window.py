@@ -193,25 +193,26 @@ class Visualization3dWindow:
         current_frame_index = self._get_current_frame_index()
         ts = self._plugin.g_pool.timestamps[current_frame_index]
 
-        for localizer in self._camera_localizer_storage:
-            try:
-                pose_datum = localizer.pose_bisector.by_ts(ts)
-            except ValueError:
-                camera_trace = np.full((3,), np.nan)
-                camera_pose_matrix = np.full((4, 4), np.nan)
-            else:
-                camera_trace = pose_datum["camera_trace"]
-                camera_pose_matrix = pose_datum["camera_pose_matrix"]
-
-            self.recent_camera_traces.append(camera_trace)
-            self._shift_rotate_center()
-
-            if self.show_camera_trace:
-                self._draw_camera_trace_in_3d_window(self.recent_camera_traces)
-            if self.show_camera_frustum:
-                self._draw_camera_in_3d_window(camera_pose_matrix)
-
+        camera_localizer = self._camera_localizer_storage.get_or_none()
+        if camera_localizer is None:
             return
+
+        try:
+            pose_datum = camera_localizer.pose_bisector.by_ts(ts)
+        except ValueError:
+            camera_trace = np.full((3,), np.nan)
+            camera_pose_matrix = np.full((4, 4), np.nan)
+        else:
+            camera_trace = pose_datum["camera_trace"]
+            camera_pose_matrix = pose_datum["camera_pose_matrix"]
+
+        self.recent_camera_traces.append(camera_trace)
+        self._shift_rotate_center()
+
+        if self.show_camera_trace:
+            self._draw_camera_trace_in_3d_window(self.recent_camera_traces)
+        if self.show_camera_frustum:
+            self._draw_camera_in_3d_window(camera_pose_matrix)
 
     @staticmethod
     def _init_3d_window():

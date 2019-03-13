@@ -100,9 +100,6 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
 
     def _setup_ui(self):
-        # self._head_pose_tracker_menu = plugin_ui.OfflineHeadPoseTrackerMenu(
-        #     self._controller_storage, self._model_storage, plugin=self
-        # )
         self.visualization_3d_window = plugin_ui.Visualization3dWindow(
             self.g_pool.capture.intrinsics,
             self._controller_storage,
@@ -157,13 +154,6 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             plugin=self,
         )
 
-    # def recent_events(self, events):
-    #     # TODO: comments or method extraction
-    #     if "frame" in events:
-    #         frame_idx = events["frame"].index
-    #         window = pm.enclosing_window(self.g_pool.timestamps, frame_idx)
-    #         events["gaze"] = self.g_pool.gaze_positions.by_ts_window(window)
-
     def inject_plugin_dependencies(self):
         from head_pose_tracker.worker.detect_square_markers import (
             SquareMarkerDetectionTask,
@@ -184,7 +174,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
     def init_ui(self):
         self.add_menu()
 
-        self.menu.label = "Head Pose Tracker From Offline Optimization"
+        self.menu.label = "Head Pose Tracker"
         self._on_top_menu.render(self.menu)
         self._marker_location_menu.render()
         self.menu.append(self._marker_location_menu.menu)

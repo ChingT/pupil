@@ -29,9 +29,6 @@ class MarkerLocationStorage(model.SingleFileStorage, Observable):
     def get_or_none(self, frame_index):
         return self._marker_locations.get(frame_index, None)
 
-    def delete(self, marker_location):
-        del self._marker_locations[marker_location.frame_index]
-
     @property
     def _storage_file_name(self):
         return "marker_locations.msgpack"

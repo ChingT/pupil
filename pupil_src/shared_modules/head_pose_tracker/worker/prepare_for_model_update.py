@@ -30,19 +30,18 @@ DataForModelInit = collections.namedtuple(
 
 
 class PrepareForModelUpdate:
-    def __init__(self, controller_storage, model_storage):
-        self._controller_storage = controller_storage
+    def __init__(self, model_storage):
         self._model_storage = model_storage
 
     def run(self):
-        key_markers_proccessed = self._controller_storage.all_key_markers[
-            : self._controller_storage.n_key_markers_processed + 50
+        key_markers_proccessed = self._model_storage.all_key_markers[
+            : self._model_storage.n_key_markers_processed + 25
         ]
-        self._controller_storage.n_key_markers_processed = len(key_markers_proccessed)
+        self._model_storage.n_key_markers_processed = len(key_markers_proccessed)
         print(
             "_n_key_markers_processed",
-            self._controller_storage.n_key_markers_processed,
-            len(self._controller_storage.all_key_markers),
+            self._model_storage.n_key_markers_processed,
+            len(self._model_storage.all_key_markers),
         )
 
         marker_ids_to_be_optimized = self._get_marker_ids_to_be_optimized()
@@ -78,11 +77,11 @@ class PrepareForModelUpdate:
     def _get_marker_ids_to_be_optimized(self):
         try:
             connected_component = nx.node_connected_component(
-                self._controller_storage.visibility_graph,
+                self._model_storage.visibility_graph,
                 self._model_storage.origin_marker_id,
             )
         except KeyError:
-            self._set_coordinate_system(self._controller_storage.visibility_graph.nodes)
+            self._set_coordinate_system(self._model_storage.visibility_graph.nodes)
             return []
 
         marker_ids_to_be_optimized = [self._model_storage.origin_marker_id] + list(

@@ -22,10 +22,6 @@ class MarkerLocationRenderer:
     Renders marker locations in the world video.
     """
 
-    # we not only draw marker locations in the current frame, but also from close
-    # frames in a certain range
-    close_ref_range = 4
-
     def __init__(
         self, marker_location_storage, plugin, frame_size, get_current_frame_index
     ):
@@ -59,9 +55,9 @@ class MarkerLocationRenderer:
         current_index = self._get_current_frame_index()
         current_markers = self._marker_location_storage.get_or_none(current_index)
         if current_markers:
-            self._draw_marker_boundary(current_markers.marker_detection)
+            self._render_2d_marker_boundary(current_markers.marker_detection)
 
-    def _draw_marker_boundary(self, marker_detection):
+    def _render_2d_marker_boundary(self, marker_detection):
         for marker_id, detection in marker_detection.items():
             perspective_matrix = cv2.getPerspectiveTransform(
                 self.square_definition, np.array(detection["verts"], dtype=np.float32)

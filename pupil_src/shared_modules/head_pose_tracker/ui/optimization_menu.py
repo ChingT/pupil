@@ -21,14 +21,9 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
     menu_label = "Optimization"
 
     def __init__(
-        self,
-        model_storage,
-        optimization_storage,
-        optimization_controller,
-        index_range_as_str,
+        self, optimization_storage, optimization_controller, index_range_as_str
     ):
         super().__init__(optimization_storage)
-        self._model_storage = model_storage
         self._optimization_storage = optimization_storage
         self._optimization_controller = optimization_controller
         self._index_range_as_str = index_range_as_str
@@ -38,7 +33,6 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
         optimization_controller.add_observer(
             "on_optimization_computed", self._on_optimization_computed
         )
-
         optimization_controller.add_observer(
             "on_optimization_calculating", self._on_optimization_calculating
         )
@@ -55,7 +49,7 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
     def _render_ui_normally(self, optimization, menu):
         menu.extend(
             [
-                self._create_origin_marker_text(),
+                self._create_origin_marker_text(optimization),
                 self._create_name_input(optimization),
                 self._create_range_selector(optimization),
                 self._create_optimize_camera_intrinsics_switch(optimization),
@@ -64,13 +58,13 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
             ]
         )
 
-    def _create_origin_marker_text(self):
-        if self._model_storage.origin_marker_id is None:
+    def _create_origin_marker_text(self, optimization):
+        if optimization.origin_marker_id is None:
             text = "The coordinate system has not yet been built up"
         else:
             text = (
                 "The marker with id {} is defined as the origin of the coordinate "
-                "system".format(self._model_storage.origin_marker_id)
+                "system".format(optimization.origin_marker_id)
             )
         return ui.Info_Text(text)
 

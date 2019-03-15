@@ -22,8 +22,8 @@ KeyMarker = collections.namedtuple(
 class DecideKeyMarkers:
     def __init__(
         self,
-        controller_storage,
-        select_key_markers_interval=3,
+        model_storage,
+        select_key_markers_interval=1,
         min_n_markers_per_frame=2,
         max_n_same_markers_per_bin=1,
     ):
@@ -31,7 +31,7 @@ class DecideKeyMarkers:
         assert min_n_markers_per_frame >= 2
         assert max_n_same_markers_per_bin >= 1
 
-        self._controller_storage = controller_storage
+        self._model_storage = model_storage
         self._select_key_markers_interval = select_key_markers_interval
         self._min_n_markers_per_frame = min_n_markers_per_frame
         self._max_n_same_markers_per_bin = max_n_same_markers_per_bin
@@ -70,7 +70,7 @@ class DecideKeyMarkers:
             n_same_markers_in_bin = len(
                 [
                     marker
-                    for marker in self._controller_storage.all_key_markers
+                    for marker in self._model_storage.all_key_markers
                     if marker.marker_id == marker_id
                     and marker.bin == self._get_bin(detection)
                 ]
@@ -90,7 +90,7 @@ class DecideKeyMarkers:
             )
             for marker_id, detection in marker_id_to_detections.items()
         ]
-        self._controller_storage.all_key_markers += key_markers
+        self._model_storage.all_key_markers += key_markers
 
         marker_ids = [marker.marker_id for marker in key_markers]
         key_edges = [
@@ -98,7 +98,7 @@ class DecideKeyMarkers:
             for marker_id1, marker_id2 in list(it.combinations(marker_ids, 2))
         ]
 
-        self._controller_storage.visibility_graph.add_edges_from(key_edges)
+        self._model_storage.visibility_graph.add_edges_from(key_edges)
 
     def _get_bin(self, detection):
         centroid = detection["centroid"]

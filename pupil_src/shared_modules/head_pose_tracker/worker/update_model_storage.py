@@ -14,8 +14,7 @@ from observable import Observable
 
 
 class UpdateModelStorage(Observable):
-    def __init__(self, controller_storage, model_storage, camera_intrinsics):
-        self._controller_storage = controller_storage
+    def __init__(self, model_storage, camera_intrinsics):
         self._model_storage = model_storage
         self._camera_intrinsics = camera_intrinsics
 
@@ -52,7 +51,7 @@ class UpdateModelStorage(Observable):
                 marker_id
             ] = worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics)
 
-        self._model_storage.calculate_points_3d_centroid()
+        # self._model_storage.calculate_points_3d_centroid()
 
     def _discard_failed_key_markers(self, frame_ids_failed):
         if not frame_ids_failed:
@@ -60,27 +59,15 @@ class UpdateModelStorage(Observable):
 
         redundant_edges = [
             (node, neighbor, frame_id)
-            for node, neighbor, frame_id in self._controller_storage.visibility_graph.edges(
+            for node, neighbor, frame_id in self._model_storage.visibility_graph.edges(
                 keys=True
             )
             if frame_id in frame_ids_failed
         ]
-        self._controller_storage.visibility_graph.remove_edges_from(redundant_edges)
+        self._model_storage.visibility_graph.remove_edges_from(redundant_edges)
 
-        self._controller_storage.all_key_markers = [
+        self._model_storage.all_key_markers = [
             marker
-            for marker in self._controller_storage.all_key_markers
+            for marker in self._model_storage.all_key_markers
             if marker.frame_id not in frame_ids_failed
         ]
-
-    # TODO: debug only; to be removed
-    def run_init(self, model_init_result):
-        if model_init_result:
-            self._update_extrinsics_init(model_init_result.marker_id_to_extrinsics)
-
-    # TODO: debug only; to be removed
-    def _update_extrinsics_init(self, marker_id_to_extrinsics_init):
-        for marker_id, extrinsics in marker_id_to_extrinsics_init.items():
-            self._model_storage.marker_id_to_points_3d_init[
-                marker_id
-            ] = worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics)

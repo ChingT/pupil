@@ -25,18 +25,19 @@ logger = logging.getLogger(__name__)
 class Visualization3dWindow:
     def __init__(
         self,
-        camera_intrinsics,
-        controller_storage,
-        model_storage,
+        marker_location_storage,
+        optimization_storage,
         camera_localizer_storage,
+        camera_intrinsics,
         plugin,
         get_current_frame_index,
     ):
-        self._camera_intrinsics = camera_intrinsics
-        self._controller_storage = controller_storage
-        self._model_storage = model_storage
+        self._marker_location_storage = marker_location_storage
+        self._optimization_storage = optimization_storage
         self._camera_localizer_storage = camera_localizer_storage
+        self._camera_intrinsics = camera_intrinsics
         self._plugin = plugin
+        self._get_current_frame_index = get_current_frame_index
 
         self._input = {"down": False, "mouse": (0, 0)}
 
@@ -46,14 +47,12 @@ class Visualization3dWindow:
         self._window_position = 0, 0
         self._window_size = 1280, 1335
 
-        self.show_markers_opt = True
+        self.show_markers = True
         self.show_marker_id = False
         self.show_camera_frustum = True
         self.show_camera_trace = True
-        self.show_graph_edges = False
 
         self.recent_camera_traces = collections.deque(maxlen=300)
-        self._get_current_frame_index = get_current_frame_index
 
         plugin.add_observer("init_ui", self._on_init_ui)
         plugin.add_observer("deinit_ui", self._on_deinit_ui)
@@ -165,37 +164,95 @@ class Visualization3dWindow:
         glfw.glfwMakeContextCurrent(window)
 
         self._init_3d_window()
+
         self._trackball.push()
 
-        self._draw_centroid()
+        self._render_centroid()
 
-        self._shift_rotate_center()
+        optimization = self._optimization_storage.get_or_none()
+        if optimization is not None:
+            self._shift_rotate_center(optimization)
 
-        self._draw_coordinate_in_3d_window()
+            self._render_coordinate_in_3d_window()
 
-        if self.show_marker_id:
-            self._draw_marker_id_in_3d_window()
+            self._render_markers(optimization)
 
-        if self.show_markers_opt:
-            self._draw_markers_opt_in_3d_window()
-
-        if self.show_graph_edges:
-            self._draw_edges()
-
-        self._show_camera()
+            self._render_camera()
 
         self._trackball.pop()
 
         glfw.glfwSwapBuffers(window)
         glfw.glfwMakeContextCurrent(active_window)
 
-    def _show_camera(self):
-        current_frame_index = self._get_current_frame_index()
-        ts = self._plugin.g_pool.timestamps[current_frame_index]
+    @staticmethod
+    def _init_3d_window():
+        gl.glClearColor(0.9, 0.9, 0.9, 1.0)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        gl.glClearDepth(1.0)
+        gl.glDepthFunc(gl.GL_LESS)
+        gl.glEnable(gl.GL_DEPTH_TEST)
 
+    @staticmethod
+    def _render_centroid():
+        gl.glLoadIdentity()
+        gl.glPointSize(5)
+        color = (0.2, 0.2, 0.2, 0.1)
+        gl.glColor4f(*color)
+        gl.glBegin(gl.GL_POINTS)
+        gl.glVertex3f(0, 0, 0)
+        gl.glEnd()
+
+    def _shift_rotate_center(self, optimization):
+        camera_pose_matrix = np.eye(4, dtype=np.float32)
+        camera_pose_matrix[0:3, 3] = -optimization.centroid
+        gl.glLoadTransposeMatrixf(camera_pose_matrix)
+
+    def _render_coordinate_in_3d_window(self, scale=1):
+        color = (1, 0, 0, 1)
+        self._render_line_in_3d_window((0, 0, 0), (scale, 0, 0), color)
+
+        color = (0, 1, 0, 1)
+        self._render_line_in_3d_window((0, 0, 0), (0, scale, 0), color)
+
+        color = (0, 0, 1, 1)
+        self._render_line_in_3d_window((0, 0, 0), (0, 0, scale), color)
+
+    def _render_markers(self, optimization):
+        if self.show_markers:
+            self._render_3d_marker_boundary(optimization.result_vis)
+
+        if self.show_marker_id:
+            self._render_marker_id(optimization.result_vis)
+
+    def _render_3d_marker_boundary(self, result_vis):
+        current_index = self._get_current_frame_index()
+        current_markers = self._marker_location_storage.get_or_none(current_index)
+
+        if current_markers:
+            current_markers_marker_detection = current_markers.marker_detection
+        else:
+            current_markers_marker_detection = {}
+
+        for marker_id, points_3d in result_vis.items():
+            if marker_id in current_markers_marker_detection:
+                color = (1, 0, 0, 0.15)
+            else:
+                color = (1, 0, 0, 0.1)
+
+            self._render_polygon_in_3d_window(points_3d, color)
+
+    def _render_marker_id(self, result_vis):
+        color = (1, 0, 0, 1)
+        for (marker_id, points_3d) in result_vis.items():
+            self._render_text_in_3d_window(str(marker_id), points_3d[0], color)
+
+    def _render_camera(self):
         camera_localizer = self._camera_localizer_storage.get_or_none()
         if camera_localizer is None:
             return
+
+        current_frame_index = self._get_current_frame_index()
+        ts = self._plugin.g_pool.timestamps[current_frame_index]
 
         try:
             pose_datum = camera_localizer.pose_bisector.by_ts(ts)
@@ -207,108 +264,26 @@ class Visualization3dWindow:
             camera_pose_matrix = pose_datum["camera_pose_matrix"]
 
         self.recent_camera_traces.append(camera_trace)
-        self._shift_rotate_center()
+        # self._shift_rotate_center()
 
         if self.show_camera_trace:
-            self._draw_camera_trace_in_3d_window(self.recent_camera_traces)
+            self._render_camera_trace_in_3d_window(self.recent_camera_traces)
         if self.show_camera_frustum:
-            self._draw_camera_in_3d_window(camera_pose_matrix)
+            self._render_camera_frustum(camera_pose_matrix)
 
-    @staticmethod
-    def _init_3d_window():
-        gl.glClearColor(0.9, 0.9, 0.9, 1.0)
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-        gl.glClearDepth(1.0)
-        gl.glDepthFunc(gl.GL_LESS)
-        gl.glEnable(gl.GL_DEPTH_TEST)
-
-    @staticmethod
-    def _draw_centroid():
-        gl.glLoadIdentity()
-        gl.glPointSize(5)
+    def _render_camera_trace_in_3d_window(self, recent_camera_traces):
         color = (0.2, 0.2, 0.2, 0.1)
-        gl.glColor4f(*color)
-        gl.glBegin(gl.GL_POINTS)
-        gl.glVertex3f(0, 0, 0)
-        gl.glEnd()
+        self._render_strip_in_3d_window(recent_camera_traces, color)
 
-    def _shift_rotate_center(self):
-        camera_pose_matrix = np.eye(4, dtype=np.float32)
-        camera_pose_matrix[0:3, 3] = -self._model_storage.points_3d_centroid
-        gl.glLoadTransposeMatrixf(camera_pose_matrix)
-
-    def _draw_coordinate_in_3d_window(self, scale=1):
-        color = (1, 0, 0, 1)
-        self._draw_line_in_3d_window((0, 0, 0), (scale, 0, 0), color)
-
-        color = (0, 1, 0, 1)
-        self._draw_line_in_3d_window((0, 0, 0), (0, scale, 0), color)
-
-        color = (0, 0, 1, 1)
-        self._draw_line_in_3d_window((0, 0, 0), (0, 0, scale), color)
-
-    def _draw_marker_id_in_3d_window(self):
-        color = (1, 0, 0, 1)
-        for (
-            marker_id,
-            points_3d,
-        ) in self._model_storage.marker_id_to_points_3d_opt.items():
-            self._draw_text(str(marker_id), points_3d[0], color)
-
-    def _draw_markers_opt_in_3d_window(self):
-        for (
-            marker_id,
-            points_3d,
-        ) in self._model_storage.marker_id_to_points_3d_opt.items():
-            if marker_id in self._controller_storage.marker_id_to_detections:
-                color = (1, 0, 0, 0.15)
-            else:
-                color = (1, 0, 0, 0.1)
-
-            self._draw_polygon_in_3d_window(points_3d, color)
-
-    # TODO: debug only; to be removed
-    def _draw_markers_init_in_3d_window(self):
-        for (
-            marker_id,
-            points_3d,
-        ) in self._model_storage.marker_id_to_points_3d_init.items():
-            if marker_id in self._controller_storage.marker_id_to_detections:
-                color = (0, 0, 1, 0.15)
-            else:
-                color = (0, 0, 1, 0.1)
-
-            self._draw_polygon_in_3d_window(points_3d, color)
-
-    def _draw_camera_trace_in_3d_window(self, recent_camera_traces):
-        color = (0.2, 0.2, 0.2, 0.1)
-        self._draw_strip_in_3d_window(recent_camera_traces, color)
-
-    def _draw_camera_in_3d_window(self, camera_pose_matrix):
+    def _render_camera_frustum(self, camera_pose_matrix):
         if camera_pose_matrix is not None:
             gl.glMultTransposeMatrixf(camera_pose_matrix)
-            self._draw_coordinate_in_3d_window()
-            self._draw_frustum_in_3d_window(
+            self._render_coordinate_in_3d_window()
+            self._render_frustum_in_3d_window(
                 self._camera_intrinsics.resolution, self._camera_intrinsics.K
             )
 
-    def _draw_edges(self):
-        all_init_keys = self._model_storage.marker_id_to_points_3d_init.keys()
-        all_edges = set(
-            (node, neighbor)
-            for node, neighbor, frame_id in self._controller_storage.all_key_edges
-            if node in all_init_keys and neighbor in all_init_keys
-        )
-        vertices = []
-        for (node, neighbor) in all_edges:
-            start_point = self._model_storage.marker_id_to_points_3d_init[node][0]
-            end_point = self._model_storage.marker_id_to_points_3d_init[neighbor][0]
-            vertices += [start_point, end_point]
-
-        color = (0.5, 0, 0, 0.05)
-        self._draw_lines_in_3d_window(vertices, color)
-
-    def _draw_frustum_in_3d_window(self, img_size, camera_intrinsics, scale=1000):
+    def _render_frustum_in_3d_window(self, img_size, camera_intrinsics, scale=1000):
         x = img_size[0] / scale
         y = img_size[1] / scale
         z = (camera_intrinsics[0, 0] + camera_intrinsics[1, 1]) / scale
@@ -320,10 +295,10 @@ class Visualization3dWindow:
         vertices += [[0, 0, 0], [-x, -y, z], [-x, y, z]]
 
         color = (0.05, 0.05, 0.05, 0.1)
-        self._draw_polygon_in_3d_window(vertices, color)
+        self._render_polygon_in_3d_window(vertices, color)
 
     @staticmethod
-    def _draw_line_in_3d_window(start_point, end_point, color):
+    def _render_line_in_3d_window(start_point, end_point, color):
         gl.glColor4f(*color)
         gl.glBegin(gl.GL_LINES)
         gl.glVertex3f(*start_point)
@@ -331,7 +306,7 @@ class Visualization3dWindow:
         gl.glEnd()
 
     @staticmethod
-    def _draw_lines_in_3d_window(vertices, color):
+    def _render_lines_in_3d_window(vertices, color):
         gl.glColor4f(*color)
         gl.glBegin(gl.GL_LINES)
         for vertex in vertices:
@@ -339,7 +314,7 @@ class Visualization3dWindow:
         gl.glEnd()
 
     @staticmethod
-    def _draw_polygon_in_3d_window(vertices, color):
+    def _render_polygon_in_3d_window(vertices, color):
         r, g, b, _ = color
         gl.glColor4f(r, g, b, 0.5)
         gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
@@ -356,7 +331,7 @@ class Visualization3dWindow:
         gl.glEnd()
 
     @staticmethod
-    def _draw_strip_in_3d_window(vertices, color):
+    def _render_strip_in_3d_window(vertices, color):
         gl.glColor4f(*color)
         gl.glBegin(gl.GL_LINE_STRIP)
         for vertex in vertices:
@@ -364,7 +339,7 @@ class Visualization3dWindow:
         gl.glEnd()
 
     @staticmethod
-    def _draw_text(characters, position, color):
+    def _render_text_in_3d_window(characters, position, color):
         gl.glColor4f(*color)
         gl.glRasterPos3f(*position)
         for character in characters:

@@ -53,37 +53,33 @@ def _create_ref_dict(ref):
 def _create_optimization(
     camera_intrinsics, ref_dicts_in_opt_range, optimize_camera_intrinsics, shared_memory
 ):
-    model_storage = model.ModelStorage(predetermined_origin_marker_id=1)
-    controller_storage = model.ControllerStorage()
-
-    pick_all_key_markers(controller_storage, ref_dicts_in_opt_range)
-
-    prepare_for_model_update = worker.PrepareForModelUpdate(
-        controller_storage, model_storage
+    model_storage = model.ModelStorage(predetermined_origin_marker_id=None)
+    pick_all_key_markers(model_storage, ref_dicts_in_opt_range)
+    prepare_for_model_update = worker.PrepareForModelUpdate(model_storage)
+    bundle_adjustment = worker.BundleAdjustment(
+        camera_intrinsics, optimize_camera_intrinsics
     )
+    update_model_storage = worker.UpdateModelStorage(model_storage, camera_intrinsics)
 
-    bundle_adjustment = worker.BundleAdjustment(camera_intrinsics)
+    optimization_times = len(model_storage.all_key_markers) // 25 + 5
 
-    update_model_storage = worker.UpdateModelStorage(
-        controller_storage, model_storage, camera_intrinsics
-    )
-
-    times = len(controller_storage.all_key_markers) // 50 + 1
-
-    for _iter in range(times):
+    for _iter in range(optimization_times):
         data_for_model_init = prepare_for_model_update.run()
-        model_opt_result = bundle_adjustment.calculate(
-            data_for_model_init, optimize_camera_intrinsics
+        model_init_result = worker.get_initial_guess.calculate(
+            camera_intrinsics, data_for_model_init
         )
+        model_opt_result = bundle_adjustment.calculate(model_init_result)
         update_model_storage.run(model_opt_result)
-        shared_memory.progress = (_iter + 1) / times
 
-        optimization_result = model_storage.marker_id_to_extrinsics_opt
-        yield optimization_result, camera_intrinsics
+        shared_memory.progress = (_iter + 1) / optimization_times
+
+        result = model_storage.marker_id_to_extrinsics_opt
+        result_vis = model_storage.marker_id_to_points_3d_opt
+        yield result, result_vis, camera_intrinsics
 
 
-def pick_all_key_markers(controller_storage, ref_dicts_in_opt_range):
-    decide_key_markers = worker.DecideKeyMarkers(controller_storage)
+def pick_all_key_markers(model_storage, ref_dicts_in_opt_range):
+    decide_key_markers = worker.DecideKeyMarkers(model_storage)
 
     for ref in ref_dicts_in_opt_range:
         decide_key_markers.run(ref["marker_detection"], ref["timestamp"])

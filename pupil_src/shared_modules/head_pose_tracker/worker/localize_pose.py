@@ -41,7 +41,8 @@ def _create_ref_dict(ref):
 def _localize_pose(
     camera_intrinsics, optimization_result, ref_dicts_in_opt_range, shared_memory
 ):
-    camera_extrinsics = None
+    camera_extrinsics_prv = None
+    not_localized_count = 0
     for idx_incoming, ref in enumerate(ref_dicts_in_opt_range):
         shared_memory.progress = (idx_incoming + 1) / len(ref_dicts_in_opt_range)
 
@@ -49,8 +50,8 @@ def _localize_pose(
             camera_intrinsics,
             ref["marker_detection"],
             optimization_result,
-            camera_extrinsics_prv=camera_extrinsics,
-            min_n_markers_per_frame=2,
+            camera_extrinsics_prv=camera_extrinsics_prv,
+            min_n_markers_per_frame=1,
         )
 
         if camera_extrinsics is not None:
@@ -66,3 +67,10 @@ def _localize_pose(
                 "timestamp": ref["timestamp"],
             }
             yield [(ref["timestamp"], fm.Serialized_Dict(camera_pose_datum))]
+
+            camera_extrinsics_prv = camera_extrinsics
+            not_localized_count = 0
+        else:
+            if not_localized_count >= 3:
+                camera_extrinsics_prv = None
+            not_localized_count += 1

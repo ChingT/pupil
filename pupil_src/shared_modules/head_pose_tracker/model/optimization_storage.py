@@ -21,14 +21,11 @@ logger = logging.getLogger(__name__)
 class OptimizationStorage(model.storage.Storage, Observable):
     _optimization_suffix = "plopt"
 
-    def __init__(
-        self, rec_dir, plugin, get_recording_index_range, recording_uuid, model_storage
-    ):
+    def __init__(self, rec_dir, plugin, get_recording_index_range, recording_uuid):
         super().__init__(plugin)
         self._rec_dir = rec_dir
         self._get_recording_index_range = get_recording_index_range
         self._recording_uuid = recording_uuid
-        self._model_storage = model_storage
 
         self._optimizations = []
         self._load_from_disk()
@@ -55,9 +52,6 @@ class OptimizationStorage(model.storage.Storage, Observable):
             return
         self._optimizations.append(optimization)
         self._optimizations.sort(key=lambda c: c.name)
-
-        if optimization.result:
-            self._model_storage.add_optimization_result(optimization.result)
 
     def rename(self, optimization, new_name):
         old_optimization_file_path = self._optimization_file_path(optimization)

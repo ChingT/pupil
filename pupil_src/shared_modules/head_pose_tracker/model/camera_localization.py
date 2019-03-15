@@ -45,4 +45,4 @@ class CameraLocalizer(model.storage.StorageItem):
 
     @property
     def as_tuple(self):
-        return (self.unique_id, self.name, self.localization_index_range, self.status)
+        return self.unique_id, self.name, self.localization_index_range, self.status

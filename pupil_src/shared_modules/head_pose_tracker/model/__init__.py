@@ -15,11 +15,10 @@ from head_pose_tracker.model.single_file_storage import SingleFileStorage
 from head_pose_tracker.model.marker_location import MarkerLocation
 from head_pose_tracker.model.marker_location_storage import MarkerLocationStorage
 
-from head_pose_tracker.model.optimization import Optimization, OptimizationResult
+from head_pose_tracker.model.optimization import Optimization
 from head_pose_tracker.model.optimization_storage import OptimizationStorage
 
 from head_pose_tracker.model.camera_localization import CameraLocalizer
 from head_pose_tracker.model.camera_localizer_storage import CameraLocalizerStorage
 
 from head_pose_tracker.model.model_storage import ModelStorage
-from head_pose_tracker.model.controller_storage import ControllerStorage

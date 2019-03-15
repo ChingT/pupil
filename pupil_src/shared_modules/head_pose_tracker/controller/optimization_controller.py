@@ -17,8 +17,6 @@ from observable import Observable
 class OptimizationController(Observable):
     def __init__(
         self,
-        controller_storage,
-        model_storage,
         optimization_storage,
         marker_location_storage,
         camera_intrinsics,
@@ -26,8 +24,6 @@ class OptimizationController(Observable):
         get_current_trim_mark_range,
         recording_uuid,
     ):
-        self._controller_storage = controller_storage
-        self._model_storage = model_storage
         self._optimization_storage = optimization_storage
         self._marker_location_storage = marker_location_storage
         self._camera_intrinsics = camera_intrinsics
@@ -39,12 +35,12 @@ class OptimizationController(Observable):
 
     def calculate(self, optimization):
         def on_yield_optimization(result):
-            optimization.result, camera_intrinsics = result
-            self._model_storage.update_extrinsics_opt(optimization.result)
+            optimization.result, optimization.result_vis, camera_intrinsics = result
             if optimization.optimize_camera_intrinsics:
                 self._camera_intrinsics.update_camera_matrix(camera_intrinsics.K)
                 self._camera_intrinsics.update_dist_coefs(camera_intrinsics.D)
 
+            optimization.calculate_centroid()
             optimization.status = "Optimization {:.0f}% complete".format(
                 self._task.progress * 100
             )
@@ -58,7 +54,6 @@ class OptimizationController(Observable):
 
         if self._task is not None and self._task.running:
             self._task.kill(None)
-        self._model_storage.reset()
         optimization.status = "Optimization 0% complete"
         self.on_optimization_calculating()
         self._task = worker.create_optimization.create_task(

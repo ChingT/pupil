@@ -8,19 +8,14 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
-from collections import namedtuple
 
 import numpy as np
 
-from head_pose_tracker import model
+from head_pose_tracker import model, worker
+
 
 # this plugin does not care about the content of the result, it just receives it from
 # the optimization routine and handles it to the camera localizer
-OptimizationResult = namedtuple(
-    "OptimizationResult", ["mapping_plugin_name", "mapper_args"]
-)
-
-
 class Optimization(model.storage.StorageItem):
     version = 1
 
@@ -30,6 +25,7 @@ class Optimization(model.storage.StorageItem):
         name,
         recording_uuid,
         frame_index_range,
+        origin_marker_id=None,
         status="Not calculated yet",
         result=None,
     ):
@@ -37,14 +33,34 @@ class Optimization(model.storage.StorageItem):
         self.name = name
         self.recording_uuid = recording_uuid
         self.frame_index_range = frame_index_range
+        self.origin_marker_id = origin_marker_id
         self.status = status
 
-        if result:
-            self.result = {key: np.array(value) for key, value in result.items()}
+        if result is not None:
+            self.result = {
+                marker_id: np.array(extrinsics)
+                for marker_id, extrinsics in result.items()
+            }
+            self.result_vis = {
+                marker_id: worker.utils.convert_marker_extrinsics_to_points_3d(
+                    extrinsics
+                )
+                for marker_id, extrinsics in result.items()
+            }
         else:
             self.result = None
+            self.result_vis = {}
+
+        self.centroid = np.zeros((3,), dtype=np.float32)
+        self.calculate_centroid()
 
         self.optimize_camera_intrinsics = False
+
+    def calculate_centroid(self):
+        try:
+            self.centroid = np.mean(self.result_vis.values(), axis=(0, 1))
+        except IndexError:
+            self.centroid = np.zeros((3,), dtype=np.float32)
 
     @staticmethod
     def from_tuple(tuple_):
@@ -61,6 +77,7 @@ class Optimization(model.storage.StorageItem):
             self.name,
             self.recording_uuid,
             self.frame_index_range,
+            self.origin_marker_id,
             self.status,
             result,
         )

@@ -44,6 +44,8 @@ class Optimization(model.storage.StorageItem):
         else:
             self.result = None
 
+        self.optimize_camera_intrinsics = False
+
     @staticmethod
     def from_tuple(tuple_):
         return Optimization(*tuple_)

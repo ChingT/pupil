@@ -76,6 +76,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._model_storage,
             self._optimization_storage,
             self._marker_location_storage,
+            self.g_pool.capture.intrinsics,
             task_manager=self._task_manager,
             get_current_trim_mark_range=self._current_trim_mark_range,
             recording_uuid=self._recording_uuid,

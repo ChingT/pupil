@@ -21,6 +21,7 @@ class OptimizationController(Observable):
         model_storage,
         optimization_storage,
         marker_location_storage,
+        camera_intrinsics,
         task_manager,
         get_current_trim_mark_range,
         recording_uuid,
@@ -29,6 +30,7 @@ class OptimizationController(Observable):
         self._model_storage = model_storage
         self._optimization_storage = optimization_storage
         self._marker_location_storage = marker_location_storage
+        self._camera_intrinsics = camera_intrinsics
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
         self._recording_uuid = recording_uuid
@@ -37,30 +39,37 @@ class OptimizationController(Observable):
 
     def calculate(self, optimization):
         def on_yield_optimization(result):
-            optimization.result = result
+            optimization.result, camera_intrinsics = result
             self._model_storage.update_extrinsics_opt(optimization.result)
+            if optimization.optimize_camera_intrinsics:
+                self._camera_intrinsics.update_camera_matrix(camera_intrinsics.K)
+                self._camera_intrinsics.update_dist_coefs(camera_intrinsics.D)
 
-            if self._task.progress < 1:
-                optimization.status = "Optimization {:.0f}% complete".format(
-                    self._task.progress * 100
-                )
-            else:
-                optimization.status = "Optimization successful"
-                self._optimization_storage.save_to_disk()
-                self.on_optimization_computed(optimization)
+            optimization.status = "Optimization {:.0f}% complete".format(
+                self._task.progress * 100
+            )
+
+        def on_completed_optimization(_):
+            optimization.status = "Optimization successful"
+            if optimization.optimize_camera_intrinsics:
+                self._camera_intrinsics.save(self._optimization_storage._rec_dir)
+            self._optimization_storage.save_to_disk()
+            self.on_optimization_computed()
 
         if self._task is not None and self._task.running:
             self._task.kill(None)
         self._model_storage.reset()
+        optimization.status = "Optimization 0% complete"
         self._task = worker.create_optimization.create_task(
-            optimization, all_marker_locations=self._marker_location_storage
+            optimization, self._marker_location_storage
         )
         self._task.add_observer("on_yield", on_yield_optimization)
+        self._task.add_observer("on_completed", on_completed_optimization)
         self._task.add_observer("on_exception", tasklib.raise_exception)
         self._task_manager.add_task(self._task)
         return self._task
 
-    def on_optimization_computed(self, optimization):
+    def on_optimization_computed(self):
         pass
 
     def set_optimization_range_from_current_trim_marks(self, optimization):

@@ -31,7 +31,11 @@ def create_task(optimization, all_marker_locations):
         if frame_start <= ref.frame_index <= frame_end
     ]
 
-    args = (g_pool.capture.intrinsics, ref_dicts_in_opt_range)
+    args = (
+        g_pool.capture.intrinsics,
+        ref_dicts_in_opt_range,
+        optimization.optimize_camera_intrinsics,
+    )
     name = "Create calibration {}".format(optimization.name)
     return tasklib.background.create(
         name,
@@ -46,7 +50,9 @@ def _create_ref_dict(ref):
     return {"marker_detection": ref.marker_detection, "timestamp": ref.timestamp}
 
 
-def _create_optimization(camera_intrinsics, ref_dicts_in_opt_range, shared_memory):
+def _create_optimization(
+    camera_intrinsics, ref_dicts_in_opt_range, optimize_camera_intrinsics, shared_memory
+):
     model_storage = model.ModelStorage(predetermined_origin_marker_id=1)
     controller_storage = model.ControllerStorage()
 
@@ -66,12 +72,14 @@ def _create_optimization(camera_intrinsics, ref_dicts_in_opt_range, shared_memor
 
     for _iter in range(times):
         data_for_model_init = prepare_for_model_update.run()
-        model_opt_result = bundle_adjustment.calculate(data_for_model_init)
+        model_opt_result = bundle_adjustment.calculate(
+            data_for_model_init, optimize_camera_intrinsics
+        )
         update_model_storage.run(model_opt_result)
         shared_memory.progress = (_iter + 1) / times
 
         optimization_result = model_storage.marker_id_to_extrinsics_opt
-        yield optimization_result
+        yield optimization_result, camera_intrinsics
 
 
 def pick_all_key_markers(controller_storage, ref_dicts_in_opt_range):

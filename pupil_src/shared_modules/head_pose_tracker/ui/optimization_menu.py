@@ -54,6 +54,7 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
                 self._create_origin_marker_text(),
                 self._create_name_input(optimization),
                 self._create_range_selector(optimization),
+                self._create_optimize_camera_intrinsics_switch(optimization),
                 self._create_calculate_button(optimization),
                 self._create_status_display(optimization),
             ]
@@ -83,6 +84,18 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
             label="Set From Trim Marks",
             function=self._on_set_index_range_from_trim_marks,
         )
+
+    def _create_optimize_camera_intrinsics_switch(self, optimization):
+        switch = ui.Switch(
+            "optimize_camera_intrinsics",
+            optimization,
+            label="Optimize camera intrinsics",
+            setter=self._on_optimize_camera_intrinsics_changed,
+        )
+        if "%" in optimization.status:
+            switch.read_only = True
+
+        return switch
 
     def _create_status_display(self, optimization):
         return ui.Text_Input("status", optimization, label="Status", setter=lambda _: _)
@@ -135,10 +148,12 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
         )
         self.render()
 
+    def _on_optimize_camera_intrinsics_changed(self, new_value):
+        self.current_item.optimize_camera_intrinsics = new_value
+
     def _on_click_calculate(self):
         self._optimization_controller.calculate(self.current_item)
+        self.render()
 
-    def _on_optimization_computed(self, optimization):
-        if optimization == self.current_item:
-            # mostly to change button "calculate" -> "recalculate"
-            self.render()
+    def _on_optimization_computed(self):
+        self.render()

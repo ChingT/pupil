@@ -39,6 +39,10 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
             "on_optimization_computed", self._on_optimization_computed
         )
 
+        optimization_controller.add_observer(
+            "on_optimization_calculating", self._on_optimization_calculating
+        )
+
     def _item_label(self, optimization):
         return optimization.name
 
@@ -153,6 +157,9 @@ class OptimizationMenu(plugin_ui.StorageEditMenu):
 
     def _on_click_calculate(self):
         self._optimization_controller.calculate(self.current_item)
+        self.render()
+
+    def _on_optimization_calculating(self):
         self.render()
 
     def _on_optimization_computed(self):

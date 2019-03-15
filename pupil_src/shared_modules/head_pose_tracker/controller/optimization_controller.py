@@ -60,6 +60,7 @@ class OptimizationController(Observable):
             self._task.kill(None)
         self._model_storage.reset()
         optimization.status = "Optimization 0% complete"
+        self.on_optimization_calculating()
         self._task = worker.create_optimization.create_task(
             optimization, self._marker_location_storage
         )
@@ -68,6 +69,9 @@ class OptimizationController(Observable):
         self._task.add_observer("on_exception", tasklib.raise_exception)
         self._task_manager.add_task(self._task)
         return self._task
+
+    def on_optimization_calculating(self):
+        pass
 
     def on_optimization_computed(self):
         pass

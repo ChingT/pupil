@@ -14,18 +14,54 @@ import os
 
 import file_methods as fm
 import make_unique
+import player_methods as pm
 from head_pose_tracker import model
 from observable import Observable
 
 logger = logging.getLogger(__name__)
 
 
+class CameraLocalizer(model.storage.StorageItem):
+    version = 1
+
+    def __init__(
+        self,
+        unique_id,
+        name,
+        localization_index_range,
+        status="Not calculated yet",
+        pose=[],
+        pose_ts=[],
+        pose_bisector=pm.Bisector(),
+    ):
+        self.unique_id = unique_id
+        self.name = name
+        self.localization_index_range = tuple(localization_index_range)
+        self.status = status
+        self.pose = pose
+        self.pose_ts = pose_ts
+        self.pose_bisector = pose_bisector
+
+    @property
+    def calculate_complete(self):
+        # we cannot just use `self.pose and self.pose_ts` because this ands the arrays
+        return len(self.pose) > 0 and len(self.pose_ts) > 0
+
+    @staticmethod
+    def from_tuple(tuple_):
+        return CameraLocalizer(*tuple_)
+
+    @property
+    def as_tuple(self):
+        return self.unique_id, self.name, self.localization_index_range, self.status
+
+
 class CameraLocalizerStorage(model.SingleFileStorage, Observable):
     def __init__(
-        self, optimization_storage, rec_dir, plugin, get_recording_index_range
+        self, markers_3d_model_storage, rec_dir, plugin, get_recording_index_range
     ):
         super().__init__(rec_dir, plugin)
-        self._optimization_storage = optimization_storage
+        self._markers_3d_model_storage = markers_3d_model_storage
         self._get_recording_index_range = get_recording_index_range
         self._camera_localizers = []
         self._load_from_disk()
@@ -36,8 +72,8 @@ class CameraLocalizerStorage(model.SingleFileStorage, Observable):
         self.add(self.create_default_camera_localizer())
 
     def create_default_camera_localizer(self):
-        return model.CameraLocalizer(
-            unique_id=model.CameraLocalizer.create_new_unique_id(),
+        return CameraLocalizer(
+            unique_id=CameraLocalizer.create_new_unique_id(),
             name=make_unique.by_number_at_end(
                 "Default Camera Localizer", self.item_names
             ),
@@ -114,7 +150,7 @@ class CameraLocalizerStorage(model.SingleFileStorage, Observable):
 
     @property
     def _item_class(self):
-        return model.CameraLocalizer
+        return CameraLocalizer
 
     @property
     def items(self):

@@ -26,14 +26,14 @@ class Visualization3dWindow:
     def __init__(
         self,
         marker_location_storage,
-        optimization_storage,
+        markers_3d_model_storage,
         camera_localizer_storage,
         camera_intrinsics,
         plugin,
         get_current_frame_index,
     ):
         self._marker_location_storage = marker_location_storage
-        self._optimization_storage = optimization_storage
+        self._markers_3d_model_storage = markers_3d_model_storage
         self._camera_localizer_storage = camera_localizer_storage
         self._camera_intrinsics = camera_intrinsics
         self._plugin = plugin
@@ -56,7 +56,6 @@ class Visualization3dWindow:
 
         plugin.add_observer("init_ui", self._on_init_ui)
         plugin.add_observer("deinit_ui", self._on_deinit_ui)
-        plugin.add_observer("cleanup", self._on_cleanup)
         plugin.add_observer("gl_display", self._on_gl_display)
 
         glut.glutInit()
@@ -169,13 +168,13 @@ class Visualization3dWindow:
 
         self._render_centroid()
 
-        optimization = self._optimization_storage.get_or_none()
-        if optimization is not None:
-            self._shift_rotate_center(optimization)
+        markers_3d_model = self._markers_3d_model_storage.get_or_none()
+        if markers_3d_model is not None:
+            self._shift_rotate_center(markers_3d_model)
 
             self._render_coordinate_in_3d_window()
 
-            self._render_markers(optimization)
+            self._render_markers(markers_3d_model)
 
             self._render_camera()
 
@@ -202,9 +201,9 @@ class Visualization3dWindow:
         gl.glVertex3f(0, 0, 0)
         gl.glEnd()
 
-    def _shift_rotate_center(self, optimization):
+    def _shift_rotate_center(self, markers_3d_model):
         camera_pose_matrix = np.eye(4, dtype=np.float32)
-        camera_pose_matrix[0:3, 3] = -optimization.centroid
+        camera_pose_matrix[0:3, 3] = -markers_3d_model.centroid
         gl.glLoadTransposeMatrixf(camera_pose_matrix)
 
     def _render_coordinate_in_3d_window(self, scale=1):
@@ -217,12 +216,12 @@ class Visualization3dWindow:
         color = (0, 0, 1, 1)
         self._render_line_in_3d_window((0, 0, 0), (0, 0, scale), color)
 
-    def _render_markers(self, optimization):
+    def _render_markers(self, markers_3d_model):
         if self.show_markers:
-            self._render_3d_marker_boundary(optimization.result_vis)
+            self._render_3d_marker_boundary(markers_3d_model.result_vis)
 
         if self.show_marker_id:
-            self._render_marker_id(optimization.result_vis)
+            self._render_marker_id(markers_3d_model.result_vis)
 
     def _render_3d_marker_boundary(self, result_vis):
         current_index = self._get_current_frame_index()

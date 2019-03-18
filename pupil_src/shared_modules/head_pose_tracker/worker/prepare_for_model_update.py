@@ -30,17 +30,19 @@ DataForModelInit = collections.namedtuple(
 
 
 class PrepareForModelUpdate:
-    def __init__(self, model_storage):
+    def __init__(self, model_storage, n_key_markers_added_once):
         self._model_storage = model_storage
+        self._n_key_markers_processed = 0
+        self._n_key_markers_added_once = n_key_markers_added_once
 
     def run(self):
         key_markers_proccessed = self._model_storage.all_key_markers[
-            : self._model_storage.n_key_markers_processed + 25
+            : self._n_key_markers_processed + self._n_key_markers_added_once
         ]
-        self._model_storage.n_key_markers_processed = len(key_markers_proccessed)
+        self._n_key_markers_processed = len(key_markers_proccessed)
         print(
             "_n_key_markers_processed",
-            self._model_storage.n_key_markers_processed,
+            self._n_key_markers_processed,
             len(self._model_storage.all_key_markers),
         )
 

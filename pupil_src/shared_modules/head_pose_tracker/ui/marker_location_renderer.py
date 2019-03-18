@@ -22,9 +22,7 @@ class MarkerLocationRenderer:
     Renders marker locations in the world video.
     """
 
-    def __init__(
-        self, marker_location_storage, plugin, frame_size, get_current_frame_index
-    ):
+    def __init__(self, marker_location_storage, plugin, get_current_frame_index):
         self._marker_location_storage = marker_location_storage
 
         self.square_definition = np.array(
@@ -36,7 +34,6 @@ class MarkerLocationRenderer:
 
         self._setup_glfont()
 
-        self._frame_size = frame_size
         self._get_current_frame_index = get_current_frame_index
 
         plugin.add_observer("gl_display", self.on_gl_display)

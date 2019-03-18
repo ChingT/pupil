@@ -8,19 +8,27 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
+
 import abc
 
-from head_pose_tracker import ui as plugin_ui
+from pyglui import ui
 
 
-class StorageEditMenu(plugin_ui.SelectAndRefreshMenu, abc.ABC):
-    """
-    A SelectAndRefreshMenu that shows the items in a storage.
-    """
-
+class StorageEditMenu(abc.ABC):
     def __init__(self, storage):
-        super().__init__()
+        self.menu = ui.Growing_Menu(self.menu_label)
+        self.current_item = None
+        # when the current element changes, a few menu elements remain (=the selector
+        # and things above) and the rest gets deleted and rendered again (=item
+        # specific elements)
+        self._number_of_static_menu_elements = 0
+
         self._storage = storage
+
+    @property
+    @abc.abstractmethod
+    def menu_label(self):
+        pass
 
     @abc.abstractmethod
     def _render_custom_ui(self, item, menu):
@@ -42,3 +50,25 @@ class StorageEditMenu(plugin_ui.SelectAndRefreshMenu, abc.ABC):
 
     def render_item(self, item, menu):
         self._render_custom_ui(item, menu)
+
+    def render(self):
+        if not self.current_item and len(self.items) > 0:
+            self.current_item = self.items[0]
+        self.menu.elements.clear()
+        if len(self.items) > 0:
+            self._render_item_selector_and_current_item()
+
+    def _render_item_selector_and_current_item(self):
+        self._number_of_static_menu_elements = len(self.menu.elements)
+        # apparently, the 'setter' function is only triggered if the selection
+        # changes, but not for the initial selection, so we call it manually
+        if self.current_item:
+            self._on_change_current_item(self.current_item)
+
+    # TODO: implement this with an attribute observer when the feature is available
+    def _on_change_current_item(self, item):
+        self.current_item = item
+        del self.menu.elements[self._number_of_static_menu_elements :]
+        temp_menu = ui.Growing_Menu("Temporary")
+        self.render_item(item, temp_menu)
+        self.menu.elements.extend(temp_menu.elements)

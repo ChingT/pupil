@@ -21,20 +21,22 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
         self,
         camera_localizer_controller,
         camera_localizer_storage,
-        optimization_storage,
+        markers_3d_model_storage,
         index_range_as_str,
     ):
         super().__init__(camera_localizer_storage)
         self._camera_localizer_controller = camera_localizer_controller
         self._camera_localizer_storage = camera_localizer_storage
-        self._optimization_storage = optimization_storage
+        self._markers_3d_model_storage = markers_3d_model_storage
         self._index_range_as_str = index_range_as_str
 
         self.menu.collapsed = False
 
-        optimization_storage.add_observer("add", self._on_optimization_storage_changed)
-        optimization_storage.add_observer(
-            "rename", self._on_optimization_storage_changed
+        markers_3d_model_storage.add_observer(
+            "add", self._on_markers_3d_model_storage_changed
+        )
+        markers_3d_model_storage.add_observer(
+            "rename", self._on_markers_3d_model_storage_changed
         )
 
         camera_localizer_controller.add_observer(
@@ -84,7 +86,7 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
             function=self._on_set_localization_range_from_trim_marks,
         )
 
-    def _on_optimization_storage_changed(self, *args, **kwargs):
+    def _on_markers_3d_model_storage_changed(self, *args, **kwargs):
         self.render()
 
     def _on_name_change(self, new_name):

@@ -10,20 +10,18 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 from head_pose_tracker import worker
-from observable import Observable
 
 
-class UpdateModelStorage(Observable):
+class UpdateModelStorage:
     def __init__(self, model_storage, camera_intrinsics):
         self._model_storage = model_storage
         self._camera_intrinsics = camera_intrinsics
 
     def run(self, model_opt_result):
-        """ process the results of optimization; update frame_id_to_extrinsics_opt,
+        """ process the results of markers_3d_model; update frame_id_to_extrinsics_opt,
         marker_id_to_extrinsics_opt and marker_id_to_points_3d_opt """
 
         if not model_opt_result:
-            self.on_update_model_storage_done()
             return
 
         self._discard_failed_key_markers(model_opt_result.frame_ids_failed)
@@ -37,11 +35,6 @@ class UpdateModelStorage(Observable):
             self._camera_intrinsics.update_camera_matrix(model_opt_result.camera_matrix)
             self._camera_intrinsics.update_dist_coefs(model_opt_result.dist_coefs)
 
-        self.on_update_model_storage_done()
-
-    def on_update_model_storage_done(self):
-        pass
-
     def _update_extrinsics_opt(self, frame_id_to_extrinsics, marker_id_to_extrinsics):
         self._model_storage.frame_id_to_extrinsics_opt.update(frame_id_to_extrinsics)
 
@@ -50,8 +43,6 @@ class UpdateModelStorage(Observable):
             self._model_storage.marker_id_to_points_3d_opt[
                 marker_id
             ] = worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics)
-
-        # self._model_storage.calculate_points_3d_centroid()
 
     def _discard_failed_key_markers(self, frame_ids_failed):
         if not frame_ids_failed:

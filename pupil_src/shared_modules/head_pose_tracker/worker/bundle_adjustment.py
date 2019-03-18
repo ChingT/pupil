@@ -46,7 +46,7 @@ class BundleAdjustment:
 
     def calculate(self, model_init_result):
         """ run bundle adjustment given the initial guess and then check the result of
-        optimization
+        markers_3d_model
         """
 
         if not model_init_result:

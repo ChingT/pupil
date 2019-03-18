@@ -11,8 +11,8 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
+import head_pose_tracker.model.marker_location_storage
 import zmq_tools
-from head_pose_tracker import model
 from tasklib.interface import TaskInterface
 
 logger = logging.getLogger(__name__)
@@ -95,7 +95,7 @@ class SquareMarkerDetectionTask(TaskInterface):
                 return
             elif topic == "exception":
                 logger.warning(
-                    "Optimization marker detection raised exception:\n{}".format(
+                    "Markers3DModel marker detection raised exception:\n{}".format(
                         msg["reason"]
                     )
                 )
@@ -108,5 +108,7 @@ class SquareMarkerDetectionTask(TaskInterface):
         marker_detection = detection["marker_detection"]
         frame_index = detection["index"]
         timestamp = detection["timestamp"]
-        marker_location = model.MarkerLocation(marker_detection, frame_index, timestamp)
+        marker_location = head_pose_tracker.model.marker_location_storage.MarkerLocation(
+            marker_detection, frame_index, timestamp
+        )
         self.on_yield(marker_location)

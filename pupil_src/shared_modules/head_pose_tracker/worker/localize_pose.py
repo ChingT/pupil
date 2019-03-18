@@ -18,12 +18,12 @@ from head_pose_tracker import worker
 g_pool = None  # set by the plugin
 
 
-def create_task(camera_localizer, optimization, all_marker_locations):
+def create_task(camera_localizer, markers_3d_model, all_marker_locations):
     assert g_pool, "You forgot to set g_pool by the plugin"
 
     ref_dicts_in_opt_range = [_create_ref_dict(ref) for ref in all_marker_locations]
 
-    args = (g_pool.capture.intrinsics, optimization.result, ref_dicts_in_opt_range)
+    args = (g_pool.capture.intrinsics, markers_3d_model.result, ref_dicts_in_opt_range)
     name = "Create camera localizer {}".format(camera_localizer.name)
     return tasklib.background.create(
         name,
@@ -39,7 +39,7 @@ def _create_ref_dict(ref):
 
 
 def _localize_pose(
-    camera_intrinsics, optimization_result, ref_dicts_in_opt_range, shared_memory
+    camera_intrinsics, markers_3d_model_result, ref_dicts_in_opt_range, shared_memory
 ):
     camera_extrinsics_prv = None
     not_localized_count = 0
@@ -49,7 +49,7 @@ def _localize_pose(
         camera_extrinsics = worker.localize_camera.localize(
             camera_intrinsics,
             ref["marker_detection"],
-            optimization_result,
+            markers_3d_model_result,
             camera_extrinsics_prv=camera_extrinsics_prv,
             min_n_markers_per_frame=1,
         )

@@ -22,16 +22,16 @@ logger = logging.getLogger(__name__)
 class CameraLocalizerController(Observable):
     def __init__(
         self,
-        optimization_controller,
+        markers_3d_model_controller,
         camera_localizer_storage,
-        optimization_storage,
+        markers_3d_model_storage,
         marker_location_storage,
         task_manager,
         get_current_trim_mark_range,
     ):
-        self._optimization_controller = optimization_controller
+        self._markers_3d_model_controller = markers_3d_model_controller
         self._camera_localizer_storage = camera_localizer_storage
-        self._optimization_storage = optimization_storage
+        self._markers_3d_model_storage = markers_3d_model_storage
         self._marker_location_storage = marker_location_storage
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
@@ -39,38 +39,38 @@ class CameraLocalizerController(Observable):
         # make localizations loaded from disk known to Player
         self.save_all_enabled_localizers()
 
-        self._optimization_controller.add_observer(
-            "on_optimization_computed", self.calculate
+        self._markers_3d_model_controller.add_observer(
+            "on_markers_3d_model_computed", self.calculate
         )
 
     def set_localization_range_from_current_trim_marks(self, camera_localizer):
         camera_localizer.localization_index_range = self._get_current_trim_mark_range()
 
-    def calculate(self, optimization=None):
+    def calculate(self, markers_3d_model=None):
         camera_localizer = self._camera_localizer_storage.get_or_none()
         if camera_localizer is None:
             return
 
         self._reset_camera_localizer_results(camera_localizer)
 
-        if optimization is None:
-            optimization = self.get_valid_optimization_or_none()
+        if markers_3d_model is None:
+            markers_3d_model = self.get_valid_markers_3d_model_or_none()
 
-        if optimization is None:
+        if markers_3d_model is None:
             self._abort_calculation(
                 camera_localizer,
-                "The optimization was not found for the pose localizer "
+                "The markers_3d_model was not found for the pose localizer "
                 "'{}'".format(camera_localizer.name),
             )
             return None
-        if optimization.result is None:
+        if markers_3d_model.result is None:
             self._abort_calculation(
                 camera_localizer,
-                "You first need to calculate optimization '{}' before calculating the "
-                "localizer '{}'".format(optimization.name, camera_localizer.name),
+                "You first need to calculate markers_3d_model '{}' before calculating the "
+                "localizer '{}'".format(markers_3d_model.name, camera_localizer.name),
             )
             return None
-        task = self._create_localization_task(camera_localizer, optimization)
+        task = self._create_localization_task(camera_localizer, markers_3d_model)
         self._task_manager.add_task(task)
         logger.info("Start pose localization for '{}'".format(camera_localizer.name))
 
@@ -88,9 +88,9 @@ class CameraLocalizerController(Observable):
         camera_localizer.pose = []
         camera_localizer.pose_ts = []
 
-    def _create_localization_task(self, camera_localizer, optimization):
+    def _create_localization_task(self, camera_localizer, markers_3d_model):
         task = worker.localize_pose.create_task(
-            camera_localizer, optimization, self._marker_location_storage
+            camera_localizer, markers_3d_model, self._marker_location_storage
         )
 
         def on_yield_pose(localized_pose_ts_and_data):
@@ -137,5 +137,5 @@ class CameraLocalizerController(Observable):
     def on_camera_localization_calculated(self, camera_localizer):
         pass
 
-    def get_valid_optimization_or_none(self):
-        return self._optimization_storage.get_or_none()
+    def get_valid_markers_3d_model_or_none(self):
+        return self._markers_3d_model_storage.get_or_none()

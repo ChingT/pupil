@@ -12,13 +12,19 @@ See COPYING and COPYING.LESSER for license details.
 from head_pose_tracker.model import storage
 from head_pose_tracker.model.single_file_storage import SingleFileStorage
 
-from head_pose_tracker.model.marker_location import MarkerLocation
-from head_pose_tracker.model.marker_location_storage import MarkerLocationStorage
+from head_pose_tracker.model.marker_location_storage import (
+    MarkerLocationStorage,
+    MarkerLocation,
+)
 
-from head_pose_tracker.model.optimization import Optimization
-from head_pose_tracker.model.optimization_storage import OptimizationStorage
+from head_pose_tracker.model.markers_3d_model_storage import (
+    Markers3DModelStorage,
+    Markers3DModel,
+)
 
-from head_pose_tracker.model.camera_localization import CameraLocalizer
-from head_pose_tracker.model.camera_localizer_storage import CameraLocalizerStorage
+from head_pose_tracker.model.camera_localizer_storage import (
+    CameraLocalizerStorage,
+    CameraLocalizer,
+)
 
 from head_pose_tracker.model.model_storage import ModelStorage

@@ -15,7 +15,7 @@ from head_pose_tracker.worker import (
     localize_camera,
     localize_markers,
     get_initial_guess,
-    create_optimization,
+    create_markers_3d_model,
     localize_pose,
 )
 from head_pose_tracker.worker.bundle_adjustment import BundleAdjustment

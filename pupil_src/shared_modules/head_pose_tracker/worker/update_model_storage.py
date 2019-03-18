@@ -13,9 +13,8 @@ from head_pose_tracker import worker
 
 
 class UpdateModelStorage:
-    def __init__(self, model_storage, camera_intrinsics):
+    def __init__(self, model_storage):
         self._model_storage = model_storage
-        self._camera_intrinsics = camera_intrinsics
 
     def run(self, model_opt_result):
         """ process the results of markers_3d_model; update frame_id_to_extrinsics_opt,
@@ -24,16 +23,12 @@ class UpdateModelStorage:
         if not model_opt_result:
             return
 
-        self._discard_failed_key_markers(model_opt_result.frame_ids_failed)
-
         self._update_extrinsics_opt(
             model_opt_result.frame_id_to_extrinsics,
             model_opt_result.marker_id_to_extrinsics,
         )
 
-        if model_opt_result.camera_matrix is not None:
-            self._camera_intrinsics.update_camera_matrix(model_opt_result.camera_matrix)
-            self._camera_intrinsics.update_dist_coefs(model_opt_result.dist_coefs)
+        self._discard_failed_key_markers(model_opt_result.frame_ids_failed)
 
     def _update_extrinsics_opt(self, frame_id_to_extrinsics, marker_id_to_extrinsics):
         self._model_storage.frame_id_to_extrinsics_opt.update(frame_id_to_extrinsics)

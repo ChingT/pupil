@@ -69,7 +69,7 @@ def _create_markers_3d_model(
     bundle_adjustment = worker.BundleAdjustment(
         camera_intrinsics, optimize_camera_intrinsics
     )
-    update_model_storage = worker.UpdateModelStorage(model_storage, camera_intrinsics)
+    update_model_storage = worker.UpdateModelStorage(model_storage)
 
     markers_3d_model_times = (
         len(model_storage.all_key_markers) // n_key_markers_added_once + 5

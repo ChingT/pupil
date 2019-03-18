@@ -14,7 +14,7 @@ class DecideKeyMarkers:
     def __init__(
         self,
         model_storage,
-        select_key_markers_interval=1,
+        select_key_markers_interval=2,
         min_n_markers_per_frame=2,
         max_n_same_markers_per_bin=1,
     ):

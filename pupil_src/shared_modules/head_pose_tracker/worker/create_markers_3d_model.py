@@ -9,8 +9,9 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import collections
 import logging
+
+import numpy as np
 
 import tasklib.background
 import tasklib.background.patches as bg_patches
@@ -19,10 +20,6 @@ from head_pose_tracker import worker, model
 logger = logging.getLogger(__name__)
 
 g_pool = None  # set by the plugin
-
-ModelResult = collections.namedtuple(
-    "ModelResult", ["result", "result_vis", "origin_marker_id"]
-)
 
 
 def create_task(markers_3d_model, all_marker_locations):
@@ -87,11 +84,29 @@ def _create_markers_3d_model(
 
         shared_memory.progress = (_iter + 1) / markers_3d_model_times
 
-        yield ModelResult(
-            model_optimization_storage.marker_id_to_extrinsics_opt,
-            model_optimization_storage.marker_id_to_points_3d_opt,
-            model_optimization_storage.origin_marker_id,
-        ), camera_intrinsics
+        marker_id_to_extrinsics = {
+            key: value.tolist()
+            for key, value in model_optimization_storage.marker_id_to_extrinsics_opt.items()
+        }
+        marker_id_to_points_3d = {
+            key: value.tolist()
+            for key, value in model_optimization_storage.marker_id_to_points_3d_opt.items()
+        }
+        try:
+            centroid = np.mean(
+                list(model_optimization_storage.marker_id_to_points_3d_opt.values()),
+                axis=(0, 1),
+            ).tolist()
+        except IndexError:
+            centroid = [0.0, 0.0, 0.0]
+
+        model_datum = {
+            "marker_id_to_extrinsics": marker_id_to_extrinsics,
+            "marker_id_to_points_3d": marker_id_to_points_3d,
+            "origin_marker_id": model_optimization_storage.origin_marker_id,
+            "centroid": centroid,
+        }
+        yield model_datum, camera_intrinsics
 
 
 def pick_all_key_markers(model_storage, ref_dicts_in_opt_range):

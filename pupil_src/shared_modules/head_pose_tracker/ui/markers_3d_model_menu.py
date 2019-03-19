@@ -121,9 +121,9 @@ class Markers3DModelMenu(plugin_ui.StorageEditMenu):
     def _create_origin_marker_id_display(self, markers_3d_model):
         return ui.Text_Input(
             "origin_marker_id",
-            markers_3d_model,
             label="Origin of the coordinate system: marker with id",
-            setter=lambda _: _,
+            getter=lambda: self._get_origin_marker_id(markers_3d_model),
+            setter=lambda x: None,
         )
 
     def _create_show_marker_id_switch(self, markers_3d_model):
@@ -137,6 +137,13 @@ class Markers3DModelMenu(plugin_ui.StorageEditMenu):
             "This Markers 3D Model was created before or during the recording. "
             "It is ready to be used in camera localizers."
         )
+
+    @staticmethod
+    def _get_origin_marker_id(markers_3d_model):
+        if markers_3d_model.result:
+            return markers_3d_model.result["origin_marker_id"]
+        else:
+            return None
 
     def _on_name_change(self, new_name):
         self._markers_3d_model_storage.rename(self.current_item, new_name)

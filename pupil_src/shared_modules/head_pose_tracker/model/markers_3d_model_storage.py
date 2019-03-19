@@ -12,10 +12,8 @@ See COPYING and COPYING.LESSER for license details.
 import logging
 import os
 
-import numpy as np
-
 import make_unique
-from head_pose_tracker import model, worker
+from head_pose_tracker import model
 from observable import Observable
 
 logger = logging.getLogger(__name__)
@@ -30,7 +28,6 @@ class Markers3DModel(model.storage.StorageItem):
         name,
         recording_uuid,
         frame_index_range,
-        origin_marker_id=None,
         status="Not calculated yet",
         result=None,
     ):
@@ -38,48 +35,11 @@ class Markers3DModel(model.storage.StorageItem):
         self.name = name
         self.recording_uuid = recording_uuid
         self.frame_index_range = frame_index_range
-        self.origin_marker_id = origin_marker_id
         self.status = status
-
-        if result is not None:
-            self.result = {
-                marker_id: np.array(extrinsics)
-                for marker_id, extrinsics in result.items()
-            }
-            self.result_vis = {
-                marker_id: worker.utils.convert_marker_extrinsics_to_points_3d(
-                    extrinsics
-                )
-                for marker_id, extrinsics in result.items()
-            }
-        else:
-            self.result = None
-            self.result_vis = {}
-
-        self.centroid = np.zeros((3,), dtype=np.float32)
-        self.calculate_centroid()
+        self.result = result
 
         self.optimize_camera_intrinsics = False
         self.show_marker_id = False
-
-    def reset(self):
-        self.status = "Not calculated yet"
-        self.result = None
-        self.result_vis = {}
-        self.origin_marker_id = None
-        self.centroid = np.zeros((3,), dtype=np.float32)
-
-    def update_result(self, markers_3d_model_result):
-        self.result = markers_3d_model_result.result
-        self.result_vis = markers_3d_model_result.result_vis
-        self.origin_marker_id = markers_3d_model_result.origin_marker_id
-        self.calculate_centroid()
-
-    def calculate_centroid(self):
-        try:
-            self.centroid = np.mean(list(self.result_vis.values()), axis=(0, 1))
-        except IndexError:
-            self.centroid = np.zeros((3,), dtype=np.float32)
 
     @staticmethod
     def from_tuple(tuple_):
@@ -87,18 +47,13 @@ class Markers3DModel(model.storage.StorageItem):
 
     @property
     def as_tuple(self):
-        if self.result:
-            result = {key: value.tolist() for key, value in self.result.items()}
-        else:
-            result = {}
         return (
             self.unique_id,
             self.name,
             self.recording_uuid,
             self.frame_index_range,
-            self.origin_marker_id,
             self.status,
-            result,
+            self.result,
         )
 
 

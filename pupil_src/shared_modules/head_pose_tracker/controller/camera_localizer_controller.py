@@ -94,20 +94,21 @@ class CameraLocalizerController(Observable):
         )
 
         def on_yield_pose(localized_pose_ts_and_data):
-            camera_localizer.status = "Localization {:.0f}% complete".format(
-                task.progress * 100
+            camera_localizer.status = (
+                "Calculating localization {:.0f}% "
+                "complete".format(task.progress * 100)
             )
             for timestamp, pose_datum in localized_pose_ts_and_data:
                 camera_localizer.pose.append(pose_datum)
                 camera_localizer.pose_ts.append(timestamp)
 
         def on_completed_localization(_):
-            camera_localizer.status = "Successfully completed localization"
+            camera_localizer.status = "Calculating localization successfully"
             self.save_all_enabled_localizers()
             self._camera_localizer_storage.save_to_disk()
             self.on_camera_localization_calculated(camera_localizer)
             logger.info(
-                "Complete pose localization for '{}'".format(camera_localizer.name)
+                "Complete camera localization for '{}'".format(camera_localizer.name)
             )
 
         task.add_observer("on_yield", on_yield_pose)

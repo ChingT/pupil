@@ -37,7 +37,7 @@ class Markers3DModelController(Observable):
     def calculate(self, markers_3d_model):
         def on_yield_markers_3d_model(result):
             markers_3d_model.status = (
-                "Building Markers 3D Model {:.0f}% "
+                "Building markers 3d model {:.0f}% "
                 "complete".format(self._task.progress * 100)
             )
             markers_3d_model_result, camera_intrinsics = result
@@ -46,9 +46,10 @@ class Markers3DModelController(Observable):
             self._camera_intrinsics.update_dist_coefs(camera_intrinsics.D)
 
         def on_completed_markers_3d_model(_):
-            markers_3d_model.status = "Building Markers 3D Model successfully"
+            markers_3d_model.status = "Building markers 3d model successfully"
             self._markers_3d_model_storage.save_to_disk()
             self._camera_intrinsics.save(self._rec_dir)
+            print(self._camera_intrinsics.K.tolist())
             self.on_markers_3d_model_computed()
 
         self._reset(markers_3d_model)

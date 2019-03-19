@@ -16,14 +16,10 @@ from pyglui import ui
 
 class StorageEditMenu(abc.ABC):
     def __init__(self, storage):
+        self._storage = storage
+
         self.menu = ui.Growing_Menu(self.menu_label)
         self.current_item = None
-        # when the current element changes, a few menu elements remain (=the selector
-        # and things above) and the rest gets deleted and rendered again (=item
-        # specific elements)
-        self._number_of_static_menu_elements = 0
-
-        self._storage = storage
 
     @property
     @abc.abstractmethod
@@ -59,7 +55,6 @@ class StorageEditMenu(abc.ABC):
             self._render_item_selector_and_current_item()
 
     def _render_item_selector_and_current_item(self):
-        self._number_of_static_menu_elements = len(self.menu.elements)
         # apparently, the 'setter' function is only triggered if the selection
         # changes, but not for the initial selection, so we call it manually
         if self.current_item:
@@ -68,7 +63,6 @@ class StorageEditMenu(abc.ABC):
     # TODO: implement this with an attribute observer when the feature is available
     def _on_change_current_item(self, item):
         self.current_item = item
-        del self.menu.elements[self._number_of_static_menu_elements :]
         temp_menu = ui.Growing_Menu("Temporary")
         self.render_item(item, temp_menu)
         self.menu.elements.extend(temp_menu.elements)

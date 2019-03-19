@@ -10,7 +10,6 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 from head_pose_tracker.model import storage
-from head_pose_tracker.model.single_file_storage import SingleFileStorage
 
 from head_pose_tracker.model.marker_location_storage import (
     MarkerLocationStorage,

@@ -50,7 +50,7 @@ class CameraLocalizer(model.storage.StorageItem):
         return self.unique_id, self.name, self.localization_index_range, self.status
 
 
-class CameraLocalizerStorage(model.SingleFileStorage, Observable):
+class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
     def __init__(self, rec_dir, plugin, get_recording_index_range):
         super().__init__(rec_dir, plugin)
         self._get_recording_index_range = get_recording_index_range

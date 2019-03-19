@@ -34,7 +34,7 @@ class MarkerLocation(model.storage.StorageItem):
         return self.marker_detection, self.frame_index, self.timestamp
 
 
-class MarkerLocationStorage(model.SingleFileStorage, Observable):
+class MarkerLocationStorage(model.storage.SingleFileStorage, Observable):
     def __init__(self, rec_dir, plugin):
         super().__init__(rec_dir, plugin)
         self._marker_locations = {}

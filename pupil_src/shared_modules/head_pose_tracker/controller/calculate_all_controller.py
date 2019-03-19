@@ -14,13 +14,13 @@ class CalculateAllController:
     def __init__(
         self,
         marker_location_controller,
-        marker_location_storage,
         markers_3d_model_controller,
+        marker_location_storage,
         markers_3d_model_storage,
     ):
         self._marker_location_controller = marker_location_controller
-        self._marker_location_storage = marker_location_storage
         self._markers_3d_model_controller = markers_3d_model_controller
+        self._marker_location_storage = marker_location_storage
         self._markers_3d_model_storage = markers_3d_model_storage
 
         self.calculate_all()

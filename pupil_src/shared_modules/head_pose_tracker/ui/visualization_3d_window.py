@@ -161,7 +161,7 @@ class Visualization3dWindow:
 
         self._render_centroid()
         markers_3d_model = self._markers_3d_model_storage.get_or_none()
-        if markers_3d_model is not None:
+        if markers_3d_model and markers_3d_model.result:
             self._shift_rotate_center(markers_3d_model)
             self._render_coordinate_in_3d_window()
             self._render_markers(markers_3d_model)
@@ -191,7 +191,7 @@ class Visualization3dWindow:
 
     def _shift_rotate_center(self, markers_3d_model):
         camera_pose_matrix = np.eye(4, dtype=np.float32)
-        camera_pose_matrix[0:3, 3] = -markers_3d_model.centroid
+        camera_pose_matrix[0:3, 3] = -np.array(markers_3d_model.result["centroid"])
         gl.glLoadTransposeMatrixf(camera_pose_matrix)
 
     def _render_coordinate_in_3d_window(self, scale=1):
@@ -205,12 +205,14 @@ class Visualization3dWindow:
         self._render_line_in_3d_window((0, 0, 0), (0, 0, scale), color)
 
     def _render_markers(self, markers_3d_model):
-        self._render_3d_marker_boundary(markers_3d_model.result_vis)
+        self._render_3d_marker_boundary(
+            markers_3d_model.result["marker_id_to_points_3d"]
+        )
 
         if markers_3d_model.show_marker_id:
-            self._render_marker_id(markers_3d_model.result_vis)
+            self._render_marker_id(markers_3d_model.result["marker_id_to_points_3d"])
 
-    def _render_3d_marker_boundary(self, result_vis):
+    def _render_3d_marker_boundary(self, marker_id_to_points_3d):
         current_index = self._get_current_frame_index()
         current_markers = self._marker_location_storage.get_or_none(current_index)
 
@@ -219,7 +221,7 @@ class Visualization3dWindow:
         else:
             current_markers_marker_detection = {}
 
-        for marker_id, points_3d in result_vis.items():
+        for marker_id, points_3d in marker_id_to_points_3d.items():
             if marker_id in current_markers_marker_detection:
                 color = (1, 0, 0, 0.15)
             else:
@@ -227,9 +229,9 @@ class Visualization3dWindow:
 
             self._render_polygon_in_3d_window(points_3d, color)
 
-    def _render_marker_id(self, result_vis):
+    def _render_marker_id(self, marker_id_to_points_3d):
         color = (1, 0, 0, 1)
-        for (marker_id, points_3d) in result_vis.items():
+        for (marker_id, points_3d) in marker_id_to_points_3d.items():
             self._render_text_in_3d_window(str(marker_id), points_3d[0], color)
 
     def _render_camera(self):

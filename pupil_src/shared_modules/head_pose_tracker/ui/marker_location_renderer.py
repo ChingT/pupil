@@ -77,7 +77,11 @@ class MarkerLocationRenderer:
             )
             hat_points.shape = 6, 2
 
-            if markers_3d_model.result and marker_id in markers_3d_model.result.keys():
+            if (
+                markers_3d_model.result
+                and marker_id
+                in markers_3d_model.result["marker_id_to_extrinsics"].keys()
+            ):
                 color = (1.0, 0.0, 0.0, 0.2)
             else:
                 color = (0.0, 1.0, 1.0, 0.2)

@@ -52,7 +52,6 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             recording_uuid=self._recording_uuid,
         )
         self._camera_localizer_storage = model.CameraLocalizerStorage(
-            self._markers_3d_model_storage,
             self.g_pool.rec_dir,
             plugin=self,
             get_recording_index_range=self._recording_index_range,
@@ -60,11 +59,11 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
 
     def _setup_controllers(self):
         self._marker_location_controller = controller.MarkerLocationController(
-            self._task_manager, self._marker_location_storage
+            self._marker_location_storage, task_manager=self._task_manager
         )
         self._markers_3d_model_controller = controller.Markers3DModelController(
-            self._markers_3d_model_storage,
             self._marker_location_storage,
+            self._markers_3d_model_storage,
             self.g_pool.capture.intrinsics,
             task_manager=self._task_manager,
             get_current_trim_mark_range=self._current_trim_mark_range,
@@ -81,8 +80,8 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
         self._calculate_all_controller = controller.CalculateAllController(
             self._marker_location_controller,
-            self._marker_location_storage,
             self._markers_3d_model_controller,
+            self._marker_location_storage,
             self._markers_3d_model_storage,
         )
 

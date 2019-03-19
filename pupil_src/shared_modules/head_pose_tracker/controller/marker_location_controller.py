@@ -19,9 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 class MarkerLocationController(Observable):
-    def __init__(self, task_manager, marker_location_storage):
-        self._task_manager = task_manager
+    def __init__(self, marker_location_storage, task_manager):
         self._marker_location_storage = marker_location_storage
+        self._task_manager = task_manager
+
         self._detection_task = None
 
     def start_detection(self):

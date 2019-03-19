@@ -25,13 +25,12 @@ class CameraLocalizerTimeline:
         self._camera_localizer_storage.add_observer(
             "rename", self._on_localizer_storage_changed
         )
-
         self._camera_localizer_controller.add_observer(
             "set_localization_range_from_current_trim_marks",
             self._on_localizer_ranges_changed,
         )
         self._camera_localizer_controller.add_observer(
-            "save_all_enabled_localizers", self._on_save_enabled_localizers
+            "save_pose_bisector", self._on_localizer_data_changed
         )
 
     def create_rows(self):
@@ -59,7 +58,7 @@ class CameraLocalizerTimeline:
     def _on_localizer_ranges_changed(self, _):
         self.render_parent_timeline()
 
-    def _on_save_enabled_localizers(self):
+    def _on_localizer_data_changed(self, _):
         """Triggered when localization tasks are complete"""
         self.render_parent_timeline()
 

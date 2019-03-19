@@ -23,39 +23,43 @@ class CameraLocalizerController(Observable):
     def __init__(
         self,
         markers_3d_model_controller,
-        camera_localizer_storage,
-        markers_3d_model_storage,
         marker_location_storage,
+        markers_3d_model_storage,
+        camera_localizer_storage,
         task_manager,
         get_current_trim_mark_range,
     ):
-        self._markers_3d_model_controller = markers_3d_model_controller
-        self._camera_localizer_storage = camera_localizer_storage
-        self._markers_3d_model_storage = markers_3d_model_storage
         self._marker_location_storage = marker_location_storage
+        self._markers_3d_model_storage = markers_3d_model_storage
+        self._camera_localizer_storage = camera_localizer_storage
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
 
-        # make localizations loaded from disk known to Player
-        self.save_all_enabled_localizers()
+        self._task = None
+        self.pose = []
+        self.pose_ts = []
 
-        self._markers_3d_model_controller.add_observer(
+        markers_3d_model_controller.add_observer(
             "on_markers_3d_model_computed", self.calculate
         )
+        markers_3d_model_controller.add_observer(
+            "on_markers_3d_model_calculating", self._reset
+        )
 
-    def set_localization_range_from_current_trim_marks(self, camera_localizer):
-        camera_localizer.localization_index_range = self._get_current_trim_mark_range()
-
-    def calculate(self, markers_3d_model=None):
+    def calculate(self,):
         camera_localizer = self._camera_localizer_storage.get_or_none()
         if camera_localizer is None:
             return
 
-        self._reset_camera_localizer_results(camera_localizer)
-
+        markers_3d_model = self._get_valid_markers_3d_model_or_none(camera_localizer)
         if markers_3d_model is None:
-            markers_3d_model = self.get_valid_markers_3d_model_or_none()
+            return
 
+        self._reset()
+        self._create_localization_task(camera_localizer, markers_3d_model)
+
+    def _get_valid_markers_3d_model_or_none(self, camera_localizer):
+        markers_3d_model = self._markers_3d_model_storage.get_or_none()
         if markers_3d_model is None:
             self._abort_calculation(
                 camera_localizer,
@@ -66,77 +70,72 @@ class CameraLocalizerController(Observable):
         if markers_3d_model.result is None:
             self._abort_calculation(
                 camera_localizer,
-                "You first need to calculate markers_3d_model '{}' before calculating the "
-                "localizer '{}'".format(markers_3d_model.name, camera_localizer.name),
+                "You first need to calculate markers_3d_model '{}' before calculating "
+                "the localizer '{}'".format(
+                    markers_3d_model.name, camera_localizer.name
+                ),
             )
             return None
-        task = self._create_localization_task(camera_localizer, markers_3d_model)
-        self._task_manager.add_task(task)
-        logger.info("Start pose localization for '{}'".format(camera_localizer.name))
+        return markers_3d_model
 
     def _abort_calculation(self, camera_localizer, error_message):
         logger.error(error_message)
         camera_localizer.status = error_message
         self.on_calculation_could_not_be_started()
         # the pose from this localizer got cleared, so don't show it anymore
-        self.save_all_enabled_localizers()
+        self.save_pose_bisector(camera_localizer)
 
     def on_calculation_could_not_be_started(self):
         pass
 
-    def _reset_camera_localizer_results(self, camera_localizer):
-        camera_localizer.pose = []
-        camera_localizer.pose_ts = []
+    def _reset(self):
+        if self._task is not None and self._task.running:
+            self._task.kill(None)
 
-    def _create_localization_task(self, camera_localizer, markers_3d_model):
-        task = worker.localize_pose.create_task(
-            camera_localizer, markers_3d_model, self._marker_location_storage
-        )
+        self.pose = []
+        self.pose_ts = []
 
-        def on_yield_pose(localized_pose_ts_and_data):
-            camera_localizer.status = (
-                "Calculating localization {:.0f}% "
-                "complete".format(task.progress * 100)
-            )
-            for timestamp, pose_datum in localized_pose_ts_and_data:
-                camera_localizer.pose.append(pose_datum)
-                camera_localizer.pose_ts.append(timestamp)
-
-        def on_completed_localization(_):
-            camera_localizer.status = "Calculating localization successfully"
-            self.save_all_enabled_localizers()
-            self._camera_localizer_storage.save_to_disk()
-            self.on_camera_localization_calculated(camera_localizer)
-            logger.info(
-                "Complete camera localization for '{}'".format(camera_localizer.name)
-            )
-
-        task.add_observer("on_yield", on_yield_pose)
-        task.add_observer("on_completed", on_completed_localization)
-        task.add_observer("on_exception", tasklib.raise_exception)
-        return task
-
-    def save_all_enabled_localizers(self):
-        """
-        Save pose data to e.g. render it in Player or to trigger other plugins
-        that operate on pose data. The save logic is implemented in the plugin.
-        """
         camera_localizer = self._camera_localizer_storage.get_or_none()
         if camera_localizer is None:
             return
+        camera_localizer.pose_bisector = pm.Bisector()
 
-        pose_bisector = self._create_pose_bisector_from_localizer(camera_localizer)
-        self._camera_localizer_storage.save_pose_bisector(
-            camera_localizer, pose_bisector
+    def _create_localization_task(self, camera_localizer, markers_3d_model):
+        def on_yield_pose(localized_pose_ts_and_data):
+            camera_localizer.status = (
+                "Calculating localization {:.0f}% "
+                "complete".format(self._task.progress * 100)
+            )
+            self._update_result(localized_pose_ts_and_data)
+
+        def on_completed_localization(_):
+            camera_localizer.status = "Calculating localization successfully"
+            self.save_pose_bisector(camera_localizer)
+            self._camera_localizer_storage.save_to_disk()
+            logger.info(
+                "Complete camera localization for '{}'".format(camera_localizer.name)
+            )
+            self.on_camera_localization_calculated(camera_localizer)
+
+        self._task = worker.localize_pose.create_task(
+            camera_localizer, markers_3d_model, self._marker_location_storage
         )
+        self._task.add_observer("on_yield", on_yield_pose)
+        self._task.add_observer("on_completed", on_completed_localization)
+        self._task.add_observer("on_exception", tasklib.raise_exception)
+        self._task_manager.add_task(self._task)
+        logger.info("Start camera localization for '{}'".format(camera_localizer.name))
 
-    def _create_pose_bisector_from_localizer(self, camera_localizer):
-        pose_data = list(camera_localizer.pose)
-        pose_ts = list(camera_localizer.pose_ts)
-        return pm.Bisector(pose_data, pose_ts)
+    def _update_result(self, localized_pose_ts_and_data):
+        for timestamp, pose_datum in localized_pose_ts_and_data:
+            self.pose.append(pose_datum)
+            self.pose_ts.append(timestamp)
 
     def on_camera_localization_calculated(self, camera_localizer):
         pass
 
-    def get_valid_markers_3d_model_or_none(self):
-        return self._markers_3d_model_storage.get_or_none()
+    def save_pose_bisector(self, camera_localizer):
+        camera_localizer.pose_bisector = pm.Bisector(self.pose, self.pose_ts)
+
+    def set_localization_range_from_current_trim_marks(self, camera_localizer):
+        camera_localizer.localization_index_range = self._get_current_trim_mark_range()

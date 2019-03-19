@@ -25,29 +25,21 @@ class CameraLocalizer(model.storage.StorageItem):
     version = 1
 
     def __init__(
-        self,
-        unique_id,
-        name,
-        localization_index_range,
-        status="Not calculated yet",
-        pose=[],
-        pose_ts=[],
-        pose_bisector=pm.Bisector(),
+        self, unique_id, name, localization_index_range, status="Not calculated yet"
     ):
         self.unique_id = unique_id
         self.name = name
         self.localization_index_range = tuple(localization_index_range)
         self.status = status
-        self.pose = pose
-        self.pose_ts = pose_ts
-        self.pose_bisector = pose_bisector
+
+        # for visualization of pose data
+        self.pose_bisector = pm.Bisector()
 
         self.show_camera_trace = True
 
     @property
     def calculate_complete(self):
-        # we cannot just use `self.pose and self.pose_ts` because this ands the arrays
-        return len(self.pose) > 0 and len(self.pose_ts) > 0
+        return bool(self.pose_bisector)
 
     @staticmethod
     def from_tuple(tuple_):
@@ -59,12 +51,10 @@ class CameraLocalizer(model.storage.StorageItem):
 
 
 class CameraLocalizerStorage(model.SingleFileStorage, Observable):
-    def __init__(
-        self, markers_3d_model_storage, rec_dir, plugin, get_recording_index_range
-    ):
+    def __init__(self, rec_dir, plugin, get_recording_index_range):
         super().__init__(rec_dir, plugin)
-        self._markers_3d_model_storage = markers_3d_model_storage
         self._get_recording_index_range = get_recording_index_range
+
         self._camera_localizers = []
         self._load_from_disk()
         if not self._camera_localizers:
@@ -126,7 +116,8 @@ class CameraLocalizerStorage(model.SingleFileStorage, Observable):
             file_name = self._camera_localization_file_name(camera_localizer)
             with fm.PLData_Writer(directory, file_name) as writer:
                 for pose_ts, pose in zip(
-                    camera_localizer.pose_ts, camera_localizer.pose
+                    camera_localizer.pose_bisector.timestamps,
+                    camera_localizer.pose_bisector.data,
                 ):
                     writer.append_serialized(
                         pose_ts, topic="pose", datum_serialized=pose.serialized
@@ -143,8 +134,7 @@ class CameraLocalizerStorage(model.SingleFileStorage, Observable):
         for camera_localizer in self._camera_localizers:
             file_name = self._camera_localization_file_name(camera_localizer)
             pldata = fm.load_pldata_file(directory, file_name)
-            camera_localizer.pose = pldata.data
-            camera_localizer.pose_ts = pldata.timestamps
+            camera_localizer.pose_bisector = pm.Bisector(pldata.data, pldata.timestamps)
 
     @property
     def _storage_file_name(self):
@@ -175,10 +165,6 @@ class CameraLocalizerStorage(model.SingleFileStorage, Observable):
             self._camera_localizations_directory,
             self._camera_localization_file_name(camera_localizer),
         )
-
-    @staticmethod
-    def save_pose_bisector(localizer, pose_bisector):
-        localizer.pose_bisector = pose_bisector
 
     def get_or_none(self):
         try:

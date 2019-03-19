@@ -21,9 +21,20 @@ g_pool = None  # set by the plugin
 def create_task(camera_localizer, markers_3d_model, all_marker_locations):
     assert g_pool, "You forgot to set g_pool by the plugin"
 
-    ref_dicts_in_opt_range = [_create_ref_dict(ref) for ref in all_marker_locations]
+    frame_start = camera_localizer.localization_index_range[0]
+    frame_end = camera_localizer.localization_index_range[1]
 
-    args = (g_pool.capture.intrinsics, markers_3d_model.result, ref_dicts_in_opt_range)
+    ref_dicts_in_loc_range = [
+        _create_ref_dict(ref)
+        for ref in all_marker_locations
+        if frame_start <= ref.frame_index <= frame_end
+    ]
+
+    args = (
+        g_pool.capture.intrinsics,
+        markers_3d_model.result["marker_id_to_extrinsics"],
+        ref_dicts_in_loc_range,
+    )
     name = "Create camera localizer {}".format(camera_localizer.name)
     return tasklib.background.create(
         name,
@@ -39,17 +50,17 @@ def _create_ref_dict(ref):
 
 
 def _localize_pose(
-    camera_intrinsics, markers_3d_model_result, ref_dicts_in_opt_range, shared_memory
+    camera_intrinsics, marker_id_to_extrinsics, ref_dicts_in_loc_range, shared_memory
 ):
     camera_extrinsics_prv = None
     not_localized_count = 0
-    for idx_incoming, ref in enumerate(ref_dicts_in_opt_range):
-        shared_memory.progress = (idx_incoming + 1) / len(ref_dicts_in_opt_range)
+    for idx_incoming, ref in enumerate(ref_dicts_in_loc_range):
+        shared_memory.progress = (idx_incoming + 1) / len(ref_dicts_in_loc_range)
 
         camera_extrinsics = worker.localize_camera.localize(
             camera_intrinsics,
             ref["marker_detection"],
-            markers_3d_model_result,
+            marker_id_to_extrinsics,
             camera_extrinsics_prv=camera_extrinsics_prv,
             min_n_markers_per_frame=1,
         )

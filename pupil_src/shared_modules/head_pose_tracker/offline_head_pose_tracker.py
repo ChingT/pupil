@@ -73,9 +73,9 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
         self._camera_localizer_controller = controller.CameraLocalizerController(
             self._markers_3d_model_controller,
-            self._camera_localizer_storage,
-            self._markers_3d_model_storage,
             self._marker_location_storage,
+            self._markers_3d_model_storage,
+            self._camera_localizer_storage,
             task_manager=self._task_manager,
             get_current_trim_mark_range=self._current_trim_mark_range,
         )

@@ -60,6 +60,7 @@ class Markers3DModel(model.storage.StorageItem):
         self.calculate_centroid()
 
         self.optimize_camera_intrinsics = False
+        self.show_marker_id = False
 
     def reset(self):
         self.status = "Not calculated yet"

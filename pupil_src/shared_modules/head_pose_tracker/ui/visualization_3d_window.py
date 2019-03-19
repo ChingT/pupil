@@ -47,12 +47,7 @@ class Visualization3dWindow:
         self._window_position = 0, 0
         self._window_size = 1280, 1335
 
-        self.show_markers = True
-        self.show_marker_id = False
-        self.show_camera_frustum = True
-        self.show_camera_trace = True
-
-        self.recent_camera_traces = collections.deque(maxlen=300)
+        self.recent_camera_trace = collections.deque(maxlen=300)
 
         plugin.add_observer("init_ui", self._on_init_ui)
         plugin.add_observer("deinit_ui", self._on_deinit_ui)
@@ -161,25 +156,18 @@ class Visualization3dWindow:
 
         active_window = glfw.glfwGetCurrentContext()
         glfw.glfwMakeContextCurrent(window)
-
         self._init_3d_window()
-
         self._trackball.push()
 
         self._render_centroid()
-
         markers_3d_model = self._markers_3d_model_storage.get_or_none()
         if markers_3d_model is not None:
             self._shift_rotate_center(markers_3d_model)
-
             self._render_coordinate_in_3d_window()
-
             self._render_markers(markers_3d_model)
-
             self._render_camera()
 
         self._trackball.pop()
-
         glfw.glfwSwapBuffers(window)
         glfw.glfwMakeContextCurrent(active_window)
 
@@ -217,10 +205,9 @@ class Visualization3dWindow:
         self._render_line_in_3d_window((0, 0, 0), (0, 0, scale), color)
 
     def _render_markers(self, markers_3d_model):
-        if self.show_markers:
-            self._render_3d_marker_boundary(markers_3d_model.result_vis)
+        self._render_3d_marker_boundary(markers_3d_model.result_vis)
 
-        if self.show_marker_id:
+        if markers_3d_model.show_marker_id:
             self._render_marker_id(markers_3d_model.result_vis)
 
     def _render_3d_marker_boundary(self, result_vis):
@@ -262,13 +249,13 @@ class Visualization3dWindow:
             camera_trace = pose_datum["camera_trace"]
             camera_pose_matrix = pose_datum["camera_pose_matrix"]
 
-        self.recent_camera_traces.append(camera_trace)
-        # self._shift_rotate_center()
+        # recent_camera_trace is updated no matter show_camera_trace is on or not
+        self.recent_camera_trace.append(camera_trace)
 
-        if self.show_camera_trace:
-            self._render_camera_trace_in_3d_window(self.recent_camera_traces)
-        if self.show_camera_frustum:
-            self._render_camera_frustum(camera_pose_matrix)
+        if camera_localizer.show_camera_trace:
+            self._render_camera_trace_in_3d_window(self.recent_camera_trace)
+
+        self._render_camera_frustum(camera_pose_matrix)
 
     def _render_camera_trace_in_3d_window(self, recent_camera_traces):
         color = (0.2, 0.2, 0.2, 0.1)

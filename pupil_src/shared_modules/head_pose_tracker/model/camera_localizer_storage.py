@@ -42,6 +42,8 @@ class CameraLocalizer(model.storage.StorageItem):
         self.pose_ts = pose_ts
         self.pose_bisector = pose_bisector
 
+        self.show_camera_trace = True
+
     @property
     def calculate_complete(self):
         # we cannot just use `self.pose and self.pose_ts` because this ands the arrays

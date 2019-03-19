@@ -22,8 +22,15 @@ class MarkerLocationRenderer:
     Renders marker locations in the world video.
     """
 
-    def __init__(self, marker_location_storage, plugin, get_current_frame_index):
+    def __init__(
+        self,
+        marker_location_storage,
+        markers_3d_model_storage,
+        plugin,
+        get_current_frame_index,
+    ):
         self._marker_location_storage = marker_location_storage
+        self._markers_3d_model_storage = markers_3d_model_storage
 
         self.square_definition = np.array(
             ((0, 0), (1, 0), (1, 1), (0, 1)), dtype=np.float32
@@ -51,10 +58,16 @@ class MarkerLocationRenderer:
     def _render_marker_locations(self):
         current_index = self._get_current_frame_index()
         current_markers = self._marker_location_storage.get_or_none(current_index)
-        if current_markers:
-            self._render_2d_marker_boundary(current_markers.marker_detection)
+        markers_3d_model = self._markers_3d_model_storage.get_or_none()
 
-    def _render_2d_marker_boundary(self, marker_detection):
+        if current_markers:
+            self._render_2d_marker_boundary(
+                current_markers.marker_detection, markers_3d_model
+            )
+            if markers_3d_model.show_marker_id:
+                self._draw_marker_id(current_markers.marker_detection)
+
+    def _render_2d_marker_boundary(self, marker_detection, markers_3d_model):
         for marker_id, detection in marker_detection.items():
             perspective_matrix = cv2.getPerspectiveTransform(
                 self.square_definition, np.array(detection["verts"], dtype=np.float32)
@@ -64,7 +77,11 @@ class MarkerLocationRenderer:
             )
             hat_points.shape = 6, 2
 
-            color = (0.0, 1.0, 1.0, 0.2)
+            if markers_3d_model.result and marker_id in markers_3d_model.result.keys():
+                color = (1.0, 0.0, 0.0, 0.2)
+            else:
+                color = (0.0, 1.0, 1.0, 0.2)
+
             self._draw_hat(hat_points, color)
 
     @staticmethod
@@ -72,6 +89,6 @@ class MarkerLocationRenderer:
         cygl_utils.draw_polyline(points, 1, cygl_utils.RGBA(*color), gl.GL_POLYGON)
 
     def _draw_marker_id(self, marker_detection):
-        for (marker_id, detection) in marker_detection.items():
+        for marker_id, detection in marker_detection.items():
             point = np.max(detection["verts"], axis=0)
             self.glfont.draw_text(point[0], point[1], str(marker_id))

@@ -57,23 +57,13 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
                 self._create_localization_range_selector(camera_localizer),
                 self._create_calculate_button(camera_localizer),
                 self._create_status_text(camera_localizer),
+                self._create_show_camera_trace_switch(camera_localizer),
             ]
         )
 
     def _create_name_input(self, camera_localizer):
         return ui.Text_Input(
             "name", camera_localizer, label="Name", setter=self._on_name_change
-        )
-
-    def _create_status_text(self, camera_localizer):
-        return ui.Text_Input(
-            "status", camera_localizer, label="Status", setter=lambda _: _
-        )
-
-    def _create_calculate_button(self, camera_localizer):
-        return ui.Button(
-            label="Recalculate" if camera_localizer.calculate_complete else "Calculate",
-            function=self._on_click_calculate,
         )
 
     def _create_localization_range_selector(self, camera_localizer):
@@ -84,6 +74,22 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
             outer_label=range_string,
             label="Set From Trim Marks",
             function=self._on_set_localization_range_from_trim_marks,
+        )
+
+    def _create_calculate_button(self, camera_localizer):
+        return ui.Button(
+            label="Recalculate" if camera_localizer.calculate_complete else "Calculate",
+            function=self._on_click_calculate,
+        )
+
+    def _create_status_text(self, camera_localizer):
+        return ui.Text_Input(
+            "status", camera_localizer, label="Status", setter=lambda _: _
+        )
+
+    def _create_show_camera_trace_switch(self, camera_localizer):
+        return ui.Switch(
+            "show_camera_trace", camera_localizer, label="Show Camera Trace"
         )
 
     def _on_markers_3d_model_storage_changed(self, *args, **kwargs):

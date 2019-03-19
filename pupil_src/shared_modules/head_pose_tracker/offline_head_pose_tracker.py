@@ -97,6 +97,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
         self._marker_location_renderer = plugin_ui.MarkerLocationRenderer(
             self._marker_location_storage,
+            self._markers_3d_model_storage,
             plugin=self,
             get_current_frame_index=self.g_pool.capture.get_frame_index,
         )

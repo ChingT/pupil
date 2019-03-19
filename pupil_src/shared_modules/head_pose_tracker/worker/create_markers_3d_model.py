@@ -60,19 +60,21 @@ def _create_markers_3d_model(
     ref_dicts_in_opt_range, camera_intrinsics, optimize_camera_intrinsics, shared_memory
 ):
     n_key_markers_added_once = 25
-    model_storage = model.ModelStorage(predetermined_origin_marker_id=None)
-    pick_all_key_markers(model_storage, ref_dicts_in_opt_range)
+    model_optimization_storage = model.ModelOptimizationStorage(
+        predetermined_origin_marker_id=None
+    )
+    pick_all_key_markers(model_optimization_storage, ref_dicts_in_opt_range)
 
     prepare_for_model_update = worker.PrepareForModelUpdate(
-        model_storage, n_key_markers_added_once
+        model_optimization_storage, n_key_markers_added_once
     )
     bundle_adjustment = worker.BundleAdjustment(
         camera_intrinsics, optimize_camera_intrinsics
     )
-    update_model_storage = worker.UpdateModelStorage(model_storage)
+    update_model_storage = worker.UpdateModelStorage(model_optimization_storage)
 
     markers_3d_model_times = (
-        len(model_storage.all_key_markers) // n_key_markers_added_once + 5
+        len(model_optimization_storage.all_key_markers) // n_key_markers_added_once + 5
     )
 
     for _iter in range(markers_3d_model_times):
@@ -86,9 +88,9 @@ def _create_markers_3d_model(
         shared_memory.progress = (_iter + 1) / markers_3d_model_times
 
         yield ModelResult(
-            model_storage.marker_id_to_extrinsics_opt,
-            model_storage.marker_id_to_points_3d_opt,
-            model_storage.origin_marker_id,
+            model_optimization_storage.marker_id_to_extrinsics_opt,
+            model_optimization_storage.marker_id_to_points_3d_opt,
+            model_optimization_storage.origin_marker_id,
         ), camera_intrinsics
 
 

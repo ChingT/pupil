@@ -26,7 +26,7 @@ KeyMarker = collections.namedtuple(
 logger = logging.getLogger(__name__)
 
 
-class ModelStorage:
+class ModelOptimizationStorage:
     def __init__(self, predetermined_origin_marker_id=None):
         self.visibility_graph = nx.MultiGraph()
 

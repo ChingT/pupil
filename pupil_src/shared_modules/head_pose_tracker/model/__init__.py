@@ -27,4 +27,4 @@ from head_pose_tracker.model.camera_localizer_storage import (
     CameraLocalizer,
 )
 
-from head_pose_tracker.model.model_storage import ModelStorage
+from head_pose_tracker.model.model_optimization_storage import ModelOptimizationStorage

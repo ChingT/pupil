@@ -38,12 +38,6 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
             "on_calculation_could_not_be_started",
             self._on_calculation_could_not_be_started,
         )
-        markers_3d_model_storage.add_observer(
-            "add", self._on_markers_3d_model_storage_changed
-        )
-        markers_3d_model_storage.add_observer(
-            "rename", self._on_markers_3d_model_storage_changed
-        )
 
     def _item_label(self, camera_localizer):
         return camera_localizer.name
@@ -51,17 +45,11 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
     def _render_custom_ui(self, camera_localizer, menu):
         menu.extend(
             [
-                self._create_name_input(camera_localizer),
                 self._create_localization_range_selector(camera_localizer),
                 self._create_calculate_button(camera_localizer),
                 self._create_status_text(camera_localizer),
                 self._create_show_camera_trace_switch(camera_localizer),
             ]
-        )
-
-    def _create_name_input(self, camera_localizer):
-        return ui.Text_Input(
-            "name", camera_localizer, label="Name", setter=self._on_name_change
         )
 
     def _create_localization_range_selector(self, camera_localizer):
@@ -89,15 +77,6 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
         return ui.Switch(
             "show_camera_trace", camera_localizer, label="Show Camera Trace"
         )
-
-    def _on_markers_3d_model_storage_changed(self, *args, **kwargs):
-        self.render()
-
-    def _on_name_change(self, new_name):
-        self._camera_localizer_storage.rename(self.current_item, new_name)
-        # we need to render the menu again because otherwise the name in the selector
-        # is not refreshed
-        self.render()
 
     def _on_set_localization_range_from_trim_marks(self):
         self._camera_localizer_controller.set_localization_range_from_current_trim_marks(

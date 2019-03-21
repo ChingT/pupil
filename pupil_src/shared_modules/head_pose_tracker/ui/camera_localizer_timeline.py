@@ -22,9 +22,6 @@ class CameraLocalizerTimeline:
         self._camera_localizer_storage.add_observer(
             "add", self._on_localizer_storage_changed
         )
-        self._camera_localizer_storage.add_observer(
-            "rename", self._on_localizer_storage_changed
-        )
         self._camera_localizer_controller.add_observer(
             "set_localization_range_from_current_trim_marks",
             self._on_localizer_ranges_changed,

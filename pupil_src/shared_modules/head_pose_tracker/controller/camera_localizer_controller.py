@@ -63,17 +63,14 @@ class CameraLocalizerController(Observable):
         if markers_3d_model is None:
             self._abort_calculation(
                 camera_localizer,
-                "The markers_3d_model was not found for the pose localizer "
-                "'{}'".format(camera_localizer.name),
+                "The markers_3d_model was not found for the camera localizer",
             )
             return None
         if markers_3d_model.result is None:
             self._abort_calculation(
                 camera_localizer,
                 "You first need to calculate markers_3d_model '{}' before calculating "
-                "the localizer '{}'".format(
-                    markers_3d_model.name, camera_localizer.name
-                ),
+                "the camera localizer".format(markers_3d_model.name),
             )
             return None
         return markers_3d_model
@@ -112,9 +109,7 @@ class CameraLocalizerController(Observable):
             camera_localizer.status = "Calculating localization successfully"
             self.save_pose_bisector(camera_localizer)
             self._camera_localizer_storage.save_to_disk()
-            logger.info(
-                "Complete camera localization for '{}'".format(camera_localizer.name)
-            )
+            logger.info("Complete camera localization")
             self.on_camera_localization_calculated(camera_localizer)
 
         self._task = worker.localize_pose.create_task(
@@ -124,7 +119,7 @@ class CameraLocalizerController(Observable):
         self._task.add_observer("on_completed", on_completed_localization)
         self._task.add_observer("on_exception", tasklib.raise_exception)
         self._task_manager.add_task(self._task)
-        logger.info("Start camera localization for '{}'".format(camera_localizer.name))
+        logger.info("Start camera localization")
 
     def _update_result(self, localized_pose_ts_and_data):
         for timestamp, pose_datum in localized_pose_ts_and_data:

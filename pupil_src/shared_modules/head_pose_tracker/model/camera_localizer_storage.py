@@ -66,42 +66,13 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
     def create_default_camera_localizer(self):
         return CameraLocalizer(
             unique_id=CameraLocalizer.create_new_unique_id(),
-            name=make_unique.by_number_at_end(
-                "Default Camera Localizer", self.item_names
-            ),
+            name=make_unique.by_number_at_end("Camera Localizer", self.item_names),
             localization_index_range=self._get_recording_index_range(),
         )
 
     def add(self, camera_localizer):
         self._camera_localizers.append(camera_localizer)
         self._camera_localizers.sort(key=lambda g: g.name)
-
-    def rename(self, camera_localizer, new_name):
-        old_localization_file_path = self._camera_localization_file_path(
-            camera_localizer
-        )
-        camera_localizer.name = new_name
-        new_localization_file_path = self._camera_localization_file_path(
-            camera_localizer
-        )
-        self._rename_localization_file(
-            old_localization_file_path, new_localization_file_path
-        )
-
-    def _rename_localization_file(
-        self, old_localization_file_path, new_localization_file_path
-    ):
-        try:
-            os.rename(
-                old_localization_file_path + ".pldata",
-                new_localization_file_path + ".pldata",
-            )
-            os.rename(
-                old_localization_file_path + "_timestamps.npy",
-                new_localization_file_path + "_timestamps.npy",
-            )
-        except FileNotFoundError:
-            pass
 
     def save_to_disk(self):
         # this will save everything except pose and pose_ts

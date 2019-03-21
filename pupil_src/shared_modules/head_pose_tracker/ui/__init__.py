@@ -27,4 +27,5 @@ from head_pose_tracker.ui.offline_head_pose_tracker_menu import (
     OfflineHeadPoseTrackerMenu,
 )
 
+from head_pose_tracker.ui.gl_3d_renderer import GL3DRenderer
 from head_pose_tracker.ui.visualization_3d_window import Visualization3dWindow

@@ -26,8 +26,8 @@ class MarkerLocationController(Observable):
         self._detection_task = None
 
     def start_detection(self):
-        def on_detection_yields(detection):
-            self._marker_location_storage.add(detection)
+        def on_detection_yields(marker_location):
+            self._marker_location_storage[marker_location.frame_index] = marker_location
 
         def on_detection_completed(_):
             self._marker_location_storage.save_to_disk()

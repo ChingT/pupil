@@ -21,7 +21,8 @@ class CalculateAllController:
         self._marker_location_controller = marker_location_controller
         self._markers_3d_model_controller = markers_3d_model_controller
         self._marker_location_storage = marker_location_storage
-        self._markers_3d_model_storage = markers_3d_model_storage
+
+        self._markers_3d_model = markers_3d_model_storage.item
 
         self.calculate_all()
 
@@ -42,13 +43,12 @@ class CalculateAllController:
         """
         True if the controller would first detect marker locations in calculate_all()
         """
-        at_least_one_marker_location = any(True for _ in self._marker_location_storage)
-        return not at_least_one_marker_location
+
+        return len(self._marker_location_storage) == 0
 
     def _on_marker_detection_completed(self, _):
         self._calculate_markers_3d_model()
 
     def _calculate_markers_3d_model(self):
-        markers_3d_model = self._markers_3d_model_storage.get_or_none()
-        if markers_3d_model is not None and not markers_3d_model.result:
-            self._markers_3d_model_controller.calculate(markers_3d_model)
+        if not self._markers_3d_model.result:
+            self._markers_3d_model_controller.calculate(self._markers_3d_model)

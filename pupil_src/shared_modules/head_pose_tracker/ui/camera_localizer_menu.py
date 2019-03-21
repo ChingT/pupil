@@ -14,19 +14,14 @@ from pyglui import ui
 from head_pose_tracker import ui as plugin_ui
 
 
-class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
+class CameraLocalizerMenu(plugin_ui.StorageMenu):
     menu_label = "Camera Localizer"
 
     def __init__(
-        self,
-        camera_localizer_controller,
-        camera_localizer_storage,
-        markers_3d_model_storage,
-        index_range_as_str,
+        self, camera_localizer_controller, camera_localizer_storage, index_range_as_str
     ):
         super().__init__(camera_localizer_storage)
         self._camera_localizer_controller = camera_localizer_controller
-        self._camera_localizer_storage = camera_localizer_storage
         self._index_range_as_str = index_range_as_str
 
         self.menu.collapsed = False
@@ -80,17 +75,16 @@ class CameraLocalizerMenu(plugin_ui.StorageEditMenu):
 
     def _on_set_localization_range_from_trim_marks(self):
         self._camera_localizer_controller.set_localization_range_from_current_trim_marks(
-            self.current_item
+            self.item
         )
         self.render()
 
     def _on_click_calculate(self):
         self._camera_localizer_controller.calculate()
 
-    def _on_camera_localization_calculated(self, camera_localization):
-        if camera_localization == self.current_item:
-            # mostly to change button "calculate" -> "recalculate"
-            self.render()
+    def _on_camera_localization_calculated(self):
+        # mostly to change button "calculate" -> "recalculate"
+        self.render()
 
     def _on_calculation_could_not_be_started(self):
         self.render()

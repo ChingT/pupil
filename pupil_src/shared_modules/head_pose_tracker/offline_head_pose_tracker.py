@@ -101,7 +101,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             get_current_frame_index=self.g_pool.capture.get_frame_index,
         )
         self._marker_location_menu = plugin_ui.MarkerLocationMenu(
-            self._marker_location_controller, self._marker_location_storage
+            self._marker_location_controller
         )
         self._markers_3d_model_menu = plugin_ui.Markers3DModelMenu(
             self._markers_3d_model_storage,
@@ -111,7 +111,6 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         self._camera_localizer_menu = plugin_ui.CameraLocalizerMenu(
             self._camera_localizer_controller,
             self._camera_localizer_storage,
-            self._markers_3d_model_storage,
             index_range_as_str=self._index_range_as_str,
         )
         self._offline_head_pose_tracker_menu = plugin_ui.OfflineHeadPoseTrackerMenu(

@@ -13,9 +13,8 @@ from pyglui import ui
 
 
 class MarkerLocationMenu:
-    def __init__(self, marker_location_controller, marker_location_storage):
+    def __init__(self, marker_location_controller):
         self._marker_location_controller = marker_location_controller
-        self._marker_location_storage = marker_location_storage
 
         self.menu = ui.Growing_Menu("Marker Detection")
         self.menu.collapsed = False

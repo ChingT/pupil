@@ -43,9 +43,6 @@ class MarkerLocationStorage(model.storage.SingleFileStorage, Observable):
     def add(self, marker_location):
         self._marker_locations[marker_location.frame_index] = marker_location
 
-    def get_or_none(self, frame_index):
-        return self._marker_locations.get(frame_index, None)
-
     @property
     def _storage_file_name(self):
         return "marker_locations.msgpack"
@@ -57,3 +54,12 @@ class MarkerLocationStorage(model.storage.SingleFileStorage, Observable):
     @property
     def items(self):
         return self._marker_locations.values()
+
+    def __setitem__(self, frame_index, marker_location):
+        self._marker_locations[frame_index] = marker_location
+
+    def __getitem__(self, frame_index):
+        return self._marker_locations.get(frame_index, None)
+
+    def __len__(self):
+        return len(self._marker_locations)

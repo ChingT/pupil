@@ -67,7 +67,7 @@ class Markers3DModelController(Observable):
                 )
             )
 
-            self.on_markers_3d_model_computed()
+            self.on_markers_3d_model_calculated()
 
         self._task = worker.create_markers_3d_model.create_task(
             markers_3d_model, self._marker_location_storage
@@ -92,7 +92,7 @@ class Markers3DModelController(Observable):
     def on_markers_3d_model_calculating(self):
         pass
 
-    def on_markers_3d_model_computed(self):
+    def on_markers_3d_model_calculated(self):
         pass
 
     def set_markers_3d_model_range_from_current_trim_marks(self, markers_3d_model):

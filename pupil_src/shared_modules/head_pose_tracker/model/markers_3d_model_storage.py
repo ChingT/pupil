@@ -66,9 +66,9 @@ class Markers3DModelStorage(model.storage.Storage, Observable):
         self._get_recording_index_range = get_recording_index_range
         self._recording_uuid = recording_uuid
 
-        self._markers_3d_models = []
+        self._markers_3d_model = None
         self._load_from_disk()
-        if not self._markers_3d_models:
+        if not self._markers_3d_model:
             self._add_default_markers_3d_model()
 
     def _add_default_markers_3d_model(self):
@@ -85,16 +85,7 @@ class Markers3DModelStorage(model.storage.Storage, Observable):
         )
 
     def add(self, markers_3d_model):
-        if any(
-            c.unique_id == markers_3d_model.unique_id for c in self._markers_3d_models
-        ):
-            logger.warning(
-                "Did not add markers_3d_model {} because it is already in the "
-                "storage".format(markers_3d_model.name)
-            )
-            return
-        self._markers_3d_models.append(markers_3d_model)
-        self._markers_3d_models.sort(key=lambda c: c.name)
+        self._markers_3d_model = markers_3d_model
 
     def rename(self, markers_3d_model, new_name):
         old_markers_3d_model_file_path = self._markers_3d_model_file_path(
@@ -108,12 +99,6 @@ class Markers3DModelStorage(model.storage.Storage, Observable):
             os.rename(old_markers_3d_model_file_path, new_markers_3d_model_file_path)
         except FileNotFoundError:
             pass
-
-    def get_or_none(self):
-        try:
-            return next(c for c in self._markers_3d_models)
-        except StopIteration:
-            return None
 
     def _load_from_disk(self):
         try:
@@ -147,13 +132,10 @@ class Markers3DModelStorage(model.storage.Storage, Observable):
 
     def save_to_disk(self):
         os.makedirs(self._markers_3d_model_folder, exist_ok=True)
-        markers_3d_models_from_same_recording = (
-            opt for opt in self._markers_3d_models if self._from_same_recording(opt)
-        )
-        for markers_3d_model in markers_3d_models_from_same_recording:
+        if self._from_same_recording(self._markers_3d_model):
             self._save_data_to_file(
-                self._markers_3d_model_file_path(markers_3d_model),
-                markers_3d_model.as_tuple,
+                self._markers_3d_model_file_path(self._markers_3d_model),
+                self._markers_3d_model.as_tuple,
             )
 
     def _from_same_recording(self, markers_3d_model):
@@ -163,12 +145,16 @@ class Markers3DModelStorage(model.storage.Storage, Observable):
         return markers_3d_model.recording_uuid == self._recording_uuid
 
     @property
+    def item(self):
+        return self._markers_3d_model
+
+    @property
     def items(self):
-        return self._markers_3d_models
+        return [self._markers_3d_model] if self._markers_3d_model else []
 
     @property
     def item_names(self):
-        return [opt.name for opt in self._markers_3d_models]
+        return [self._markers_3d_model.name] if self._markers_3d_model else []
 
     @property
     def _item_class(self):

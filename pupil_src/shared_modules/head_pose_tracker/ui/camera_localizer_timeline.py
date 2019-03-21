@@ -16,27 +16,23 @@ class CameraLocalizerTimeline:
     def __init__(self, camera_localizer_storage, camera_localizer_controller):
         self.render_parent_timeline = None
 
-        self._camera_localizer_storage = camera_localizer_storage
-        self._camera_localizer_controller = camera_localizer_controller
-
-        self._camera_localizer_storage.add_observer(
-            "add", self._on_localizer_storage_changed
-        )
-        self._camera_localizer_controller.add_observer(
+        camera_localizer_storage.add_observer("add", self._on_localizer_storage_changed)
+        camera_localizer_controller.add_observer(
             "set_localization_range_from_current_trim_marks",
             self._on_localizer_ranges_changed,
         )
-        self._camera_localizer_controller.add_observer(
+        camera_localizer_controller.add_observer(
             "save_pose_bisector", self._on_localizer_data_changed
         )
 
+        self._camera_localizer = camera_localizer_storage.item
+
     def create_rows(self):
         rows = []
-        camera_localizer = self._camera_localizer_storage.get_or_none()
-        if camera_localizer is not None:
+        if self._camera_localizer is not None:
             alpha = 0.9
-            elements = [self._create_localization_range(camera_localizer, alpha)]
-            rows.append(Row(label=camera_localizer.name, elements=elements))
+            elements = [self._create_localization_range(self._camera_localizer, alpha)]
+            rows.append(Row(label=self._camera_localizer.name, elements=elements))
         return rows
 
     def _create_localization_range(self, camera_localizer, alpha):

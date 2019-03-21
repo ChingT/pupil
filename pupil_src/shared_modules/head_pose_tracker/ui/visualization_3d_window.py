@@ -33,8 +33,6 @@ class Visualization3dWindow:
         get_current_frame_index,
     ):
         self._marker_location_storage = marker_location_storage
-        self._markers_3d_model_storage = markers_3d_model_storage
-        self._camera_localizer_storage = camera_localizer_storage
         self._camera_intrinsics = camera_intrinsics
         self._plugin = plugin
         self._get_current_frame_index = get_current_frame_index
@@ -54,6 +52,9 @@ class Visualization3dWindow:
         plugin.add_observer("gl_display", self._on_gl_display)
 
         glut.glutInit()
+
+        self._camera_localizer = camera_localizer_storage.item
+        self._markers_3d_model = markers_3d_model_storage.item
 
     def _init_trackball(self):
         self._trackball = gl_utils.trackball.Trackball()
@@ -159,12 +160,11 @@ class Visualization3dWindow:
         self._init_3d_window()
         self._trackball.push()
 
-        self._render_centroid()
-        markers_3d_model = self._markers_3d_model_storage.get_or_none()
-        if markers_3d_model and markers_3d_model.result:
-            self._shift_rotate_center(markers_3d_model)
+        if self._markers_3d_model and self._markers_3d_model.result:
+            self._render_centroid()
+            self._shift_rotate_center(self._markers_3d_model)
             self._render_coordinate_in_3d_window()
-            self._render_markers(markers_3d_model)
+            self._render_markers(self._markers_3d_model)
             self._render_camera()
 
         self._trackball.pop()
@@ -214,7 +214,7 @@ class Visualization3dWindow:
 
     def _render_3d_marker_boundary(self, marker_id_to_points_3d):
         current_index = self._get_current_frame_index()
-        current_markers = self._marker_location_storage.get_or_none(current_index)
+        current_markers = self._marker_location_storage[current_index]
 
         if current_markers:
             current_markers_marker_detection = current_markers.marker_detection
@@ -235,15 +235,11 @@ class Visualization3dWindow:
             self._render_text_in_3d_window(str(marker_id), points_3d[0], color)
 
     def _render_camera(self):
-        camera_localizer = self._camera_localizer_storage.get_or_none()
-        if camera_localizer is None:
-            return
-
         current_frame_index = self._get_current_frame_index()
         ts = self._plugin.g_pool.timestamps[current_frame_index]
 
         try:
-            pose_datum = camera_localizer.pose_bisector.by_ts(ts)
+            pose_datum = self._camera_localizer.pose_bisector.by_ts(ts)
         except ValueError:
             camera_trace = np.full((3,), np.nan)
             camera_pose_matrix = np.full((4, 4), np.nan)
@@ -254,7 +250,7 @@ class Visualization3dWindow:
         # recent_camera_trace is updated no matter show_camera_trace is on or not
         self.recent_camera_trace.append(camera_trace)
 
-        if camera_localizer.show_camera_trace:
+        if self._camera_localizer.show_camera_trace:
             self._render_camera_trace_in_3d_window(self.recent_camera_trace)
 
         self._render_camera_frustum(camera_pose_matrix)

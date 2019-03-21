@@ -30,12 +30,11 @@ class MarkerLocationRenderer:
         get_current_frame_index,
     ):
         self._marker_location_storage = marker_location_storage
-        self._markers_3d_model_storage = markers_3d_model_storage
 
-        self.square_definition = np.array(
+        self._square_definition = np.array(
             ((0, 0), (1, 0), (1, 1), (0, 1)), dtype=np.float32
         )
-        self.hat_definition = np.array(
+        self._hat_definition = np.array(
             [[[0, 0], [0, 1], [0.5, 1.3], [1, 1], [1, 0], [0, 0]]], dtype=np.float32
         )
 
@@ -44,6 +43,8 @@ class MarkerLocationRenderer:
         self._get_current_frame_index = get_current_frame_index
 
         plugin.add_observer("gl_display", self.on_gl_display)
+
+        self._markers_3d_model = markers_3d_model_storage.item
 
     def _setup_glfont(self):
         self.glfont = fontstash.Context()
@@ -57,23 +58,23 @@ class MarkerLocationRenderer:
 
     def _render_marker_locations(self):
         current_index = self._get_current_frame_index()
-        current_markers = self._marker_location_storage.get_or_none(current_index)
-        markers_3d_model = self._markers_3d_model_storage.get_or_none()
+        current_markers = self._marker_location_storage[current_index]
+        if not current_markers:
+            return
 
-        if current_markers:
-            self._render_2d_marker_boundary(
-                current_markers.marker_detection, markers_3d_model
-            )
-            if markers_3d_model.show_marker_id:
-                self._draw_marker_id(current_markers.marker_detection)
+        self._render_2d_marker_boundary(
+            current_markers.marker_detection, self._markers_3d_model
+        )
+        if self._markers_3d_model.show_marker_id:
+            self._draw_marker_id(current_markers.marker_detection)
 
     def _render_2d_marker_boundary(self, marker_detection, markers_3d_model):
         for marker_id, detection in marker_detection.items():
             perspective_matrix = cv2.getPerspectiveTransform(
-                self.square_definition, np.array(detection["verts"], dtype=np.float32)
+                self._square_definition, np.array(detection["verts"], dtype=np.float32)
             )
             hat_points = cv2.perspectiveTransform(
-                self.hat_definition, perspective_matrix
+                self._hat_definition, perspective_matrix
             )
             hat_points.shape = 6, 2
 

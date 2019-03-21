@@ -9,7 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from head_pose_tracker.ui.storage_edit_menu import StorageEditMenu
+from head_pose_tracker.ui.storage_menu import StorageMenu
 
 from head_pose_tracker.ui.marker_location_menu import MarkerLocationMenu
 from head_pose_tracker.ui.marker_location_renderer import MarkerLocationRenderer

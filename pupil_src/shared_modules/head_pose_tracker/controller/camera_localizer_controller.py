@@ -40,32 +40,28 @@ class CameraLocalizerController(Observable):
         self.pose_ts = []
 
         markers_3d_model_controller.add_observer(
-            "on_markers_3d_model_computed", self.calculate
+            "on_markers_3d_model_calculated", self.calculate
         )
         markers_3d_model_controller.add_observer(
-            "on_markers_3d_model_calculating", self._reset
+            "on_markers_3d_model_calculating", self._on_markers_3d_model_calculating
         )
+        self._camera_localizer = camera_localizer_storage.item
 
     def calculate(self,):
-        camera_localizer = self._camera_localizer_storage.get_or_none()
-        if camera_localizer is None:
-            return
-
-        markers_3d_model = self._get_valid_markers_3d_model_or_none(camera_localizer)
+        markers_3d_model = self._get_valid_markers_3d_model_or_none(
+            self._camera_localizer
+        )
         if markers_3d_model is None:
             return
 
         self._reset()
-        self._create_localization_task(camera_localizer, markers_3d_model)
+        self._create_localization_task(self._camera_localizer, markers_3d_model)
+
+    def _on_markers_3d_model_calculating(self):
+        self._reset()
 
     def _get_valid_markers_3d_model_or_none(self, camera_localizer):
-        markers_3d_model = self._markers_3d_model_storage.get_or_none()
-        if markers_3d_model is None:
-            self._abort_calculation(
-                camera_localizer,
-                "The markers_3d_model was not found for the camera localizer",
-            )
-            return None
+        markers_3d_model = self._markers_3d_model_storage.item
         if markers_3d_model.result is None:
             self._abort_calculation(
                 camera_localizer,
@@ -92,10 +88,7 @@ class CameraLocalizerController(Observable):
         self.pose = []
         self.pose_ts = []
 
-        camera_localizer = self._camera_localizer_storage.get_or_none()
-        if camera_localizer is None:
-            return
-        camera_localizer.pose_bisector = pm.Bisector()
+        self._camera_localizer.pose_bisector = pm.Bisector()
 
     def _create_localization_task(self, camera_localizer, markers_3d_model):
         def on_yield_pose(localized_pose_ts_and_data):
@@ -110,7 +103,7 @@ class CameraLocalizerController(Observable):
             self.save_pose_bisector(camera_localizer)
             self._camera_localizer_storage.save_to_disk()
             logger.info("Complete camera localization")
-            self.on_camera_localization_calculated(camera_localizer)
+            self.on_camera_localization_calculated()
 
         self._task = worker.localize_pose.create_task(
             camera_localizer, markers_3d_model, self._marker_location_storage
@@ -126,7 +119,7 @@ class CameraLocalizerController(Observable):
             self.pose.append(pose_datum)
             self.pose_ts.append(timestamp)
 
-    def on_camera_localization_calculated(self, camera_localizer):
+    def on_camera_localization_calculated(self):
         pass
 
     def save_pose_bisector(self, camera_localizer):

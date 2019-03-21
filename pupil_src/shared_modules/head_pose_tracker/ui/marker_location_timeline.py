@@ -19,11 +19,9 @@ class MarkerLocationTimeline:
         self._marker_location_controller = marker_location_controller
         self._marker_location_storage = marker_location_storage
 
-        self._marker_location_controller.add_observer(
+        marker_location_storage.add_observer("add", self._on_marker_storage_changed)
+        marker_location_controller.add_observer(
             "on_detection_started", self._on_start_marker_detection
-        )
-        self._marker_location_storage.add_observer(
-            "add", self._on_marker_storage_changed
         )
 
     def create_row(self):

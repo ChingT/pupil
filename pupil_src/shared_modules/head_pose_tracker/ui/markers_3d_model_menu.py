@@ -18,7 +18,7 @@ from head_pose_tracker import ui as plugin_ui
 logger = logging.getLogger(__name__)
 
 
-class Markers3DModelMenu(plugin_ui.StorageEditMenu):
+class Markers3DModelMenu(plugin_ui.StorageMenu):
     menu_label = "Markers 3D Model"
 
     def __init__(
@@ -32,7 +32,7 @@ class Markers3DModelMenu(plugin_ui.StorageEditMenu):
         self.menu.collapsed = False
 
         markers_3d_model_controller.add_observer(
-            "on_markers_3d_model_computed", self._on_markers_3d_model_computed
+            "on_markers_3d_model_calculated", self._on_markers_3d_model_calculated
         )
 
     def _item_label(self, markers_3d_model):
@@ -146,23 +146,23 @@ class Markers3DModelMenu(plugin_ui.StorageEditMenu):
             return None
 
     def _on_name_change(self, new_name):
-        self._markers_3d_model_storage.rename(self.current_item, new_name)
+        self._markers_3d_model_storage.rename(self.item, new_name)
         # we need to render the menu again because otherwise the name in the selector
         # is not refreshed
         self.render()
 
     def _on_set_index_range_from_trim_marks(self):
         self._markers_3d_model_controller.set_markers_3d_model_range_from_current_trim_marks(
-            self.current_item
+            self.item
         )
         self.render()
 
     def _on_optimize_camera_intrinsics_changed(self, new_value):
-        self.current_item.optimize_camera_intrinsics = new_value
+        self.item.optimize_camera_intrinsics = new_value
 
     def _on_click_calculate(self):
-        self._markers_3d_model_controller.calculate(self.current_item)
+        self._markers_3d_model_controller.calculate(self.item)
         self.render()
 
-    def _on_markers_3d_model_computed(self):
+    def _on_markers_3d_model_calculated(self):
         self.render()

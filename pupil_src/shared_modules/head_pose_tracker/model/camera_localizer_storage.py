@@ -55,9 +55,9 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
         super().__init__(rec_dir, plugin)
         self._get_recording_index_range = get_recording_index_range
 
-        self._camera_localizers = []
+        self._camera_localizer = None
         self._load_from_disk()
-        if not self._camera_localizers:
+        if not self._camera_localizer:
             self._add_default_camera_localizer()
 
     def _add_default_camera_localizer(self):
@@ -71,8 +71,7 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
         )
 
     def add(self, camera_localizer):
-        self._camera_localizers.append(camera_localizer)
-        self._camera_localizers.sort(key=lambda g: g.name)
+        self._camera_localizer = camera_localizer
 
     def save_to_disk(self):
         # this will save everything except pose and pose_ts
@@ -83,16 +82,15 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
     def _save_pose_and_ts_to_disk(self):
         directory = self._camera_localizations_directory
         os.makedirs(directory, exist_ok=True)
-        for camera_localizer in self._camera_localizers:
-            file_name = self._camera_localization_file_name(camera_localizer)
-            with fm.PLData_Writer(directory, file_name) as writer:
-                for pose_ts, pose in zip(
-                    camera_localizer.pose_bisector.timestamps,
-                    camera_localizer.pose_bisector.data,
-                ):
-                    writer.append_serialized(
-                        pose_ts, topic="pose", datum_serialized=pose.serialized
-                    )
+        file_name = self._camera_localization_file_name(self._camera_localizer)
+        with fm.PLData_Writer(directory, file_name) as writer:
+            for pose_ts, pose in zip(
+                self._camera_localizer.pose_bisector.timestamps,
+                self._camera_localizer.pose_bisector.data,
+            ):
+                writer.append_serialized(
+                    pose_ts, topic="pose", datum_serialized=pose.serialized
+                )
 
     def _load_from_disk(self):
         # this will load everything except pose and pose_ts
@@ -102,26 +100,34 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
 
     def _load_pose_and_ts_from_disk(self):
         directory = self._camera_localizations_directory
-        for camera_localizer in self._camera_localizers:
-            file_name = self._camera_localization_file_name(camera_localizer)
-            pldata = fm.load_pldata_file(directory, file_name)
-            camera_localizer.pose_bisector = pm.Bisector(pldata.data, pldata.timestamps)
+        if not self._camera_localizer:
+            return
+
+        file_name = self._camera_localization_file_name(self._camera_localizer)
+        pldata = fm.load_pldata_file(directory, file_name)
+        self._camera_localizer.pose_bisector = pm.Bisector(
+            pldata.data, pldata.timestamps
+        )
 
     @property
-    def _storage_file_name(self):
-        return "camera_localizers.msgpack"
+    def item(self):
+        return self._camera_localizer
+
+    @property
+    def items(self):
+        return [self._camera_localizer] if self._camera_localizer else []
+
+    @property
+    def item_names(self):
+        return [self._camera_localizer.name] if self._camera_localizer else []
 
     @property
     def _item_class(self):
         return CameraLocalizer
 
     @property
-    def items(self):
-        return self._camera_localizers
-
-    @property
-    def item_names(self):
-        return [camera_localizer.name for camera_localizer in self._camera_localizers]
+    def _storage_file_name(self):
+        return "camera_localizers.msgpack"
 
     @property
     def _camera_localizations_directory(self):
@@ -136,9 +142,3 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
             self._camera_localizations_directory,
             self._camera_localization_file_name(camera_localizer),
         )
-
-    def get_or_none(self):
-        try:
-            return next(c for c in self._camera_localizers)
-        except StopIteration:
-            return None

@@ -16,9 +16,15 @@ from scipy import misc as scipy_misc, optimize as scipy_optimize, sparse as scip
 
 from head_pose_tracker import worker
 
-OptimizationResult = collections.namedtuple(
-    "OptimizationResult",
-    ["frame_id_to_extrinsics", "marker_id_to_extrinsics", "frame_ids_failed"],
+BundleAdjustmentResult = collections.namedtuple(
+    "BundleAdjustmentResult",
+    [
+        "frame_id_to_extrinsics",
+        "marker_id_to_extrinsics",
+        "frame_ids_failed",
+        "camera_matrix",
+        "dist_coefs",
+    ],
 )
 
 
@@ -38,26 +44,25 @@ class BundleAdjustment:
         self._marker_ids = []
         self._frame_ids = []
 
-    def calculate(self, model_init_result):
+    def calculate(self, initial_guess_result):
         """ run bundle adjustment given the initial guess and then check the result of
         markers_3d_model
         """
 
-        if not model_init_result:
+        if not initial_guess_result:
             return None
 
-        self._enough_samples = bool(len(model_init_result.key_markers) >= 100)
+        self._enough_samples = bool(len(initial_guess_result.key_markers) >= 100)
 
         self._marker_ids, self._frame_ids = self._set_ids(
-            model_init_result.frame_id_to_extrinsics,
-            model_init_result.marker_id_to_extrinsics,
-            model_init_result.origin_marker_id,
+            initial_guess_result.frame_id_to_extrinsics,
+            initial_guess_result.marker_id_to_extrinsics,
         )
         camera_extrinsics_array, marker_extrinsics_array = self._set_init_array(
-            model_init_result.frame_id_to_extrinsics,
-            model_init_result.marker_id_to_extrinsics,
+            initial_guess_result.frame_id_to_extrinsics,
+            initial_guess_result.marker_id_to_extrinsics,
         )
-        self._prepare_basic_data(model_init_result.key_markers)
+        self._prepare_basic_data(initial_guess_result.key_markers)
 
         initial_guess_array, bounds, sparsity_matrix = self._prepare_parameters(
             camera_extrinsics_array, marker_extrinsics_array
@@ -66,14 +71,14 @@ class BundleAdjustment:
             initial_guess_array, bounds, sparsity_matrix
         )
 
-        model_opt_result = self._get_model_opt_result(least_sq_result)
-        return model_opt_result
+        bundle_adjustment_result = self._get_result(least_sq_result)
+        return bundle_adjustment_result
 
     @staticmethod
-    def _set_ids(frame_id_to_extrinsics, marker_id_to_extrinsics, origin_marker_id):
-        marker_ids = [origin_marker_id] + list(
-            set(marker_id_to_extrinsics.keys()) - {origin_marker_id}
-        )
+    def _set_ids(frame_id_to_extrinsics, marker_id_to_extrinsics):
+        origin_marker_id = worker.utils.find_origin_marker_id(marker_id_to_extrinsics)
+        marker_ids = [origin_marker_id]
+        marker_ids += list(set(marker_id_to_extrinsics.keys()) - {origin_marker_id})
         frame_ids = list(frame_id_to_extrinsics.keys())
         return marker_ids, frame_ids
 
@@ -219,7 +224,7 @@ class BundleAdjustment:
         )
         return result
 
-    def _get_model_opt_result(self, least_sq_result):
+    def _get_result(self, least_sq_result):
         camera_extrinsics_array, marker_extrinsics_array = self._get_extrinsics_arrays(
             least_sq_result.x
         )
@@ -239,10 +244,14 @@ class BundleAdjustment:
         }
         frame_ids_failed = [self._frame_ids[i] for i in frame_indices_failed]
 
-        model_opt_result = OptimizationResult(
-            frame_id_to_extrinsics_opt, marker_id_to_extrinsics_opt, frame_ids_failed
+        bundle_adjustment_result = BundleAdjustmentResult(
+            frame_id_to_extrinsics_opt,
+            marker_id_to_extrinsics_opt,
+            frame_ids_failed,
+            self._camera_intrinsics.K,
+            self._camera_intrinsics.D,
         )
-        return model_opt_result
+        return bundle_adjustment_result
 
     def _function_compute_residuals(self, variables):
         """ Function which computes the vector of residuals,

@@ -82,12 +82,10 @@ class Markers3DModelController(Observable):
         self.on_markers_3d_model_calculating()
 
     def _update_result(self, markers_3d_model, result):
-        model_datum, camera_intrinsics = result
-
+        model_datum, intrinsics = result
         markers_3d_model.result = model_datum
-
-        self._camera_intrinsics.update_camera_matrix(camera_intrinsics.K)
-        self._camera_intrinsics.update_dist_coefs(camera_intrinsics.D)
+        self._camera_intrinsics.update_camera_matrix(intrinsics["camera_matrix"])
+        self._camera_intrinsics.update_dist_coefs(intrinsics["dist_coefs"])
 
     def on_markers_3d_model_calculating(self):
         pass

@@ -9,15 +9,10 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import logging
-
-import numpy as np
-
 import tasklib.background
 import tasklib.background.patches as bg_patches
 from head_pose_tracker import worker, model
 
-logger = logging.getLogger(__name__)
 
 g_pool = None  # set by the plugin
 
@@ -57,61 +52,36 @@ def _create_markers_3d_model(
     ref_dicts_in_opt_range, camera_intrinsics, optimize_camera_intrinsics, shared_memory
 ):
     n_key_markers_added_once = 25
-    model_optimization_storage = model.ModelOptimizationStorage(
-        predetermined_origin_marker_id=None
-    )
-    pick_all_key_markers(model_optimization_storage, ref_dicts_in_opt_range)
+    storage = model.OptimizationStorage(predetermined_origin_marker_id=None)
 
-    prepare_for_model_update = worker.PrepareForModelUpdate(
-        model_optimization_storage, n_key_markers_added_once
-    )
+    pick_key_markers = worker.PickKeyMarkers(storage)
     bundle_adjustment = worker.BundleAdjustment(
         camera_intrinsics, optimize_camera_intrinsics
     )
-    update_model_storage = worker.UpdateModelStorage(model_optimization_storage)
-
-    markers_3d_model_times = (
-        len(model_optimization_storage.all_key_markers) // n_key_markers_added_once + 5
-    )
-
-    for _iter in range(markers_3d_model_times):
-        data_for_model_init = prepare_for_model_update.run()
-        model_init_result = worker.get_initial_guess.calculate(
-            camera_intrinsics, data_for_model_init
-        )
-        model_opt_result = bundle_adjustment.calculate(model_init_result)
-        update_model_storage.run(model_opt_result)
-
-        shared_memory.progress = (_iter + 1) / markers_3d_model_times
-
-        marker_id_to_extrinsics = {
-            key: value.tolist()
-            for key, value in model_optimization_storage.marker_id_to_extrinsics_opt.items()
-        }
-        marker_id_to_points_3d = {
-            key: value.tolist()
-            for key, value in model_optimization_storage.marker_id_to_points_3d_opt.items()
-        }
-        try:
-            centroid = np.mean(
-                list(model_optimization_storage.marker_id_to_points_3d_opt.values()),
-                axis=(0, 1),
-            ).tolist()
-        except IndexError:
-            centroid = [0.0, 0.0, 0.0]
-
-        model_datum = {
-            "marker_id_to_extrinsics": marker_id_to_extrinsics,
-            "marker_id_to_points_3d": marker_id_to_points_3d,
-            "origin_marker_id": model_optimization_storage.origin_marker_id,
-            "centroid": centroid,
-        }
-        yield model_datum, camera_intrinsics
-
-
-def pick_all_key_markers(model_storage, ref_dicts_in_opt_range):
-    decide_key_markers = worker.DecideKeyMarkers(model_storage)
 
     for ref in ref_dicts_in_opt_range:
-        if decide_key_markers.run(ref["marker_detection"]):
-            model_storage.save_key_markers(ref["marker_detection"], ref["timestamp"])
+        pick_key_markers.run(ref["marker_detection"], ref["timestamp"])
+
+    optimization_times = len(storage.all_key_markers) // n_key_markers_added_once + 5
+    for _iter in range(optimization_times):
+        initial_guess_result = worker.get_initial_guess.calculate(
+            storage, camera_intrinsics
+        )
+        bundle_adjustment_result = bundle_adjustment.calculate(initial_guess_result)
+        storage = worker.update_optimization_storage.run(
+            storage, bundle_adjustment_result
+        )
+
+        model_datum = {
+            "marker_id_to_extrinsics": storage.marker_id_to_extrinsics_opt,
+            "marker_id_to_points_3d": storage.marker_id_to_points_3d_opt,
+            "origin_marker_id": storage.origin_marker_id,
+            "centroid": storage.centroid,
+        }
+        intrinsics_params = {
+            "camera_matrix": camera_intrinsics.K,
+            "dist_coefs": camera_intrinsics.D,
+        }
+
+        shared_memory.progress = (_iter + 1) / optimization_times
+        yield model_datum, intrinsics_params

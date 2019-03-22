@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def split_extrinsics(extrinsics):
-    extrinsics = np.array(extrinsics)
+    extrinsics = np.array(extrinsics, dtype=np.float32)
     assert extrinsics.size == 6
     # extrinsics could be of shape (6,) or (1, 6), so ravel() is needed.
     rotation = extrinsics.ravel()[0:3]
@@ -63,7 +63,6 @@ def get_camera_pose(camera_extrinsics):
     if camera_extrinsics is None:
         return get_none_camera_extrinsics()
 
-    camera_extrinsics = np.array(camera_extrinsics)
     rotation_ext, translation_ext = split_extrinsics(camera_extrinsics)
     rotation_pose = -rotation_ext
     translation_pose = np.matmul(-cv2.Rodrigues(rotation_ext)[0].T, translation_ext)
@@ -96,6 +95,13 @@ def get_marker_extrinsics_origin():
 
 def get_none_camera_extrinsics():
     return np.full((6,), np.nan)
+
+
+def find_origin_marker_id(marker_id_to_extrinsics):
+    for marker_id, extrinsics in marker_id_to_extrinsics.items():
+        if np.allclose(extrinsics, get_marker_extrinsics_origin()):
+            return marker_id
+    return None
 
 
 def svdt(A, B):

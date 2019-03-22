@@ -14,11 +14,10 @@ import itertools
 import cv2
 import numpy as np
 
-import head_pose_tracker.worker.utils
 from head_pose_tracker import worker
 
 
-def localize(camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics):
+def calculate(camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics):
     # frame_ids_available are the id of the frames which have been known
     # and contain the marker which is going to be estimated.
     frame_ids_available = list(
@@ -57,11 +56,11 @@ def _prepare_data_for_triangulation(
 def _calculate(data_for_triangulation):
     marker_points_3d = _run_triangulation(data_for_triangulation)
 
-    rotation_matrix, translation, error = head_pose_tracker.worker.utils.svdt(
+    rotation_matrix, translation, error = worker.utils.svdt(
         A=worker.utils.get_marker_points_3d_origin(), B=marker_points_3d
     )
 
-    if _check_triangulate_output_reasonable(translation, error):
+    if _check_result_reasonable(translation, error):
         rotation = cv2.Rodrigues(rotation_matrix)[0]
         marker_extrinsics = worker.utils.merge_extrinsics(rotation, translation)
         return marker_extrinsics
@@ -76,7 +75,7 @@ def _run_triangulation(data_for_triangulation):
     return marker_points_3d
 
 
-def _check_triangulate_output_reasonable(translation, error):
+def _check_result_reasonable(translation, error):
     # Sometimes the frames may contain bad marker detection, which could lead to bad
     # triangulation. So it is necessary to check if the output of triangulation is
     # reasonable.

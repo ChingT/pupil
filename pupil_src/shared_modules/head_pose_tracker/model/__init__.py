@@ -23,4 +23,4 @@ from head_pose_tracker.model.markers_3d_model_storage import (
     Markers3DModelStorage,
     Markers3DModel,
 )
-from head_pose_tracker.model.model_optimization_storage import ModelOptimizationStorage
+from head_pose_tracker.model.optimization_storage import OptimizationStorage

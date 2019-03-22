@@ -86,7 +86,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
 
     def _setup_ui(self):
-        self.visualization_3d_window = plugin_ui.Visualization3dWindow(
+        self.visualization_3d_window = plugin_ui.HeadPoseTrackerRenderer(
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self._camera_localizer_storage,

@@ -57,7 +57,7 @@ def _localize_pose(
     for idx_incoming, ref in enumerate(ref_dicts_in_loc_range):
         shared_memory.progress = (idx_incoming + 1) / len(ref_dicts_in_loc_range)
 
-        camera_extrinsics = worker.localize_camera.localize(
+        camera_extrinsics = worker.solvepnp.localize(
             camera_intrinsics,
             ref["marker_detection"],
             marker_id_to_extrinsics,

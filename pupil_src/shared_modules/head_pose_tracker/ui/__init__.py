@@ -10,6 +10,8 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 from head_pose_tracker.ui.storage_menu import StorageMenu
+from head_pose_tracker.ui.gl_window import GLWindow
+from head_pose_tracker.ui import gl_renderer_utils
 
 from head_pose_tracker.ui.marker_location_menu import MarkerLocationMenu
 from head_pose_tracker.ui.marker_location_renderer import MarkerLocationRenderer
@@ -20,12 +22,10 @@ from head_pose_tracker.ui.camera_localizer_timeline import CameraLocalizerTimeli
 
 from head_pose_tracker.ui.markers_3d_model_menu import Markers3DModelMenu
 
-from head_pose_tracker.ui.offline_head_pose_tracker_timeline import (
-    OfflineHeadPoseTrackerTimeline,
-)
 from head_pose_tracker.ui.offline_head_pose_tracker_menu import (
     OfflineHeadPoseTrackerMenu,
 )
-
-from head_pose_tracker.ui.gl_3d_renderer import GL3DRenderer
-from head_pose_tracker.ui.visualization_3d_window import Visualization3dWindow
+from head_pose_tracker.ui.head_pose_tracker_renderer import HeadPoseTrackerRenderer
+from head_pose_tracker.ui.offline_head_pose_tracker_timeline import (
+    OfflineHeadPoseTrackerTimeline,
+)

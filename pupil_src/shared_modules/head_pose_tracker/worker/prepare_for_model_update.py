@@ -25,6 +25,7 @@ DataForModelInit = collections.namedtuple(
         "marker_id_to_extrinsics_prv",
         "frame_ids_to_be_optimized",
         "marker_ids_to_be_optimized",
+        "origin_marker_id",
     ],
 )
 
@@ -73,6 +74,7 @@ class PrepareForModelUpdate:
             marker_id_to_extrinsics_prv,
             frame_ids_to_be_optimized,
             marker_ids_to_be_optimized,
+            self._model_storage.origin_marker_id,
         )
         return data_for_model_init
 

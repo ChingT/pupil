@@ -14,6 +14,7 @@ import itertools
 import cv2
 import numpy as np
 
+import head_pose_tracker.worker.utils
 from head_pose_tracker import worker
 
 
@@ -56,7 +57,7 @@ def _prepare_data_for_triangulation(
 def _calculate(data_for_triangulation):
     marker_points_3d = _run_triangulation(data_for_triangulation)
 
-    rotation_matrix, translation, error = worker.svdt(
+    rotation_matrix, translation, error = head_pose_tracker.worker.utils.svdt(
         A=worker.utils.get_marker_points_3d_origin(), B=marker_points_3d
     )
 

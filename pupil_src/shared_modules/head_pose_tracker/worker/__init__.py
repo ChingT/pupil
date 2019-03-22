@@ -12,14 +12,13 @@ See COPYING and COPYING.LESSER for license details.
 from head_pose_tracker.worker import (
     utils,
     detect_square_markers,
-    localize_camera,
+    solvepnp,
     localize_markers,
     get_initial_guess,
     create_markers_3d_model,
     localize_pose,
 )
-from head_pose_tracker.worker.bundle_adjustment import BundleAdjustment
 from head_pose_tracker.worker.decide_key_markers import DecideKeyMarkers
 from head_pose_tracker.worker.prepare_for_model_update import PrepareForModelUpdate
-from head_pose_tracker.worker.svdt import svdt
+from head_pose_tracker.worker.bundle_adjustment import BundleAdjustment
 from head_pose_tracker.worker.update_model_storage import UpdateModelStorage

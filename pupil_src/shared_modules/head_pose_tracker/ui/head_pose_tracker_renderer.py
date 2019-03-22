@@ -14,10 +14,10 @@ import collections
 import numpy as np
 
 from head_pose_tracker import ui as plugin_ui
-from head_pose_tracker.ui import gl_3d_renderer_utils as utils
+from head_pose_tracker.ui import gl_renderer_utils as utils
 
 
-class Visualization3dWindow(plugin_ui.GL3DRenderer):
+class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
     def __init__(
         self,
         marker_location_storage,
@@ -82,6 +82,7 @@ class Visualization3dWindow(plugin_ui.GL3DRenderer):
             utils.render_polygon_in_3d_window(points_3d, color)
 
             if self._markers_3d_model.show_marker_id:
+                color = (1, 0, 0, 1)
                 utils.render_text_in_3d_window(str(marker_id), points_3d[0], color)
 
     def _get_camera_pose_matrix(self):

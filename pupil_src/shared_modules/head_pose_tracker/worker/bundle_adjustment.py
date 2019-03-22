@@ -51,6 +51,7 @@ class BundleAdjustment:
         self._marker_ids, self._frame_ids = self._set_ids(
             model_init_result.frame_id_to_extrinsics,
             model_init_result.marker_id_to_extrinsics,
+            model_init_result.origin_marker_id,
         )
         camera_extrinsics_array, marker_extrinsics_array = self._set_init_array(
             model_init_result.frame_id_to_extrinsics,
@@ -69,8 +70,7 @@ class BundleAdjustment:
         return model_opt_result
 
     @staticmethod
-    def _set_ids(frame_id_to_extrinsics, marker_id_to_extrinsics):
-        origin_marker_id = worker.utils.find_origin_marker_id(marker_id_to_extrinsics)
+    def _set_ids(frame_id_to_extrinsics, marker_id_to_extrinsics, origin_marker_id):
         marker_ids = [origin_marker_id] + list(
             set(marker_id_to_extrinsics.keys()) - {origin_marker_id}
         )

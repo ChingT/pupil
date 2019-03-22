@@ -15,7 +15,12 @@ from head_pose_tracker import worker
 
 InitialGuessResult = collections.namedtuple(
     "InitialGuessResult",
-    ["key_markers", "frame_id_to_extrinsics", "marker_id_to_extrinsics"],
+    [
+        "key_markers",
+        "frame_id_to_extrinsics",
+        "marker_id_to_extrinsics",
+        "origin_marker_id",
+    ],
 )
 
 
@@ -59,7 +64,10 @@ def calculate(camera_intrinsics, data_for_model_init):
         return None
 
     model_init_result = InitialGuessResult(
-        key_markers, frame_id_to_extrinsics_init, marker_id_to_extrinsics_init
+        key_markers,
+        frame_id_to_extrinsics_init,
+        marker_id_to_extrinsics_init,
+        data_for_model_init.origin_marker_id,
     )
     return model_init_result
 
@@ -87,7 +95,7 @@ def _get_frame_id_to_extrinsics_init(
             and marker.marker_id in marker_id_to_extrinsics_prv.keys()
         }
 
-        camera_extrinsics = worker.localize_camera.localize(
+        camera_extrinsics = worker.solvepnp.localize(
             camera_intrinsics, marker_id_to_detections, marker_id_to_extrinsics_prv
         )
         if camera_extrinsics is not None:

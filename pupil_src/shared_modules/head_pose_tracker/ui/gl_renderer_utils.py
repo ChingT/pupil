@@ -13,6 +13,8 @@ import OpenGL.GL as gl
 import OpenGL.GLUT as glut
 import numpy as np
 
+glut.glutInit()
+
 
 def set_rotate_center(matrix):
     gl.glLoadTransposeMatrixf(matrix)

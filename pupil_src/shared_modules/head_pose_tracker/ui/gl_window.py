@@ -14,7 +14,6 @@ import logging
 import os
 
 import OpenGL.GL as gl
-import OpenGL.GLUT as glut
 
 import gl_utils
 import glfw
@@ -24,14 +23,11 @@ logger = logging.getLogger(__name__)
 os.environ["GL_FSAA_MODE"] = "11"
 
 
-class GL3DRenderer(abc.ABC):
+class GLWindow(abc.ABC):
     def __init__(self, plugin):
         self._input = {"down": False, "mouse": (0, 0)}
-
         self._window = None
         self._trackball = self._init_trackball()
-
-        glut.glutInit()
 
         plugin.add_observer("init_ui", self._on_init_ui)
         plugin.add_observer("deinit_ui", self._on_deinit_ui)
@@ -50,7 +46,7 @@ class GL3DRenderer(abc.ABC):
 
     @staticmethod
     def _init_trackball():
-        trackball = gl_utils.trackball.Trackball()
+        trackball = gl_utils.Trackball()
         trackball.zoom_to(-100)
         return trackball
 

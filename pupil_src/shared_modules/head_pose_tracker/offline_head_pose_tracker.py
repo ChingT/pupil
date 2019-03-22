@@ -147,17 +147,12 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         from head_pose_tracker.worker.detect_square_markers import (
             SquareMarkerDetectionTask,
         )
+        from head_pose_tracker.worker import create_markers_3d_model, localize_pose
 
         SquareMarkerDetectionTask.zmq_ctx = self.g_pool.zmq_ctx
         SquareMarkerDetectionTask.capture_source_path = self.g_pool.capture.source_path
         SquareMarkerDetectionTask.notify_all = self.notify_all
-
-        from head_pose_tracker.worker import create_markers_3d_model
-
         create_markers_3d_model.g_pool = self.g_pool
-
-        from head_pose_tracker.worker import localize_pose
-
         localize_pose.g_pool = self.g_pool
 
     def _seek_to_frame(self, frame_index):

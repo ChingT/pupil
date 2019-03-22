@@ -9,13 +9,9 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import logging
-
 from pyglui import ui
 
 from head_pose_tracker import ui as plugin_ui
-
-logger = logging.getLogger(__name__)
 
 
 class Markers3DModelMenu(plugin_ui.StorageMenu):

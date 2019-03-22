@@ -9,13 +9,9 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import logging
-
 import tasklib
 from head_pose_tracker import worker
 from observable import Observable
-
-logger = logging.getLogger(__name__)
 
 
 class MarkerLocationController(Observable):

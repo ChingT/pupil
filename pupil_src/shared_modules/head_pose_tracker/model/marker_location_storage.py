@@ -9,12 +9,8 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import logging
-
 from head_pose_tracker import model
 from observable import Observable
-
-logger = logging.getLogger(__name__)
 
 
 class MarkerLocation(model.storage.StorageItem):

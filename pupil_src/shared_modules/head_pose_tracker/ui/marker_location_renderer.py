@@ -47,9 +47,8 @@ class MarkerLocationRenderer:
     def _setup_glfont(self):
         self.glfont = fontstash.Context()
         self.glfont.add_font("opensans", get_opensans_font_path())
-        self.glfont.set_size(30)
+        self.glfont.set_size(20)
         self.glfont.set_color_float((0.8, 0.2, 0.1, 0.8))
-        self.glfont.set_align_string(v_align="center")
 
     def _on_gl_display(self):
         self._render()

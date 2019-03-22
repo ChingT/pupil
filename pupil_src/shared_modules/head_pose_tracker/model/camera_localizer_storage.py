@@ -9,7 +9,6 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import logging
 import os
 
 import file_methods as fm
@@ -17,8 +16,6 @@ import make_unique
 import player_methods as pm
 from head_pose_tracker import model
 from observable import Observable
-
-logger = logging.getLogger(__name__)
 
 
 class CameraLocalizer(model.storage.StorageItem):

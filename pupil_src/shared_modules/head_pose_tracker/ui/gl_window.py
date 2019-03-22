@@ -10,7 +10,6 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import abc
-import logging
 import os
 
 import OpenGL.GL as gl
@@ -18,7 +17,6 @@ import OpenGL.GL as gl
 import gl_utils
 import glfw
 
-logger = logging.getLogger(__name__)
 # FOR SMOOTH RENDERING
 os.environ["GL_FSAA_MODE"] = "11"
 

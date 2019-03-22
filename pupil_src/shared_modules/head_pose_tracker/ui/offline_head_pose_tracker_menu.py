@@ -28,7 +28,7 @@ class OfflineHeadPoseTrackerMenu:
         self._plugin.add_menu()
         self._plugin.menu.label = "Offline Head Pose Tracker"
 
-        self._plugin.menu.extend(self._get_on_top_menu())
+        self._plugin.menu.extend(self._create_on_top_menu())
 
         self._marker_location_menu.render()
         self._plugin.menu.append(self._marker_location_menu.menu)
@@ -42,7 +42,7 @@ class OfflineHeadPoseTrackerMenu:
     def _on_deinit_ui(self):
         self._plugin.remove_menu()
 
-    def _get_on_top_menu(self):
+    def _create_on_top_menu(self):
         return [
             ui.Info_Text(
                 "This plugin allows you to track camera poses in relation to the "

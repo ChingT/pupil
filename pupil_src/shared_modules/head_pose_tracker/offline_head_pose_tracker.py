@@ -31,13 +31,14 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
     def __init__(self, g_pool):
         super().__init__(g_pool)
 
-        self.inject_plugin_dependencies()
+        self._inject_plugin_dependencies()
         self._task_manager = PluginTaskManager(plugin=self)
         self._recording_uuid = self._load_recording_uuid_from_info_csv()
 
         self._setup_storages()
         self._setup_controllers()
-        self._setup_ui()
+        self._setup_menus()
+        self._setup_renderers()
         self._setup_timelines()
 
     def _setup_storages(self):
@@ -85,21 +86,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._markers_3d_model_storage,
         )
 
-    def _setup_ui(self):
-        self.visualization_3d_window = plugin_ui.HeadPoseTrackerRenderer(
-            self._marker_location_storage,
-            self._markers_3d_model_storage,
-            self._camera_localizer_storage,
-            self.g_pool.capture.intrinsics,
-            plugin=self,
-            get_current_frame_index=self.g_pool.capture.get_frame_index,
-        )
-        self._marker_location_renderer = plugin_ui.MarkerLocationRenderer(
-            self._marker_location_storage,
-            self._markers_3d_model_storage,
-            plugin=self,
-            get_current_frame_index=self.g_pool.capture.get_frame_index,
-        )
+    def _setup_menus(self):
         self._marker_location_menu = plugin_ui.MarkerLocationMenu(
             self._marker_location_controller
         )
@@ -118,6 +105,22 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._markers_3d_model_menu,
             self._camera_localizer_menu,
             plugin=self,
+        )
+
+    def _setup_renderers(self):
+        self._marker_location_renderer = plugin_ui.MarkerLocationRenderer(
+            self._marker_location_storage,
+            self._markers_3d_model_storage,
+            plugin=self,
+            get_current_frame_index=self.g_pool.capture.get_frame_index,
+        )
+        self._head_pose_tracker_renderer = plugin_ui.HeadPoseTrackerRenderer(
+            self._marker_location_storage,
+            self._markers_3d_model_storage,
+            self._camera_localizer_storage,
+            self.g_pool.capture.intrinsics,
+            plugin=self,
+            get_current_frame_index=self.g_pool.capture.get_frame_index,
         )
 
     def _setup_timelines(self):
@@ -140,7 +143,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             plugin=self,
         )
 
-    def inject_plugin_dependencies(self):
+    def _inject_plugin_dependencies(self):
         from head_pose_tracker.worker.detect_square_markers import (
             SquareMarkerDetectionTask,
         )

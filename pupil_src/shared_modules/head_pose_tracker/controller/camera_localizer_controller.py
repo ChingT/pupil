@@ -89,6 +89,7 @@ class CameraLocalizerController(Observable):
         self.pose_ts = []
 
         self._camera_localizer.pose_bisector = pm.Bisector()
+        self._camera_localizer.status = "Not calculated yet"
 
     def _create_localization_task(self, camera_localizer, markers_3d_model):
         def on_yield_pose(localized_pose_ts_and_data):

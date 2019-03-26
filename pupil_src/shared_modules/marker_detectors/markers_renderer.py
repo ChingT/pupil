@@ -9,10 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import abc
-import functools
 import logging
-import time
 
 import OpenGL.GL as gl
 import cv2
@@ -24,10 +21,7 @@ from pyglui.ui import get_opensans_font_path
 logger = logging.getLogger(__name__)
 
 
-class MarkersRenderer(abc.ABC):
-    icon_chr = chr(0xEC07)
-    icon_font = "pupil_icons"
-
+class MarkersRenderer:
     def __init__(self):
         self._square_definition = np.array(
             [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32
@@ -38,31 +32,18 @@ class MarkersRenderer(abc.ABC):
 
         self._setup_glfont()
 
-        self.markers = {}
-
     def _setup_glfont(self):
         self.glfont = fontstash.Context()
         self.glfont.add_font("opensans", get_opensans_font_path())
         self.glfont.set_size(20)
-        self.glfont.set_color_float((0.8, 0.2, 0.1, 0.8))
 
-    def on_recent_events(self, events):
-        try:
-            frame = events["frame"]
-        except KeyError:
-            return
-        self._detect(frame)
-
-    @abc.abstractmethod
-    def _detect(self, frame):
-        pass
-
-    def on_gl_display(self):
-        for marker_id, marker_points in self.markers.items():
+    def render(self, markers, color):
+        r, g, b = color
+        self.glfont.set_color_float((r, g, b, 0.9))
+        for marker_id, marker_points in markers.items():
             hat_points = self._calculate_hat_points(marker_points)
-            color = (1.0, 0.0, 0.0, 0.2)
 
-            self._draw_hat(hat_points, color)
+            self._draw_hat(hat_points, (r, g, b, 0.4))
             self._draw_marker_id(marker_points, marker_id)
 
     def _calculate_hat_points(self, marker_points):
@@ -80,20 +61,3 @@ class MarkersRenderer(abc.ABC):
     def _draw_marker_id(self, marker_points, marker_id):
         point = np.max(marker_points, axis=0)
         self.glfont.draw_text(point[0], point[1], str(marker_id))
-
-
-def timer(func):
-    @functools.wraps(func)
-    def wrapper_timer(*args, **kwargs):
-        t1 = time.perf_counter()
-        value = func(*args, **kwargs)
-        t2 = time.perf_counter()
-        run_time = t2 - t1
-        if run_time > 1e-3:
-            logger.info("{0} took {1:.2f} ms".format(func.__name__, run_time * 1e3))
-        else:
-            logger.info("{0} took {1:.2f} µs".format(func.__name__, run_time * 1e6))
-
-        return value
-
-    return wrapper_timer

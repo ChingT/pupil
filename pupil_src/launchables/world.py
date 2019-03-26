@@ -154,6 +154,7 @@ def world(
         from pupil_remote import Pupil_Remote
         from pupil_groups import Pupil_Groups
         from surface_tracker import Surface_Tracker
+        from marker_detectors.marker_detectors import Marker_Detectors
         from log_display import Log_Display
         from annotations import Annotation_Capture
         from log_history import Log_History
@@ -227,6 +228,7 @@ def world(
             Pupil_Remote,
             Time_Sync,
             Surface_Tracker,
+            Marker_Detectors,
             Annotation_Capture,
             Log_History,
             Fixation_Detector,
@@ -296,10 +298,11 @@ def world(
             ("Display_Recent_Gaze", {}),
             ("Screen_Marker_Calibration", {}),
             ("Recorder", {}),
-            ("Pupil_Remote", {}),
-            ("Accuracy_Visualizer", {}),
+            # ("Pupil_Remote", {}),
+            # ("Accuracy_Visualizer", {}),
             ("Plugin_Manager", {}),
             ("System_Graphs", {}),
+            ("Marker_Detectors", {}),
         ]
 
         # Callback functions
@@ -727,7 +730,6 @@ def world_profiled(
     import cProfile
     import subprocess
     import os
-    from .world import world
 
     cProfile.runctx(
         "world(timebase, eye_procs_alive, ipc_pub_url,ipc_sub_url,ipc_push_url,user_dir,version)",

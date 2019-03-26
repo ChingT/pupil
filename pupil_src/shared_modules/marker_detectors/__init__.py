@@ -9,9 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from aruco_tracker.markers_renderer import MarkersRenderer, timer
-from aruco_tracker.markers_tracker import (
-    ArucoDetectorCV2,
-    ArucoDetectorPython,
-    ApriltagDetector,
-)
+from marker_detectors.marker_detectors_controller import MarkerDetectorsController
+from marker_detectors.marker_detectors_menu import MarkerDetectorsMenu
+from marker_detectors.marker_detectors_storage import MarkerDetectorsStorage
+from marker_detectors.markers_renderer import MarkersRenderer

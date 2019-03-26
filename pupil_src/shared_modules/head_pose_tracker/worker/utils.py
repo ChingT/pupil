@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def split_extrinsics(extrinsics):
+    extrinsics = np.array(extrinsics, dtype=np.float32)
     assert extrinsics.size == 6
     # extrinsics could be of shape (6,) or (1, 6), so ravel() is needed.
     rotation = extrinsics.ravel()[0:3]
@@ -60,7 +61,7 @@ def convert_matrix_to_extrinsic(extrinsic_matrix):
 
 def get_camera_pose(camera_extrinsics):
     if camera_extrinsics is None:
-        return np.full((6,), np.nan)
+        return get_none_camera_extrinsics()
 
     rotation_ext, translation_ext = split_extrinsics(camera_extrinsics)
     rotation_pose = -rotation_ext
@@ -78,13 +79,6 @@ def convert_marker_extrinsics_to_points_3d(marker_extrinsics):
     return marker_points_3d
 
 
-def find_origin_marker_id(marker_id_to_extrinsics):
-    for marker_id, extrinsics in marker_id_to_extrinsics.items():
-        if np.allclose(extrinsics, get_marker_extrinsics_origin()):
-            return marker_id
-    return None
-
-
 def get_marker_points_3d_origin():
     return np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float32)
 
@@ -97,6 +91,49 @@ def get_marker_points_4d_origin():
 
 def get_marker_extrinsics_origin():
     return np.array([0, 0, 0, 0, 0, 0.0], dtype=np.float32)
+
+
+def get_none_camera_extrinsics():
+    return np.full((6,), np.nan)
+
+
+def find_origin_marker_id(marker_id_to_extrinsics):
+    for marker_id, extrinsics in marker_id_to_extrinsics.items():
+        if np.allclose(extrinsics, get_marker_extrinsics_origin()):
+            return marker_id
+    return None
+
+
+def svdt(A, B):
+    """Calculates the transformation between two coordinate systems using SVD.
+    This function determines the rotation matrix (R) and the translation vector
+    (L) for a rigid body after the following transformation [1]_, [2]_:
+    B = R*A + L + err, where A and B represents the rigid body in different instants
+    and err is an aleatory noise (which should be zero for a perfect rigid body).
+
+    Adapted from: https://github.com/demotu/BMC/blob/master/functions/svdt.py
+    """
+
+    assert A.shape == B.shape and A.ndim == 2 and A.shape[1] == 3
+
+    A_centroid = np.mean(A, axis=0)
+    B_centroid = np.mean(B, axis=0)
+    M = np.dot((B - B_centroid).T, (A - A_centroid))
+    U, S, Vt = np.linalg.svd(M)
+
+    rotation_matrix = np.dot(
+        U, np.dot(np.diag([1, 1, np.linalg.det(np.dot(U, Vt))]), Vt)
+    )
+
+    translation_vector = B_centroid - np.dot(rotation_matrix, A_centroid)
+
+    err = 0
+    for i in range(len(A)):
+        Bp = np.dot(rotation_matrix, A[i, :]) + translation_vector
+        err += np.sum((Bp - B[i, :]) ** 2)
+    root_mean_squared_error = np.sqrt(err / A.size)
+
+    return rotation_matrix, translation_vector, root_mean_squared_error
 
 
 def timer(func):

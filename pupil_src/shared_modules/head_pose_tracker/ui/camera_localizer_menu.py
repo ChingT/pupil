@@ -1,0 +1,90 @@
+"""
+(*)~---------------------------------------------------------------------------
+Pupil - eye tracking platform
+Copyright (C) 2012-2019 Pupil Labs
+
+Distributed under the terms of the GNU
+Lesser General Public License (LGPL v3.0).
+See COPYING and COPYING.LESSER for license details.
+---------------------------------------------------------------------------~(*)
+"""
+
+from pyglui import ui
+
+from head_pose_tracker import ui as plugin_ui
+
+
+class CameraLocalizerMenu(plugin_ui.StorageMenu):
+    menu_label = "Camera Localizer"
+
+    def __init__(
+        self, camera_localizer_controller, camera_localizer_storage, index_range_as_str
+    ):
+        super().__init__(camera_localizer_storage)
+        self._camera_localizer_controller = camera_localizer_controller
+        self._index_range_as_str = index_range_as_str
+
+        self.menu.collapsed = False
+
+        camera_localizer_controller.add_observer(
+            "on_camera_localization_calculated", self._on_camera_localization_calculated
+        )
+        camera_localizer_controller.add_observer(
+            "on_calculation_could_not_be_started",
+            self._on_calculation_could_not_be_started,
+        )
+
+    def _item_label(self, camera_localizer):
+        return camera_localizer.name
+
+    def _render_custom_ui(self, camera_localizer, menu):
+        menu.extend(
+            [
+                self._create_localization_range_selector(camera_localizer),
+                self._create_calculate_button(camera_localizer),
+                self._create_status_text(camera_localizer),
+                self._create_show_camera_trace_switch(camera_localizer),
+            ]
+        )
+
+    def _create_localization_range_selector(self, camera_localizer):
+        range_string = "Localize camera in: " + self._index_range_as_str(
+            camera_localizer.localization_index_range
+        )
+        return ui.Button(
+            outer_label=range_string,
+            label="Set From Trim Marks",
+            function=self._on_set_localization_range_from_trim_marks,
+        )
+
+    def _create_calculate_button(self, camera_localizer):
+        return ui.Button(
+            label="Recalculate" if camera_localizer.calculate_complete else "Calculate",
+            function=self._on_click_calculate,
+        )
+
+    def _create_status_text(self, camera_localizer):
+        return ui.Text_Input(
+            "status", camera_localizer, label="Status", setter=lambda _: _
+        )
+
+    def _create_show_camera_trace_switch(self, camera_localizer):
+        return ui.Switch(
+            "show_camera_trace", camera_localizer, label="Show Camera Trace"
+        )
+
+    def _on_set_localization_range_from_trim_marks(self):
+        self._camera_localizer_controller.set_localization_range_from_current_trim_marks(
+            self.item
+        )
+        self.render()
+
+    def _on_click_calculate(self):
+        self._camera_localizer_controller.calculate()
+
+    def _on_camera_localization_calculated(self):
+        # mostly to change button "calculate" -> "recalculate"
+        self.render()
+
+    def _on_calculation_could_not_be_started(self):
+        self.render()

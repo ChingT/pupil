@@ -9,8 +9,13 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from head_pose_tracker.controller.general_controller import GeneralController
-from head_pose_tracker.controller.model_update_controller import ModelUpdateController
-from head_pose_tracker.controller.observation_process_controller import (
-    ObservationProcessController,
+from head_pose_tracker.controller.marker_location_controller import (
+    MarkerLocationController,
 )
+from head_pose_tracker.controller.camera_localizer_controller import (
+    CameraLocalizerController,
+)
+from head_pose_tracker.controller.markers_3d_model_controller import (
+    Markers3DModelController,
+)
+from head_pose_tracker.controller.calculate_all_controller import CalculateAllController

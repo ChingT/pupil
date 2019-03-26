@@ -14,7 +14,7 @@ import numpy as np
 from head_pose_tracker import worker
 
 
-def localize(
+def calculate(
     camera_intrinsics,
     marker_id_to_detections,
     marker_id_to_extrinsics,
@@ -65,9 +65,7 @@ def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
     retval, rotation, translation = _run_solvepnp(
         camera_intrinsics, markers_points_3d, markers_points_2d, camera_extrinsics_prv
     )
-    if _check_solvepnp_output_reasonable(
-        retval, rotation, translation, markers_points_3d
-    ):
+    if _check_result_reasonable(retval, rotation, translation, markers_points_3d):
         camera_extrinsics = worker.utils.merge_extrinsics(rotation, translation)
         return camera_extrinsics
 
@@ -76,9 +74,7 @@ def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
     retval, rotation, translation = _run_solvepnp(
         camera_intrinsics, markers_points_3d, markers_points_2d
     )
-    if _check_solvepnp_output_reasonable(
-        retval, rotation, translation, markers_points_3d
-    ):
+    if _check_result_reasonable(retval, rotation, translation, markers_points_3d):
         camera_extrinsics = worker.utils.merge_extrinsics(rotation, translation)
         return camera_extrinsics
     else:
@@ -92,7 +88,7 @@ def _run_solvepnp(
     assert markers_points_3d.shape[1:] == (4, 3)
     assert markers_points_2d.shape[1:] == (4, 2)
 
-    if camera_extrinsics_prv is None:
+    if camera_extrinsics_prv is None or np.isnan(camera_extrinsics_prv).any():
         retval, rotation, translation = camera_intrinsics.solvePnP(
             markers_points_3d, markers_points_2d
         )
@@ -110,7 +106,7 @@ def _run_solvepnp(
     return retval, rotation, translation
 
 
-def _check_solvepnp_output_reasonable(retval, rotation, translation, pts_3d_world):
+def _check_result_reasonable(retval, rotation, translation, pts_3d_world):
     # solvePnP outputs wrong pose estimations sometimes, so it is necessary to check
     # if the rotation and translation from the output of solvePnP is reasonable.
     if not retval:

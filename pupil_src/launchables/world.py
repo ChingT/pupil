@@ -106,6 +106,13 @@ def world(
         ipc_pub.notify(n)
 
     try:
+        from background_helper import IPC_Logging_Task_Proxy
+
+        IPC_Logging_Task_Proxy.push_url = ipc_push_url
+
+        from tasklib.background.patches import IPCLoggingPatch
+
+        IPCLoggingPatch.ipc_push_url = ipc_push_url
 
         # display
         import glfw
@@ -154,7 +161,7 @@ def world(
         from pupil_remote import Pupil_Remote
         from pupil_groups import Pupil_Groups
         from surface_tracker import Surface_Tracker
-        from head_pose_tracker.head_pose_tracker import Head_Pose_Tracker
+        from head_pose_tracker.online_head_pose_tracker import Online_Head_Pose_Tracker
         from log_display import Log_Display
         from annotations import Annotation_Capture
         from log_history import Log_History
@@ -228,7 +235,7 @@ def world(
             Pupil_Remote,
             Time_Sync,
             Surface_Tracker,
-            Head_Pose_Tracker,
+            Online_Head_Pose_Tracker,
             Annotation_Capture,
             Log_History,
             Fixation_Detector,

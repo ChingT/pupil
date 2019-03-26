@@ -9,7 +9,9 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import os, sys, platform
+import os
+import platform
+import sys
 
 running_from_bundle = getattr(sys, "frozen", False)
 if not running_from_bundle:
@@ -78,7 +80,7 @@ else:
     from launchables.eye import eye
     from launchables.player import player
 from launchables.player import player_drop
-from launchables.marker_detectors import circle_detector
+from launchables.marker_detectors import circle_detector, square_detector
 
 
 def clear_settings(user_dir):
@@ -234,6 +236,7 @@ def launcher():
         "notify.launcher_process.",
         "notify.meta.should_doc",
         "notify.circle_detector_process.should_start",
+        "notify.square_detector_process.should_start",
         "notify.ipc_startup",
     )
     cmd_sub = zmq_tools.Msg_Receiver(zmq_ctx, ipc_sub_url, topics=topics)
@@ -346,6 +349,12 @@ def launcher():
                     Process(
                         target=circle_detector,
                         name="circle_detector",
+                        args=(ipc_push_url, n["pair_url"], n["source_path"]),
+                    ).start()
+                elif "notify.square_detector_process.should_start" in topic:
+                    Process(
+                        target=square_detector,
+                        name="square_detector",
                         args=(ipc_push_url, n["pair_url"], n["source_path"]),
                     ).start()
                 elif "notify.meta.should_doc" in topic:

@@ -32,25 +32,31 @@ class MarkerDetectorsMenu:
         self._plugin.menu.elements.clear()
         self._plugin.menu.elements.extend(
             [
-                self._create_show_aruco_detector_cv2_switch(),
-                self._create_show_aruco_detector_python_switch(),
-                self._create_show_apriltag_detector_switch(),
+                self._create_detect_aruco1_markers_switch(),
+                self._create_detect_apriltag_markers_switch(),
+                self._create_detect_aruco3_markers_switch(),
+                self._create_detect_square_markers_switch(),
             ]
         )
 
-    def _create_show_aruco_detector_cv2_switch(self):
+    def _create_detect_aruco1_markers_switch(self):
         return ui.Switch(
-            "show_aruco_detector_cv2", self._storage, label="Show Aruco Detector-CV2"
+            "detect_aruco1_markers", self._storage, label="detect ArUco markers"
         )
 
-    def _create_show_aruco_detector_python_switch(self):
+    def _create_detect_aruco3_markers_switch(self):
         return ui.Switch(
-            "show_aruco_detector_python",
+            "detect_aruco3_markers", self._storage, label="detect ArUco3 markers"
+        )
+
+    def _create_detect_apriltag_markers_switch(self):
+        return ui.Switch(
+            "detect_apriltag_markers", self._storage, label="detect Apriltag "
+        )
+
+    def _create_detect_square_markers_switch(self):
+        return ui.Switch(
+            "detect_square_markers",
             self._storage,
-            label="Show Aruco Detector-python",
-        )
-
-    def _create_show_apriltag_detector_switch(self):
-        return ui.Switch(
-            "show_apriltag_detector", self._storage, label="Show Apriltag Detector"
+            label="detect Pupil Lab's Square markers",
         )

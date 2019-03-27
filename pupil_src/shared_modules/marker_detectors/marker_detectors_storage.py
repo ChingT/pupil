@@ -11,6 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 
 class MarkerDetectorsStorage:
     def __init__(self):
-        self.show_aruco_detector_cv2 = False
-        self.show_aruco_detector_python = False
-        self.show_apriltag_detector = False
+        self.detect_aruco1_markers = False
+        self.detect_aruco3_markers = False
+        self.detect_apriltag_markers = False
+        self.detect_square_markers = False

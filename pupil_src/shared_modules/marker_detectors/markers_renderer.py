@@ -39,11 +39,11 @@ class MarkersRenderer:
 
     def render(self, markers, color):
         r, g, b = color
-        self.glfont.set_color_float((r, g, b, 0.9))
+        self.glfont.set_color_float((r, g, b, 1))
         for marker_id, marker_points in markers.items():
             hat_points = self._calculate_hat_points(marker_points)
 
-            self._draw_hat(hat_points, (r, g, b, 0.4))
+            self._draw_hat(hat_points, (r, g, b, 0.3))
             self._draw_marker_id(marker_points, marker_id)
 
     def _calculate_hat_points(self, marker_points):

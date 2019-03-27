@@ -13,14 +13,15 @@ import aruco
 import cv2
 import numpy as np
 
+import square_marker_detect
 from apriltag.python import apriltag
 
 
-class ArucoDetectorCV2:
+class Aruco1Detector:
     def __init__(self):
         self.aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_ARUCO_ORIGINAL)
         self.markers = {}
-        self.color = (0.12, 0.46, 0.70)
+        self.color = (0.46, 0.12, 0.70)
 
     def detect(self, frame):
         corners, ids, _ = cv2.aruco.detectMarkers(frame.gray, self.aruco_dict)
@@ -32,13 +33,15 @@ class ArucoDetectorCV2:
             self.markers = {}
 
 
-class ArucoDetectorPython:
+class Aruco3Detector:
     def __init__(self):
         self.detector = aruco.MarkerDetector()
         self.detector.setDetectionMode(aruco.DM_FAST)
-        self.detector.setDictionary("ARUCO")  # "TAG36h11", "ARUCO_MIP_36h12"
+        self.detector.setDictionary(
+            "ARUCO_MIP_36h12"
+        )  # "TAG36h11", "ARUCO_MIP_36h12", "ARUCO"
         self.markers = {}
-        self.color = (1.0, 0.49, 0.05)
+        self.color = (0.00, 0.62, 0.17)
 
     def detect(self, frame):
         self.aruco(frame)
@@ -66,7 +69,7 @@ class ApriltagDetector:
         )
         self._detector = apriltag.Detector(detector_options)
         self.markers = {}
-        self.color = (0.17, 0.62, 0.17)
+        self.color = (1.0, 0.20, 0.05)
 
     def detect(self, frame):
         self.apriltag(frame)
@@ -76,6 +79,22 @@ class ApriltagDetector:
         self.markers = {
             detection.tag_id: np.array(detection.corners, dtype=np.float32)
             for detection in apriltag_detections
+        }
+
+
+class SquareDetector:
+    def __init__(self):
+        self.id_confidence = 0.8
+        self.markers = {}
+        self.color = (0.12, 0.46, 0.70)
+
+    def detect(self, frame):
+        detections = square_marker_detect.detect_markers(frame.gray, grid_size=5)
+
+        self.markers = {
+            detection["id"]: np.array(detection["verts"], dtype=np.float32)[:, 0, :]
+            for detection in detections
+            if detection["id_confidence"] > self.id_confidence
         }
 
 
@@ -89,13 +108,10 @@ class MarkerDetectorsController:
         plugin.add_observer("gl_display", self._on_gl_display)
 
     def _setup_detectors(self):
-        aruco_detector_cv2 = ArucoDetectorCV2()
-        aruco_detector_python = ArucoDetectorPython()
-        apriltag_detector = ApriltagDetector()
-
-        self.detector_1 = aruco_detector_cv2
-        self.detector_2 = aruco_detector_python
-        self.detector_3 = apriltag_detector
+        self.aruco1_detector = Aruco1Detector()
+        self.aruco3_detector = Aruco3Detector()
+        self.apriltag_detector = ApriltagDetector()
+        self.square_detector = SquareDetector()
 
     def _on_recent_events(self, events):
         try:
@@ -103,25 +119,32 @@ class MarkerDetectorsController:
         except KeyError:
             return
 
-        if self._storage.show_aruco_detector_cv2:
-            self.detector_1.detect(frame)
-        if self._storage.show_aruco_detector_python:
-            self.detector_2.detect(frame)
-        if self._storage.show_apriltag_detector:
-            self.detector_3.detect(frame)
+        if self._storage.detect_aruco1_markers:
+            self.aruco1_detector.detect(frame)
+        if self._storage.detect_aruco3_markers:
+            self.aruco3_detector.detect(frame)
+        if self._storage.detect_apriltag_markers:
+            self.apriltag_detector.detect(frame)
+        if self._storage.detect_square_markers:
+            self.square_detector.detect(frame)
 
     def _on_gl_display(self):
-        if self._storage.show_aruco_detector_cv2:
+        if self._storage.detect_aruco1_markers:
             self._markers_renderer.render(
-                self.detector_1.markers, self.detector_1.color
+                self.aruco1_detector.markers, self.aruco1_detector.color
             )
 
-        if self._storage.show_aruco_detector_python:
+        if self._storage.detect_aruco3_markers:
             self._markers_renderer.render(
-                self.detector_2.markers, self.detector_2.color
+                self.aruco3_detector.markers, self.aruco3_detector.color
             )
 
-        if self._storage.show_apriltag_detector:
+        if self._storage.detect_apriltag_markers:
             self._markers_renderer.render(
-                self.detector_3.markers, self.detector_3.color
+                self.apriltag_detector.markers, self.apriltag_detector.color
+            )
+
+        if self._storage.detect_square_markers:
+            self._markers_renderer.render(
+                self.square_detector.markers, self.square_detector.color
             )

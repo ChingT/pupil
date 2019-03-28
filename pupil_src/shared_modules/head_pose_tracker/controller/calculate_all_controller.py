@@ -24,6 +24,8 @@ class CalculateAllController:
 
         self._markers_3d_model = markers_3d_model_storage.item
 
+        self.calculate_all()
+
     def calculate_all(self):
         """
         (Re)Calculate all markers_3d_models and camera localization with their respective

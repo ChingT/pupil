@@ -39,7 +39,6 @@ class MarkerLocationTimeline:
 
     def _create_progress_indication(self):
         progress = self._marker_location_controller.detection_progress
-        print("progress", progress)
         return RangeElementFramePerc(
             from_perc=0, to_perc=progress, color_rgba=(1.0, 0.5, 0.5, 0.5)
         )

@@ -30,6 +30,7 @@ class MarkerLocationController(Observable):
     def _create_detection_task(self):
         def on_yield_location(marker_location):
             self._marker_location_storage[marker_location.frame_index] = marker_location
+            self.on_detection_yield()
 
         def on_completed_location(_):
             self._marker_location_storage.save_to_disk()
@@ -44,7 +45,7 @@ class MarkerLocationController(Observable):
         self._task = worker.detect_square_markers.create_task()
         self._task.add_observer("on_yield", on_yield_location)
         self._task.add_observer("on_completed", on_completed_location)
-        # self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
+        self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
         self._task_manager.add_task(self._task)
         logger.info("Start marker detection")
@@ -66,7 +67,6 @@ class MarkerLocationController(Observable):
 
     @property
     def is_running_detection(self):
-        # print("is_running_detection", self._task, self._task.running)
         return self._task is not None and self._task.running
 
     @property

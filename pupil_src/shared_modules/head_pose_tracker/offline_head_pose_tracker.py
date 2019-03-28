@@ -41,6 +41,8 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         self._setup_renderers()
         self._setup_timelines()
 
+        # self._calculate_all_controller.calculate_all()
+
     def _setup_storages(self):
         self._marker_location_storage = model.MarkerLocationStorage(
             self.g_pool.rec_dir, plugin=self
@@ -144,14 +146,13 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
 
     def _inject_plugin_dependencies(self):
-        from head_pose_tracker.worker.detect_square_markers import (
-            SquareMarkerDetectionTask,
+        from head_pose_tracker.worker import (
+            detect_square_markers,
+            create_markers_3d_model,
+            localize_pose,
         )
-        from head_pose_tracker.worker import create_markers_3d_model, localize_pose
 
-        SquareMarkerDetectionTask.zmq_ctx = self.g_pool.zmq_ctx
-        SquareMarkerDetectionTask.capture_source_path = self.g_pool.capture.source_path
-        SquareMarkerDetectionTask.notify_all = self.notify_all
+        detect_square_markers.g_pool = self.g_pool
         create_markers_3d_model.g_pool = self.g_pool
         localize_pose.g_pool = self.g_pool
 

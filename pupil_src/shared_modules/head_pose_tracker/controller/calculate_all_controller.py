@@ -24,8 +24,6 @@ class CalculateAllController:
 
         self._markers_3d_model = markers_3d_model_storage.item
 
-        self.calculate_all()
-
     def calculate_all(self):
         """
         (Re)Calculate all markers_3d_models and camera localization with their respective
@@ -33,8 +31,7 @@ class CalculateAllController:
         first the current marker detector is run.
         """
         if self.does_detect_markers:
-            task = self._marker_location_controller.start_detection()
-            task.add_observer("on_completed", self._on_marker_detection_completed)
+            self._marker_location_controller.start_detection()
         else:
             self._calculate_markers_3d_model()
 

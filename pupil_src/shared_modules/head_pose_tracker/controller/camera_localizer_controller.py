@@ -47,7 +47,7 @@ class CameraLocalizerController(Observable):
         )
         self._camera_localizer = camera_localizer_storage.item
 
-    def calculate(self,):
+    def calculate(self):
         markers_3d_model = self._get_valid_markers_3d_model_or_none(
             self._camera_localizer
         )

@@ -21,7 +21,13 @@ class MarkerLocationTimeline:
 
         marker_location_storage.add_observer("add", self._on_marker_storage_changed)
         marker_location_controller.add_observer(
-            "on_detection_started", self._on_start_marker_detection
+            "on_detection_started", self._on_detection_started
+        )
+        marker_location_controller.add_observer(
+            "on_detection_yield", self._on_detection_yield
+        )
+        marker_location_controller.add_observer(
+            "on_detection_ended", self._on_detection_ended
         )
 
     def create_row(self):
@@ -33,6 +39,7 @@ class MarkerLocationTimeline:
 
     def _create_progress_indication(self):
         progress = self._marker_location_controller.detection_progress
+        print("progress", progress)
         return RangeElementFramePerc(
             from_perc=0, to_perc=progress, color_rgba=(1.0, 0.5, 0.5, 0.5)
         )
@@ -41,14 +48,13 @@ class MarkerLocationTimeline:
         bar_positions = [ref.timestamp for ref in self._marker_location_storage]
         return BarsElementTs(bar_positions, color_rgba=(1.0, 1.0, 1.0, 0.5))
 
-    def _on_start_marker_detection(self, detection_task):
-        detection_task.add_observer("update", self._on_marker_detection_update)
-        detection_task.add_observer("on_ended", self._on_marker_detection_ended)
-
-    def _on_marker_detection_update(self):
+    def _on_detection_started(self):
         self.render_parent_timeline()
 
-    def _on_marker_detection_ended(self):
+    def _on_detection_yield(self):
+        self.render_parent_timeline()
+
+    def _on_detection_ended(self):
         self.render_parent_timeline()
 
     def _on_marker_storage_changed(self, *args, **kwargs):

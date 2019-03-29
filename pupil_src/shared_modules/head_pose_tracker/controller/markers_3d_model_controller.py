@@ -50,17 +50,17 @@ class Markers3DModelController(Observable):
         )
 
     def _on_marker_detection_had_completed_before(self):
-        if not self._markers_3d_model.result:
-            self.calculate()
-        else:
-            self.on_building_markers_3d_model_had_completed_before()
+        self.calculate(check_complete=True)
 
     def _on_marker_detection_ended(self):
-        self.calculate()
+        self.calculate(check_complete=True)
 
-    def calculate(self):
-        self._reset()
-        self._create_optimize_markers_3d_model_task()
+    def calculate(self, check_complete=False):
+        if check_complete and self._markers_3d_model.result:
+            self.on_building_markers_3d_model_had_completed_before()
+        else:
+            self._reset()
+            self._create_optimize_markers_3d_model_task()
 
     def _reset(self):
         if self._task is not None and self._task.running:

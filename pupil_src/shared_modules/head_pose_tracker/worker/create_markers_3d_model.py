@@ -67,6 +67,9 @@ def _create_markers_3d_model(
         initial_guess_result = worker.get_initial_guess.calculate(
             storage, camera_intrinsics
         )
+        if not initial_guess_result:
+            continue
+
         bundle_adjustment_result = bundle_adjustment.calculate(initial_guess_result)
         storage = worker.update_optimization_storage.run(
             storage, bundle_adjustment_result

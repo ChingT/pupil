@@ -27,7 +27,7 @@ class CameraLocalizerMenu(plugin_ui.StorageMenu):
         self.menu.collapsed = False
 
         camera_localizer_controller.add_observer(
-            "on_camera_localization_calculated", self._on_camera_localization_calculated
+            "on_camera_localization_completed", self._on_camera_localization_completed
         )
         camera_localizer_controller.add_observer(
             "on_calculation_could_not_be_started",
@@ -82,7 +82,7 @@ class CameraLocalizerMenu(plugin_ui.StorageMenu):
     def _on_click_calculate(self):
         self._camera_localizer_controller.calculate()
 
-    def _on_camera_localization_calculated(self):
+    def _on_camera_localization_completed(self):
         # mostly to change button "calculate" -> "recalculate"
         self.render()
 

@@ -20,10 +20,10 @@ class MarkerLocationMenu:
         self.menu.collapsed = False
 
         marker_location_controller.add_observer(
-            "on_detection_started", self._on_detection_started
+            "on_marker_detection_started", self._on_marker_detection_started
         )
         marker_location_controller.add_observer(
-            "on_detection_ended", self._on_detection_ended
+            "on_marker_detection_ended", self._on_marker_detection_ended
         )
 
     def render(self):
@@ -44,8 +44,8 @@ class MarkerLocationMenu:
     def _on_click_cancel_marker_detection(self):
         self._marker_location_controller.cancel_detection()
 
-    def _on_detection_started(self):
+    def _on_marker_detection_started(self):
         self.render()
 
-    def _on_detection_ended(self):
+    def _on_marker_detection_ended(self):
         self.render()

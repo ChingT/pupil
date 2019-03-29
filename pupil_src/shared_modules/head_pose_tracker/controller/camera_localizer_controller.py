@@ -38,14 +38,30 @@ class CameraLocalizerController(Observable):
         self._task = None
         self.pose = []
         self.pose_ts = []
+        self._camera_localizer = camera_localizer_storage.item
 
         markers_3d_model_controller.add_observer(
-            "on_markers_3d_model_calculated", self.calculate
+            "on_building_markers_3d_model_had_completed_before",
+            self._on_building_markers_3d_model_had_completed_before,
         )
         markers_3d_model_controller.add_observer(
-            "on_markers_3d_model_calculating", self._on_markers_3d_model_calculating
+            "on_building_markers_3d_model_started",
+            self._on_building_markers_3d_model_started,
         )
-        self._camera_localizer = camera_localizer_storage.item
+        markers_3d_model_controller.add_observer(
+            "on_building_markers_3d_model_completed",
+            self._on_building_markers_3d_model_completed,
+        )
+
+    def _on_building_markers_3d_model_had_completed_before(self):
+        if not self._camera_localizer.calculate_complete:
+            self.calculate()
+
+    def _on_building_markers_3d_model_started(self):
+        self._reset()
+
+    def _on_building_markers_3d_model_completed(self):
+        self.calculate()
 
     def calculate(self):
         markers_3d_model = self._get_valid_markers_3d_model_or_none(
@@ -56,9 +72,6 @@ class CameraLocalizerController(Observable):
 
         self._reset()
         self._create_localization_task(self._camera_localizer, markers_3d_model)
-
-    def _on_markers_3d_model_calculating(self):
-        self._reset()
 
     def _get_valid_markers_3d_model_or_none(self, camera_localizer):
         markers_3d_model = self._markers_3d_model_storage.item
@@ -77,9 +90,6 @@ class CameraLocalizerController(Observable):
         self.on_calculation_could_not_be_started()
         # the pose from this localizer got cleared, so don't show it anymore
         self.save_pose_bisector(camera_localizer)
-
-    def on_calculation_could_not_be_started(self):
-        pass
 
     def _reset(self):
         if self._task is not None and self._task.running:
@@ -104,7 +114,7 @@ class CameraLocalizerController(Observable):
             self.save_pose_bisector(camera_localizer)
             self._camera_localizer_storage.save_to_disk()
             logger.info("Complete camera localization")
-            self.on_camera_localization_calculated()
+            self.on_camera_localization_completed()
 
         self._task = worker.localize_pose.create_task(
             camera_localizer, markers_3d_model, self._marker_location_storage
@@ -120,11 +130,14 @@ class CameraLocalizerController(Observable):
             self.pose.append(pose_datum)
             self.pose_ts.append(timestamp)
 
-    def on_camera_localization_calculated(self):
-        pass
-
     def save_pose_bisector(self, camera_localizer):
         camera_localizer.pose_bisector = pm.Bisector(self.pose, self.pose_ts)
 
     def set_localization_range_from_current_trim_marks(self, camera_localizer):
         camera_localizer.localization_index_range = self._get_current_trim_mark_range()
+
+    def on_calculation_could_not_be_started(self):
+        pass
+
+    def on_camera_localization_completed(self):
+        pass

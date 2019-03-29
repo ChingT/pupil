@@ -28,7 +28,8 @@ class Markers3DModelMenu(plugin_ui.StorageMenu):
         self.menu.collapsed = False
 
         markers_3d_model_controller.add_observer(
-            "on_markers_3d_model_calculated", self._on_markers_3d_model_calculated
+            "on_building_markers_3d_model_completed",
+            self._on_building_markers_3d_model_completed,
         )
 
     def _item_label(self, markers_3d_model):
@@ -157,8 +158,8 @@ class Markers3DModelMenu(plugin_ui.StorageMenu):
         self.item.optimize_camera_intrinsics = new_value
 
     def _on_click_calculate(self):
-        self._markers_3d_model_controller.calculate(self.item)
+        self._markers_3d_model_controller.calculate()
         self.render()
 
-    def _on_markers_3d_model_calculated(self):
+    def _on_building_markers_3d_model_completed(self):
         self.render()

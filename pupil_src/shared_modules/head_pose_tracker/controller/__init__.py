@@ -18,4 +18,3 @@ from head_pose_tracker.controller.camera_localizer_controller import (
 from head_pose_tracker.controller.markers_3d_model_controller import (
     Markers3DModelController,
 )
-from head_pose_tracker.controller.calculate_all_controller import CalculateAllController

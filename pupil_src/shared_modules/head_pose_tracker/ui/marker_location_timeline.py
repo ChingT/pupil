@@ -21,13 +21,13 @@ class MarkerLocationTimeline:
 
         marker_location_storage.add_observer("add", self._on_marker_storage_changed)
         marker_location_controller.add_observer(
-            "on_detection_started", self._on_detection_started
+            "on_marker_detection_started", self._on_marker_detection_started
         )
         marker_location_controller.add_observer(
-            "on_detection_yield", self._on_detection_yield
+            "on_marker_detection_yield", self._on_marker_detection_yield
         )
         marker_location_controller.add_observer(
-            "on_detection_ended", self._on_detection_ended
+            "on_marker_detection_ended", self._on_marker_detection_ended
         )
 
     def create_row(self):
@@ -47,13 +47,13 @@ class MarkerLocationTimeline:
         bar_positions = [ref.timestamp for ref in self._marker_location_storage]
         return BarsElementTs(bar_positions, color_rgba=(1.0, 1.0, 1.0, 0.5))
 
-    def _on_detection_started(self):
+    def _on_marker_detection_started(self):
         self.render_parent_timeline()
 
-    def _on_detection_yield(self):
+    def _on_marker_detection_yield(self):
         self.render_parent_timeline()
 
-    def _on_detection_ended(self):
+    def _on_marker_detection_ended(self):
         self.render_parent_timeline()
 
     def _on_marker_storage_changed(self, *args, **kwargs):

@@ -12,7 +12,6 @@ See COPYING and COPYING.LESSER for license details.
 import os
 
 import file_methods as fm
-import make_unique
 import player_methods as pm
 from head_pose_tracker import model
 from observable import Observable
@@ -22,10 +21,9 @@ class CameraLocalizer(model.storage.StorageItem):
     version = 1
 
     def __init__(
-        self, unique_id, name, localization_index_range, status="Not calculated yet"
+        self, unique_id, localization_index_range, status="Not calculated yet"
     ):
         self.unique_id = unique_id
-        self.name = name
         self.localization_index_range = tuple(localization_index_range)
         self.status = status
 
@@ -44,7 +42,7 @@ class CameraLocalizer(model.storage.StorageItem):
 
     @property
     def as_tuple(self):
-        return self.unique_id, self.name, self.localization_index_range, self.status
+        return self.unique_id, self.localization_index_range, self.status
 
 
 class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
@@ -63,7 +61,6 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
     def create_default_camera_localizer(self):
         return CameraLocalizer(
             unique_id=CameraLocalizer.create_new_unique_id(),
-            name=make_unique.by_number_at_end("Camera Localizer", self.item_names),
             localization_index_range=self._get_recording_index_range(),
         )
 
@@ -115,10 +112,6 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
         return [self._camera_localizer] if self._camera_localizer else []
 
     @property
-    def item_names(self):
-        return [self._camera_localizer.name] if self._camera_localizer else []
-
-    @property
     def _item_class(self):
         return CameraLocalizer
 
@@ -131,8 +124,7 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
         return os.path.join(self._storage_folder_path, "camera-poses")
 
     def _camera_localization_file_name(self, camera_localizer):
-        file_name = camera_localizer.name + "-" + camera_localizer.unique_id
-        return self.get_valid_filename(file_name)
+        return camera_localizer.unique_id
 
     def _camera_localization_file_path(self, camera_localizer):
         return os.path.join(

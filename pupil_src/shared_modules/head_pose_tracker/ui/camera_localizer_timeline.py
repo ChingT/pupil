@@ -27,11 +27,9 @@ class CameraLocalizerTimeline:
         self._camera_localizer = camera_localizer_storage.item
 
     def create_rows(self):
-        rows = []
-        if self._camera_localizer is not None:
-            alpha = 0.9
-            elements = [self._create_localization_range(self._camera_localizer, alpha)]
-            rows.append(Row(label=self._camera_localizer.name, elements=elements))
+        alpha = 0.9
+        elements = [self._create_localization_range(self._camera_localizer, alpha)]
+        rows = [Row(label="Camera localization", elements=elements)]
         return rows
 
     def _create_localization_range(self, camera_localizer, alpha):

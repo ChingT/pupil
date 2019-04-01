@@ -12,7 +12,6 @@ See COPYING and COPYING.LESSER for license details.
 import logging
 import os
 
-import make_unique
 from head_pose_tracker import model
 from observable import Observable
 
@@ -77,9 +76,7 @@ class Markers3DModelStorage(model.storage.Storage, Observable):
     def create_default_markers_3d_model(self):
         return Markers3DModel(
             unique_id=Markers3DModel.create_new_unique_id(),
-            name=make_unique.by_number_at_end(
-                "Default Markers 3D Model", self.item_names
-            ),
+            name="Default",
             recording_uuid=self._recording_uuid,
             frame_index_range=self._get_recording_index_range(),
         )
@@ -153,16 +150,12 @@ class Markers3DModelStorage(model.storage.Storage, Observable):
         return [self._markers_3d_model] if self._markers_3d_model else []
 
     @property
-    def item_names(self):
-        return [self._markers_3d_model.name] if self._markers_3d_model else []
-
-    @property
     def _item_class(self):
         return Markers3DModel
 
     @property
     def _markers_3d_model_folder(self):
-        return os.path.join(self._rec_dir, "markers_3d_model")
+        return os.path.join(self._rec_dir, "Markers 3D Model")
 
     def _markers_3d_model_file_name(self, markers_3d_model):
         file_name = "{}-{}.{}".format(

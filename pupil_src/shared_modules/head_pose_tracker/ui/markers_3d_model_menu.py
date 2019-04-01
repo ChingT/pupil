@@ -101,7 +101,6 @@ class Markers3DModelMenu(plugin_ui.StorageMenu):
             "optimize_camera_intrinsics",
             markers_3d_model,
             label="Optimize camera intrinsics",
-            setter=self._on_optimize_camera_intrinsics_changed,
         )
 
     def _create_calculate_button(self, markers_3d_model):
@@ -153,9 +152,6 @@ class Markers3DModelMenu(plugin_ui.StorageMenu):
             self.item
         )
         self.render()
-
-    def _on_optimize_camera_intrinsics_changed(self, new_value):
-        self.item.optimize_camera_intrinsics = new_value
 
     def _on_click_calculate(self):
         self._markers_3d_model_controller.calculate()

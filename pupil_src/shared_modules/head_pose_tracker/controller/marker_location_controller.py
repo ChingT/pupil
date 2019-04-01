@@ -35,8 +35,7 @@ class MarkerLocationController(Observable):
 
     def _create_detection_task(self):
         def on_yield_location(marker_location):
-            self._marker_location_storage[marker_location.frame_index] = marker_location
-            self.on_marker_detection_yield()
+            self._marker_location_storage.add(marker_location)
 
         def on_completed_location(_):
             self._marker_location_storage.save_to_disk()
@@ -58,9 +57,8 @@ class MarkerLocationController(Observable):
         logger.info("Start marker detection")
 
     def cancel_detection(self):
-        if not self._task:
-            raise ValueError("No detection task running!")
-        self._task.cancel_gracefully()
+        if self.is_running_detection:
+            self._task.kill(None)
 
     @property
     def is_running_detection(self):
@@ -68,12 +66,9 @@ class MarkerLocationController(Observable):
 
     @property
     def detection_progress(self):
-        return self._task.progress if self._task else 0.0
+        return self._task.progress if self.is_running_detection else 0.0
 
     def on_marker_detection_started(self):
-        pass
-
-    def on_marker_detection_yield(self):
         pass
 
     def on_marker_detection_ended(self):

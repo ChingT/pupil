@@ -51,3 +51,5 @@ def _detect_apriltags(source_path, shared_memory):
 
         if marker_detection:
             yield model.MarkerLocation(marker_detection, frame.index, frame.timestamp)
+        else:
+            yield None

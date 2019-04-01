@@ -61,10 +61,7 @@ class MarkerLocationRenderer:
 
     def _get_current_markers(self):
         current_index = self._get_current_frame_index()
-        try:
-            return self._marker_location_storage[current_index].marker_detection
-        except AttributeError:
-            return {}
+        return self._marker_location_storage.get(current_index)
 
     def _get_marker_id_optimized(self):
         try:

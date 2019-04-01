@@ -24,9 +24,6 @@ class MarkerLocationTimeline:
             "on_marker_detection_started", self._on_marker_detection_started
         )
         marker_location_controller.add_observer(
-            "on_marker_detection_yield", self._on_marker_detection_yield
-        )
-        marker_location_controller.add_observer(
             "on_marker_detection_ended", self._on_marker_detection_ended
         )
 
@@ -48,9 +45,6 @@ class MarkerLocationTimeline:
         return BarsElementTs(bar_positions, color_rgba=(1.0, 1.0, 1.0, 0.5))
 
     def _on_marker_detection_started(self):
-        self.render_parent_timeline()
-
-    def _on_marker_detection_yield(self):
         self.render_parent_timeline()
 
     def _on_marker_detection_ended(self):

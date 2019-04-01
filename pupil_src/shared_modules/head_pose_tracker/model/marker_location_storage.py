@@ -37,7 +37,14 @@ class MarkerLocationStorage(model.storage.SingleFileStorage, Observable):
         self._load_from_disk()
 
     def add(self, marker_location):
-        self._marker_locations[marker_location.frame_index] = marker_location
+        if marker_location:
+            self._marker_locations[marker_location.frame_index] = marker_location
+
+    def get(self, frame_index):
+        try:
+            return self._marker_locations[frame_index].marker_detection
+        except KeyError:
+            return {}
 
     @property
     def _storage_file_name(self):
@@ -50,12 +57,6 @@ class MarkerLocationStorage(model.storage.SingleFileStorage, Observable):
     @property
     def items(self):
         return self._marker_locations.values()
-
-    def __setitem__(self, frame_index, marker_location):
-        self._marker_locations[frame_index] = marker_location
-
-    def __getitem__(self, frame_index):
-        return self._marker_locations.get(frame_index, None)
 
     def __len__(self):
         return len(self._marker_locations)

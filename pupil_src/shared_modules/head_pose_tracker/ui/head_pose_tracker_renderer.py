@@ -71,10 +71,7 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
 
     def _get_current_markers(self):
         current_index = self._get_current_frame_index()
-        try:
-            return self._marker_location_storage[current_index].marker_detection
-        except AttributeError:
-            return {}
+        return self._marker_location_storage.get(current_index)
 
     def _render_markers(self, marker_id_to_points_3d, current_markers):
         for marker_id, points_3d in marker_id_to_points_3d.items():

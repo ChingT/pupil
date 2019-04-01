@@ -9,14 +9,17 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+from plugin_timeline import (
+    Row,
+    RangeElementFrameIdx,
+    RangeElementFramePerc,
+    BarsElementTs,
+)
+
 
 class OfflineHeadPoseTrackerTimeline:
     def __init__(
-        self,
-        plugin_timeline,
-        marker_location_timeline,
-        camera_localizer_timeline,
-        plugin,
+        self, plugin_timeline, marker_location_timeline, camera_localizer_timeline
     ):
         self._plugin_timeline = plugin_timeline
         self._marker_location_timeline = marker_location_timeline
@@ -25,14 +28,86 @@ class OfflineHeadPoseTrackerTimeline:
         marker_location_timeline.render_parent_timeline = self.render
         camera_localizer_timeline.render_parent_timeline = self.render
 
-        plugin.add_observer("init_ui", self._on_init_ui)
-
     def render(self):
         self._plugin_timeline.clear_rows()
         self._plugin_timeline.add_row(self._marker_location_timeline.create_row())
-        for row in self._camera_localizer_timeline.create_rows():
-            self._plugin_timeline.add_row(row)
+        self._plugin_timeline.add_row(self._camera_localizer_timeline.create_row())
         self._plugin_timeline.refresh()
 
-    def _on_init_ui(self):
-        self.render()
+
+class MarkerLocationTimeline:
+    timeline_label = "Marker detection"
+
+    def __init__(self, marker_location_controller, marker_location_storage):
+        self.render_parent_timeline = None
+
+        self._marker_location_controller = marker_location_controller
+        self._marker_location_storage = marker_location_storage
+
+        marker_location_controller.add_observer(
+            "on_marker_detection_ended", self._on_marker_detection_ended
+        )
+        marker_location_storage.add_observer("add", self._on_storage_changed)
+
+    def create_row(self):
+        elements = [
+            self._create_marker_location_bars(),
+            self._create_progress_indication(),
+        ]
+        return Row(label=self.timeline_label, elements=elements)
+
+    def _create_marker_location_bars(self):
+        bar_positions = [ref.timestamp for ref in self._marker_location_storage]
+        return BarsElementTs(bar_positions, color_rgba=(1.0, 1.0, 1.0, 0.5))
+
+    def _create_progress_indication(self):
+        progress = self._marker_location_controller.detection_progress
+        return RangeElementFramePerc(
+            from_perc=0, to_perc=progress, color_rgba=(1.0, 0.5, 0.5, 0.5)
+        )
+
+    def _on_storage_changed(self, *args, **kwargs):
+        self.render_parent_timeline()
+
+    def _on_marker_detection_ended(self):
+        self.render_parent_timeline()
+
+
+class CameraLocalizerTimeline:
+    timeline_label = "Camera localization"
+
+    def __init__(self, camera_localizer_controller, camera_localizer_storage):
+        self.render_parent_timeline = None
+
+        camera_localizer_controller.add_observer(
+            "set_range_from_current_trim_marks", self._on_ranges_changed
+        )
+        camera_localizer_controller.add_observer(
+            "save_pose_bisector", self._on_storage_changed
+        )
+        camera_localizer_storage.add_observer("add", self._on_data_changed)
+
+        self._camera_localizer = camera_localizer_storage.item
+
+    def create_row(self):
+        elements = [self._create_localization_range()]
+        rows = Row(label=self.timeline_label, elements=elements)
+        return rows
+
+    def _create_localization_range(self):
+        from_idx, to_idx = self._camera_localizer.localization_index_range
+        color = (
+            (0.6, 0.8, 0.4, 0.8)
+            if self._camera_localizer.calculate_complete
+            else (0.6, 0.8, 0.4, 0.4)
+        )
+        return RangeElementFrameIdx(from_idx, to_idx, color_rgba=color)
+
+    def _on_ranges_changed(self):
+        self.render_parent_timeline()
+
+    def _on_data_changed(self):
+        self.render_parent_timeline()
+
+    def _on_storage_changed(self, *args, **kwargs):
+        self.render_parent_timeline()

@@ -125,7 +125,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._marker_location_controller, self._marker_location_storage
         )
         self._camera_localizer_timeline = plugin_ui.CameraLocalizerTimeline(
-            self._camera_localizer_storage, self._camera_localizer_controller
+            self._camera_localizer_controller, self._camera_localizer_storage
         )
         plugin_timeline = PluginTimeline(
             plugin=self,
@@ -137,7 +137,6 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             plugin_timeline,
             self._marker_location_timeline,
             self._camera_localizer_timeline,
-            plugin=self,
         )
 
     def _inject_plugin_dependencies(self):

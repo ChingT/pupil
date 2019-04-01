@@ -87,13 +87,13 @@ class Markers3DModelStorage(model.storage.Storage, Observable):
     def add(self, markers_3d_model):
         self._markers_3d_model = markers_3d_model
 
-    def rename(self, markers_3d_model, new_name):
+    def rename(self, new_name):
         old_markers_3d_model_file_path = self._markers_3d_model_file_path(
-            markers_3d_model
+            self._markers_3d_model
         )
-        markers_3d_model.name = new_name
+        self._markers_3d_model.name = new_name
         new_markers_3d_model_file_path = self._markers_3d_model_file_path(
-            markers_3d_model
+            self._markers_3d_model
         )
         try:
             os.rename(old_markers_3d_model_file_path, new_markers_3d_model_file_path)

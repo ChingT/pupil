@@ -9,7 +9,6 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from head_pose_tracker.ui.storage_menu import StorageMenu
 from head_pose_tracker.ui.gl_window import GLWindow
 from head_pose_tracker.ui import gl_renderer_utils
 

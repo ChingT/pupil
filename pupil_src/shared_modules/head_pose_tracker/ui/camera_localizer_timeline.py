@@ -47,9 +47,9 @@ class CameraLocalizerTimeline:
     def _on_localizer_storage_changed(self, *args, **kwargs):
         self.render_parent_timeline()
 
-    def _on_localizer_ranges_changed(self, _):
+    def _on_localizer_ranges_changed(self):
         self.render_parent_timeline()
 
-    def _on_localizer_data_changed(self, _):
+    def _on_localizer_data_changed(self):
         """Triggered when localization tasks are complete"""
         self.render_parent_timeline()

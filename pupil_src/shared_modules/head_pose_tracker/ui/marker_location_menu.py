@@ -13,10 +13,13 @@ from pyglui import ui
 
 
 class MarkerLocationMenu:
+    menu_label = "Marker Detection"
+
     def __init__(self, marker_location_controller):
         self._marker_location_controller = marker_location_controller
 
-        self.menu = ui.Growing_Menu("Marker Detection")
+        self.menu = ui.Growing_Menu(self.menu_label)
+        self.menu.collapsed = False
 
         marker_location_controller.add_observer(
             "on_marker_detection_started", self._on_marker_detection_started
@@ -27,7 +30,10 @@ class MarkerLocationMenu:
 
     def render(self):
         self.menu.elements.clear()
-        self.menu.extend([self._create_toggle_marker_detection_button()])
+        self._render_custom_ui()
+
+    def _render_custom_ui(self):
+        self.menu.elements.extend([self._create_toggle_marker_detection_button()])
 
     def _create_toggle_marker_detection_button(self):
         if self._marker_location_controller.is_running_detection:

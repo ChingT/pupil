@@ -25,15 +25,10 @@ class Markers3DModelMenu(plugin_ui.StorageMenu):
         self._markers_3d_model_controller = markers_3d_model_controller
         self._index_range_as_str = index_range_as_str
 
-        self.menu.collapsed = False
-
         markers_3d_model_controller.add_observer(
             "on_building_markers_3d_model_completed",
             self._on_building_markers_3d_model_completed,
         )
-
-    def _item_label(self, markers_3d_model):
-        return markers_3d_model.name
 
     def _render_custom_ui(self, markers_3d_model, menu):
         if not self._markers_3d_model_controller.is_from_same_recording(
@@ -93,7 +88,7 @@ class Markers3DModelMenu(plugin_ui.StorageMenu):
         return ui.Button(
             outer_label=range_string,
             label="Set From Trim Marks",
-            function=self._on_set_index_range_from_trim_marks,
+            function=lambda: self._on_set_index_range_from_trim_marks(markers_3d_model),
         )
 
     def _create_optimize_camera_intrinsics_switch(self, markers_3d_model):
@@ -106,7 +101,7 @@ class Markers3DModelMenu(plugin_ui.StorageMenu):
     def _create_calculate_button(self, markers_3d_model):
         return ui.Button(
             label="Recalculate" if markers_3d_model.result else "Calculate",
-            function=self._on_click_calculate,
+            function=lambda: self._on_click_calculate(markers_3d_model),
         )
 
     def _create_status_display(self, markers_3d_model):
@@ -125,15 +120,6 @@ class Markers3DModelMenu(plugin_ui.StorageMenu):
     def _create_show_marker_id_switch(self, markers_3d_model):
         return ui.Switch("show_marker_id", markers_3d_model, label="Show Marker IDs")
 
-    def _render_ui_online_markers_3d_model(self, menu):
-        menu.append(ui.Info_Text(self._info_text_for_online_markers_3d_model()))
-
-    def _info_text_for_online_markers_3d_model(self):
-        return (
-            "This Markers 3D Model was created before or during the recording. "
-            "It is ready to be used in camera localizers."
-        )
-
     @staticmethod
     def _get_origin_marker_id(markers_3d_model):
         if markers_3d_model.result:
@@ -147,14 +133,14 @@ class Markers3DModelMenu(plugin_ui.StorageMenu):
         # is not refreshed
         self.render()
 
-    def _on_set_index_range_from_trim_marks(self):
-        self._markers_3d_model_controller.set_markers_3d_model_range_from_current_trim_marks(
-            self.item
+    def _on_set_index_range_from_trim_marks(self, markers_3d_model):
+        self._markers_3d_model_controller.set_range_from_current_trim_marks(
+            markers_3d_model
         )
         self.render()
 
-    def _on_click_calculate(self):
-        self._markers_3d_model_controller.calculate()
+    def _on_click_calculate(self, markers_3d_model):
+        self._markers_3d_model_controller.calculate(markers_3d_model)
         self.render()
 
     def _on_building_markers_3d_model_completed(self):

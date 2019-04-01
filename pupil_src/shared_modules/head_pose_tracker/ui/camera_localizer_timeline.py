@@ -18,8 +18,7 @@ class CameraLocalizerTimeline:
 
         camera_localizer_storage.add_observer("add", self._on_localizer_storage_changed)
         camera_localizer_controller.add_observer(
-            "set_localization_range_from_current_trim_marks",
-            self._on_localizer_ranges_changed,
+            "set_range_from_current_trim_marks", self._on_localizer_ranges_changed
         )
         camera_localizer_controller.add_observer(
             "save_pose_bisector", self._on_localizer_data_changed
@@ -53,7 +52,4 @@ class CameraLocalizerTimeline:
 
     def _on_localizer_data_changed(self, _):
         """Triggered when localization tasks are complete"""
-        self.render_parent_timeline()
-
-    def _on_markers_3d_model_range_changed(self, _):
         self.render_parent_timeline()

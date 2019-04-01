@@ -17,6 +17,7 @@ from pyglui import ui
 class StorageMenu(abc.ABC):
     def __init__(self, storage):
         self.menu = ui.Growing_Menu(self.menu_label)
+        self.menu.collapsed = False
 
         self._storage = storage
         self.item = self.items[0]
@@ -30,19 +31,11 @@ class StorageMenu(abc.ABC):
     def _render_custom_ui(self, item, menu):
         pass
 
-    @abc.abstractmethod
-    def _item_label(self, item):
-        pass
-
     @property
     def items(self):
         # storages are just iterable, but we need things like len() and
         # access by index, so we return a list
         return [item for item in self._storage]
-
-    @property
-    def item_labels(self):
-        return [self._item_label(item) for item in self._storage]
 
     def render(self):
         self.menu.elements.clear()

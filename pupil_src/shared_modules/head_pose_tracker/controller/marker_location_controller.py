@@ -28,7 +28,7 @@ class MarkerLocationController(Observable):
         if len(self._marker_location_storage) == 0:
             self.start_detection()
         else:
-            self.on_marker_detection_had_completed_before()
+            self.on_marker_detection_ended()
 
     def start_detection(self):
         self._create_detection_task()
@@ -69,9 +69,6 @@ class MarkerLocationController(Observable):
     @property
     def detection_progress(self):
         return self._task.progress if self._task else 0.0
-
-    def on_marker_detection_had_completed_before(self):
-        pass
 
     def on_marker_detection_started(self):
         pass

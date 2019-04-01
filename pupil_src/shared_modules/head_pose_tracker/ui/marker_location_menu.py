@@ -17,7 +17,6 @@ class MarkerLocationMenu:
         self._marker_location_controller = marker_location_controller
 
         self.menu = ui.Growing_Menu("Marker Detection")
-        self.menu.collapsed = False
 
         marker_location_controller.add_observer(
             "on_marker_detection_started", self._on_marker_detection_started

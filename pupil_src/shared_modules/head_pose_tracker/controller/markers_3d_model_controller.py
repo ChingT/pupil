@@ -78,15 +78,24 @@ class Markers3DModelController(Observable):
             self._update_result(self._markers_3d_model, result)
 
         def on_completed_markers_3d_model(_):
-            self._markers_3d_model.status = "Building markers 3d model successfully"
-            self._markers_3d_model_storage.save_to_disk()
-            self._camera_intrinsics.save(self._rec_dir)
-            logger.info(
-                "Complete building markers 3d model for '{}'".format(
-                    self._markers_3d_model.name
+            if self._markers_3d_model.result:
+                self._markers_3d_model.status = "Building markers 3d model successfully"
+                self._camera_intrinsics.save(self._rec_dir)
+                logger.info(
+                    "Complete building markers 3d model '{}'".format(
+                        self._markers_3d_model.name
+                    )
                 )
-            )
-            self.on_building_markers_3d_model_completed()
+                self.on_building_markers_3d_model_completed()
+            else:
+                self._markers_3d_model.status = "Building markers 3d model failed"
+                logger.info(
+                    "Building markers 3d model '{}' failed".format(
+                        self._markers_3d_model.name
+                    )
+                )
+
+            self._markers_3d_model_storage.save_to_disk()
 
         self._task = worker.create_markers_3d_model.create_task(
             self._markers_3d_model, self._marker_location_storage
@@ -97,9 +106,7 @@ class Markers3DModelController(Observable):
         self._task.add_observer("on_started", self.on_building_markers_3d_model_started)
         self._task_manager.add_task(self._task)
         logger.info(
-            "Start building markers 3d model for '{}'".format(
-                self._markers_3d_model.name
-            )
+            "Start building markers 3d model '{}'".format(self._markers_3d_model.name)
         )
 
     def _update_result(self, markers_3d_model, result):

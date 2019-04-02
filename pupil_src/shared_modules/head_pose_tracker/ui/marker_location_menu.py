@@ -15,8 +15,12 @@ from pyglui import ui
 class MarkerLocationMenu:
     menu_label = "Marker Detection"
 
-    def __init__(self, marker_location_controller):
+    def __init__(
+        self, marker_location_controller, marker_location_storage, index_range_as_str
+    ):
         self._marker_location_controller = marker_location_controller
+        self._index_range_as_str = index_range_as_str
+        self._marker_locations = marker_location_storage.item
 
         self.menu = ui.Growing_Menu(self.menu_label)
         self.menu.collapsed = False
@@ -33,7 +37,22 @@ class MarkerLocationMenu:
         self._render_custom_ui()
 
     def _render_custom_ui(self):
-        self.menu.elements.extend([self._create_toggle_marker_detection_button()])
+        self.menu.elements.extend(
+            [
+                self._create_range_selector(),
+                self._create_toggle_marker_detection_button(),
+            ]
+        )
+
+    def _create_range_selector(self):
+        range_string = "Detect Markers in: " + self._index_range_as_str(
+            self._marker_locations.frame_index_range
+        )
+        return ui.Button(
+            outer_label=range_string,
+            label="Set From Trim Marks",
+            function=self._on_set_index_range_from_trim_marks,
+        )
 
     def _create_toggle_marker_detection_button(self):
         if self._marker_location_controller.is_running_detection:
@@ -42,6 +61,10 @@ class MarkerLocationMenu:
             return ui.Button(
                 "Detect Apriltags in Recording", self._on_click_start_marker_detection
             )
+
+    def _on_set_index_range_from_trim_marks(self):
+        self._marker_location_controller.set_range_from_current_trim_marks()
+        self.render()
 
     def _on_click_start_marker_detection(self):
         self._marker_location_controller.start_detection()

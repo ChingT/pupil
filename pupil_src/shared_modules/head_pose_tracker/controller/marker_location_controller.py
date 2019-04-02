@@ -19,23 +19,29 @@ logger = logging.getLogger(__name__)
 
 
 class MarkerLocationController(Observable):
-    def __init__(self, marker_location_storage, task_manager):
+    def __init__(
+        self, marker_location_storage, task_manager, get_current_trim_mark_range
+    ):
         self._marker_location_storage = marker_location_storage
         self._task_manager = task_manager
+        self._get_current_trim_mark_range = get_current_trim_mark_range
+
+        self._marker_locations = marker_location_storage.item
         self._task = None
 
     def init_detection(self):
-        if len(self._marker_location_storage) == 0:
-            self.start_detection()
-        else:
+        if self._marker_locations.calculate_complete:
             self.on_marker_detection_ended()
+        else:
+            self.start_detection()
 
     def start_detection(self):
         self._create_detection_task()
 
     def _create_detection_task(self):
         def on_yield_location(marker_location):
-            self._marker_location_storage.add(marker_location)
+            self._marker_locations[marker_location["frame_index"]] = marker_location
+            self.on_marker_detection_yield()
 
         def on_completed_location(_):
             self._marker_location_storage.save_to_disk()
@@ -69,6 +75,9 @@ class MarkerLocationController(Observable):
         return self._task.progress if self.is_running_detection else 0.0
 
     def on_marker_detection_started(self):
+        pass
+
+    def on_marker_detection_yield(self):
         pass
 
     def on_marker_detection_ended(self):

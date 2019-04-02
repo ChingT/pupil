@@ -29,7 +29,7 @@ class MarkerLocationRenderer:
         plugin,
         get_current_frame_index,
     ):
-        self._marker_location_storage = marker_location_storage
+        self._marker_locations = marker_location_storage.item
         self._markers_3d_model = markers_3d_model_storage.item
         self._get_current_frame_index = get_current_frame_index
 
@@ -61,7 +61,7 @@ class MarkerLocationRenderer:
 
     def _get_current_markers(self):
         current_index = self._get_current_frame_index()
-        return self._marker_location_storage.get(current_index)
+        return self._marker_locations[current_index]
 
     def _get_marker_id_optimized(self):
         try:

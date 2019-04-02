@@ -29,7 +29,7 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
     ):
         super().__init__(plugin)
 
-        self._marker_location_storage = marker_location_storage
+        self._marker_locations = marker_location_storage.item
         self._camera_intrinsics = camera_intrinsics
         self._plugin = plugin
         self._get_current_frame_index = get_current_frame_index
@@ -71,7 +71,7 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
 
     def _get_current_markers(self):
         current_index = self._get_current_frame_index()
-        return self._marker_location_storage.get(current_index)
+        return self._marker_locations[current_index]
 
     def _render_markers(self, marker_id_to_points_3d, current_markers):
         for marker_id, points_3d in marker_id_to_points_3d.items():

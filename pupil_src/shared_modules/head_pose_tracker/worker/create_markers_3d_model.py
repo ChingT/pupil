@@ -24,9 +24,9 @@ def create_task(markers_3d_model, all_marker_locations):
     frame_end = markers_3d_model.frame_index_range[1]
 
     ref_dicts_in_opt_range = [
-        _create_ref_dict(ref)
-        for ref in all_marker_locations
-        if frame_start <= ref.frame_index <= frame_end
+        marker_detection
+        for frame_index, marker_detection in all_marker_locations.items()
+        if frame_start <= frame_index <= frame_end
     ]
 
     args = (
@@ -45,6 +45,7 @@ def create_task(markers_3d_model, all_marker_locations):
 
 
 def _create_ref_dict(ref):
+    print("ref", ref)
     return {"marker_detection": ref.marker_detection, "timestamp": ref.timestamp}
 
 

@@ -11,7 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 
 import tasklib.background
 import tasklib.background.patches as bg_patches
-from head_pose_tracker import model
+
 
 g_pool = None  # set by the plugin
 
@@ -46,10 +46,11 @@ def _detect_apriltags(source_path, shared_memory):
         except video_capture.EndofVideoError:
             break
 
-        marker_detection = _detector.detect(frame.gray)
         shared_memory.progress = (frame.index + 1) / frame_count
 
-        if marker_detection:
-            yield model.MarkerLocation(marker_detection, frame.index, frame.timestamp)
-        else:
-            yield None
+        marker_detection = _detector.detect(frame.gray)
+        yield {
+            "marker_detection": marker_detection,
+            "timestamp": frame.timestamp,
+            "frame_index": frame.index,
+        }

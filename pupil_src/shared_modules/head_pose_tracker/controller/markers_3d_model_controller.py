@@ -31,7 +31,6 @@ class Markers3DModelController(Observable):
         rec_dir,
     ):
         self._markers_3d_model_storage = markers_3d_model_storage
-        self._marker_location_storage = marker_location_storage
         self._camera_intrinsics = camera_intrinsics
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
@@ -40,6 +39,7 @@ class Markers3DModelController(Observable):
         self._task = None
 
         self._markers_3d_model = self._markers_3d_model_storage.item
+        self._marker_locations = marker_location_storage.item
 
         marker_location_controller.add_observer(
             "on_marker_detection_ended", self._on_marker_detection_ended
@@ -91,7 +91,7 @@ class Markers3DModelController(Observable):
             self._markers_3d_model_storage.save_to_disk()
 
         self._task = worker.create_markers_3d_model.create_task(
-            self._markers_3d_model, self._marker_location_storage
+            self._markers_3d_model, self._marker_locations.detections
         )
         self._task.add_observer("on_yield", on_yield_markers_3d_model)
         self._task.add_observer("on_completed", on_completed_markers_3d_model)

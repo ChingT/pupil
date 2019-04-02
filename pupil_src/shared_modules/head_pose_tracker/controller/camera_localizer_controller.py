@@ -29,13 +29,13 @@ class CameraLocalizerController(Observable):
         task_manager,
         get_current_trim_mark_range,
     ):
-        self._marker_location_storage = marker_location_storage
         self._markers_3d_model_storage = markers_3d_model_storage
         self._camera_localizer_storage = camera_localizer_storage
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
 
         self._camera_localizer = camera_localizer_storage.item
+        self._marker_locations = marker_location_storage.item
 
         self._task = None
         self.pose = []
@@ -115,7 +115,7 @@ class CameraLocalizerController(Observable):
             self.on_camera_localization_completed()
 
         self._task = worker.localize_pose.create_task(
-            self._camera_localizer, markers_3d_model, self._marker_location_storage
+            self._camera_localizer, markers_3d_model, self._marker_locations.detections
         )
         self._task.add_observer("on_yield", on_yield_pose)
         self._task.add_observer("on_completed", on_completed_localization)

@@ -42,8 +42,11 @@ class MarkerLocationTimeline:
         self.render_parent_timeline = None
 
         self._marker_location_controller = marker_location_controller
-        self._marker_location_storage = marker_location_storage
+        self._marker_locations = marker_location_storage.item
 
+        marker_location_controller.add_observer(
+            "on_marker_detection_yield", self.on_marker_detection_yield
+        )
         marker_location_controller.add_observer(
             "on_marker_detection_ended", self._on_marker_detection_ended
         )
@@ -57,7 +60,11 @@ class MarkerLocationTimeline:
         return Row(label=self.timeline_label, elements=elements)
 
     def _create_marker_location_bars(self):
-        bar_positions = [ref.timestamp for ref in self._marker_location_storage]
+        bar_positions = [
+            ref["timestamp"]
+            for ref in self._marker_locations.detections.values()
+            if ref["marker_detection"]
+        ]
         return BarsElementTs(bar_positions, color_rgba=(1.0, 1.0, 1.0, 0.5))
 
     def _create_progress_indication(self):
@@ -67,6 +74,9 @@ class MarkerLocationTimeline:
         )
 
     def _on_storage_changed(self, *args, **kwargs):
+        self.render_parent_timeline()
+
+    def on_marker_detection_yield(self):
         self.render_parent_timeline()
 
     def _on_marker_detection_ended(self):
@@ -83,9 +93,9 @@ class CameraLocalizerTimeline:
             "set_range_from_current_trim_marks", self._on_ranges_changed
         )
         camera_localizer_controller.add_observer(
-            "save_pose_bisector", self._on_storage_changed
+            "save_pose_bisector", self._on_data_changed
         )
-        camera_localizer_storage.add_observer("add", self._on_data_changed)
+        camera_localizer_storage.add_observer("add", self._on_storage_changed)
 
         self._camera_localizer = camera_localizer_storage.item
 

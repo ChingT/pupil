@@ -99,10 +99,9 @@ class CameraLocalizerController(Observable):
         self._camera_localizer.status = "Not calculated yet"
 
     def _create_localization_task(self):
-        def on_yield(timestamp_and_data):
-            timestamp, pose_data = timestamp_and_data
-            self.pose.append(pose_data)
-            self.pose_ts.append(timestamp)
+        def on_yield(data):
+            self.pose.append(data)
+            self.pose_ts.append(data["timestamp"])
             self._camera_localizer.status = "{:.0f}% completed".format(
                 self._task.progress * 100
             )

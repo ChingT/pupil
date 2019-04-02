@@ -22,7 +22,7 @@ def create_task(marker_locations, markers_3d_model, camera_localizer):
     assert g_pool, "You forgot to set g_pool by the plugin"
 
     frame_start, frame_end = camera_localizer.frame_index_range
-    ref_dicts_in_loc_range = [
+    marker_locations_in_loc_range = [
         marker_location
         for marker_location in marker_locations.result.values()
         if frame_start <= marker_location["frame_index"] <= frame_end
@@ -30,7 +30,7 @@ def create_task(marker_locations, markers_3d_model, camera_localizer):
     ]
 
     args = (
-        ref_dicts_in_loc_range,
+        marker_locations_in_loc_range,
         g_pool.capture.intrinsics,
         markers_3d_model.result["marker_id_to_extrinsics"],
     )
@@ -45,16 +45,19 @@ def create_task(marker_locations, markers_3d_model, camera_localizer):
 
 
 def _localize_pose(
-    ref_dicts_in_loc_range, camera_intrinsics, marker_id_to_extrinsics, shared_memory
+    marker_locations_in_loc_range,
+    camera_intrinsics,
+    marker_id_to_extrinsics,
+    shared_memory,
 ):
     camera_extrinsics_prv = None
     not_localized_count = 0
-    for idx_incoming, ref in enumerate(ref_dicts_in_loc_range):
-        shared_memory.progress = (idx_incoming + 1) / len(ref_dicts_in_loc_range)
+    for idx, marker_location in enumerate(marker_locations_in_loc_range):
+        shared_memory.progress = (idx + 1) / len(marker_locations_in_loc_range)
 
         camera_extrinsics = worker.solvepnp.calculate(
             camera_intrinsics,
-            ref["markers"],
+            marker_location["markers"],
             marker_id_to_extrinsics,
             camera_extrinsics_prv=camera_extrinsics_prv,
             min_n_markers_per_frame=1,
@@ -70,9 +73,9 @@ def _localize_pose(
                 "camera_poses": camera_poses.tolist(),
                 "camera_trace": camera_trace.tolist(),
                 "camera_pose_matrix": camera_pose_matrix.tolist(),
-                "timestamp": ref["timestamp"],
+                "timestamp": marker_location["timestamp"],
             }
-            yield ref["timestamp"], fm.Serialized_Dict(camera_pose_data)
+            yield fm.Serialized_Dict(camera_pose_data)
 
             camera_extrinsics_prv = camera_extrinsics
             not_localized_count = 0

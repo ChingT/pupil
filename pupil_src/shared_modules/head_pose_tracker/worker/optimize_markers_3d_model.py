@@ -21,7 +21,7 @@ def create_task(marker_locations, markers_3d_model):
     assert g_pool, "You forgot to set g_pool by the plugin"
 
     frame_start, frame_end = markers_3d_model.frame_index_range
-    ref_dicts_in_opt_range = [
+    marker_locations_in_opt_range = [
         marker_location
         for marker_location in marker_locations.result.values()
         if frame_start <= marker_location["frame_index"] <= frame_end
@@ -29,7 +29,7 @@ def create_task(marker_locations, markers_3d_model):
     ]
 
     args = (
-        ref_dicts_in_opt_range,
+        marker_locations_in_opt_range,
         g_pool.capture.intrinsics,
         markers_3d_model.optimize_camera_intrinsics,
     )
@@ -44,7 +44,10 @@ def create_task(marker_locations, markers_3d_model):
 
 
 def _optimize_markers_3d_model(
-    ref_dicts_in_opt_range, camera_intrinsics, optimize_camera_intrinsics, shared_memory
+    marker_locations_in_opt_range,
+    camera_intrinsics,
+    optimize_camera_intrinsics,
+    shared_memory,
 ):
     n_key_markers_added_once = 25
     storage = model.OptimizationStorage(predetermined_origin_marker_id=None)
@@ -54,8 +57,8 @@ def _optimize_markers_3d_model(
         camera_intrinsics, optimize_camera_intrinsics
     )
 
-    for ref in ref_dicts_in_opt_range:
-        pick_key_markers.run(ref["markers"], ref["timestamp"])
+    for marker_location in marker_locations_in_opt_range:
+        pick_key_markers.run(marker_location["markers"], marker_location["timestamp"])
 
     optimization_times = len(storage.all_key_markers) // n_key_markers_added_once + 5
     for _iter in range(optimization_times):

@@ -39,9 +39,8 @@ class MarkerLocationController(Observable):
         self._create_detection_task()
 
     def _create_detection_task(self):
-        def on_yield(index_and_data):
-            frame_index, detection_data = index_and_data
-            self._marker_locations.result[frame_index] = detection_data
+        def on_yield(data):
+            self._marker_locations.result[data["frame_index"]] = data
             self.on_marker_detection_yield()
 
         def on_completed(_):

@@ -37,13 +37,13 @@ class Markers3DModelMenu:
         self._render_custom_ui()
 
     def _render_custom_ui(self):
-        if not self._markers_3d_model_controller.is_from_same_recording():
+        if self._markers_3d_model_storage.is_from_same_recording:
             self.menu.elements.extend(
-                self._render_ui_markers_3d_model_from_other_recording()
+                self._render_ui_markers_3d_model_from_same_recording()
             )
         else:
             self.menu.elements.extend(
-                self._render_ui_markers_3d_model_from_same_recording()
+                self._render_ui_markers_3d_model_from_other_recording()
             )
         self.menu.elements.extend(self._render_ui_for_both_case())
 

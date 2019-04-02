@@ -86,7 +86,7 @@ class Markers3DModelStorage(model.Storage, Observable):
         return file_path
 
     def save_to_disk(self):
-        if self._from_same_recording:
+        if self.is_from_same_recording:
             super().save_to_disk()
 
     def _create_default_item(self):
@@ -119,7 +119,7 @@ class Markers3DModelStorage(model.Storage, Observable):
             pass
 
     @property
-    def _from_same_recording(self):
+    def is_from_same_recording(self):
         # There is a very similar, but public method in the Markers3DModelController.
         # This method only exists because its extremely inconvenient to access
         # controllers from storages and the logic is very simple.

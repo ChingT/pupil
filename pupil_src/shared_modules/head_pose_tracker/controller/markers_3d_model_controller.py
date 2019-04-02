@@ -120,12 +120,3 @@ class Markers3DModelController(Observable):
 
     def set_range_from_current_trim_marks(self):
         self._markers_3d_model.frame_index_range = self._get_current_trim_mark_range()
-
-    def is_from_same_recording(self):
-        """
-        False if the markers_3d_model file was copied from another recording directory
-        """
-        return (
-            self._markers_3d_model is not None
-            and self._markers_3d_model.recording_uuid == self._recording_uuid
-        )

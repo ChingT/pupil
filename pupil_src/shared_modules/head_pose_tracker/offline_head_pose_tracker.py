@@ -156,9 +156,6 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         create_markers_3d_model.g_pool = self.g_pool
         localize_pose.g_pool = self.g_pool
 
-    def _seek_to_frame(self, frame_index):
-        self.notify_all({"subject": "seek_control.should_seek", "index": frame_index})
-
     def _recording_index_range(self):
         left_index = 0
         right_index = len(self.g_pool.timestamps) - 1

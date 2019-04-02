@@ -28,8 +28,8 @@ class Markers3DModelMenu:
         self._markers_3d_model = markers_3d_model_storage.item
 
         markers_3d_model_controller.add_observer(
-            "on_building_markers_3d_model_completed",
-            self._on_building_markers_3d_model_completed,
+            "on_markers_3d_model_optimization_completed",
+            self._on_markers_3d_model_optimization_completed,
         )
 
     def render(self):
@@ -153,5 +153,5 @@ class Markers3DModelMenu:
         self._markers_3d_model_controller.calculate()
         self.render()
 
-    def _on_building_markers_3d_model_completed(self):
+    def _on_markers_3d_model_optimization_completed(self):
         self.render()

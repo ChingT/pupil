@@ -148,12 +148,12 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
     def _inject_plugin_dependencies(self):
         from head_pose_tracker.worker import (
             detect_square_markers,
-            create_markers_3d_model,
+            optimize_markers_3d_model,
             localize_pose,
         )
 
         detect_square_markers.g_pool = self.g_pool
-        create_markers_3d_model.g_pool = self.g_pool
+        optimize_markers_3d_model.g_pool = self.g_pool
         localize_pose.g_pool = self.g_pool
 
     def _recording_index_range(self):

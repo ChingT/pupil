@@ -15,7 +15,7 @@ from head_pose_tracker import model
 from observable import Observable
 
 
-class MarkerLocation(model.StorageItem):
+class MarkerLocations(model.StorageItem):
     version = 1
 
     def __init__(self, frame_index_range, result):
@@ -24,7 +24,7 @@ class MarkerLocation(model.StorageItem):
 
     @staticmethod
     def from_tuple(tuple_):
-        return MarkerLocation(*tuple_)
+        return MarkerLocations(*tuple_)
 
     @property
     def as_tuple(self):
@@ -40,13 +40,13 @@ class MarkerLocationStorage(model.Storage, Observable):
         super().__init__(rec_dir, plugin, get_recording_index_range)
 
     def _create_default_item(self):
-        return MarkerLocation(
+        return MarkerLocations(
             frame_index_range=self._get_recording_index_range(), result={}
         )
 
     @property
     def _item_class(self):
-        return MarkerLocation
+        return MarkerLocations
 
     @property
     def _storage_folder_path(self):

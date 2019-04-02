@@ -23,10 +23,10 @@ def create_task(marker_locations, markers_3d_model, camera_localizer):
 
     frame_start, frame_end = camera_localizer.frame_index_range
     ref_dicts_in_loc_range = [
-        marker_detection
-        for frame_index, marker_detection in marker_locations.result.items()
-        if frame_start <= frame_index <= frame_end
-        and marker_detection["marker_detection"]
+        marker_location
+        for marker_location in marker_locations.result.values()
+        if frame_start <= marker_location["frame_index"] <= frame_end
+        and marker_location["markers"]
     ]
 
     args = (
@@ -54,7 +54,7 @@ def _localize_pose(
 
         camera_extrinsics = worker.solvepnp.calculate(
             camera_intrinsics,
-            ref["marker_detection"],
+            ref["markers"],
             marker_id_to_extrinsics,
             camera_extrinsics_prv=camera_extrinsics_prv,
             min_n_markers_per_frame=1,

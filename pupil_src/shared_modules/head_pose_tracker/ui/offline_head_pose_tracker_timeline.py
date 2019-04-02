@@ -61,7 +61,7 @@ class MarkerLocationTimeline:
         bar_positions = [
             ref["timestamp"]
             for ref in self._marker_locations.result.values()
-            if ref["marker_detection"]
+            if ref["markers"]
         ]
         return BarsElementTs(bar_positions, color_rgba=(1.0, 1.0, 1.0, 0.5))
 

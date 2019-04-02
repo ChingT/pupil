@@ -72,7 +72,7 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
     def _get_current_markers(self):
         current_index = self._get_current_frame_index()
         try:
-            return self._marker_locations.result[current_index]["marker_detection"]
+            return self._marker_locations.result[current_index]["markers"]
         except KeyError:
             return {}
 

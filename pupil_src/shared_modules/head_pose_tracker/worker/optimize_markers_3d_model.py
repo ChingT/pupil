@@ -22,10 +22,10 @@ def create_task(marker_locations, markers_3d_model):
 
     frame_start, frame_end = markers_3d_model.frame_index_range
     ref_dicts_in_opt_range = [
-        marker_detection
-        for frame_index, marker_detection in marker_locations.result.items()
-        if frame_start <= frame_index <= frame_end
-        and marker_detection["marker_detection"]
+        marker_location
+        for marker_location in marker_locations.result.values()
+        if frame_start <= marker_location["frame_index"] <= frame_end
+        and marker_location["markers"]
     ]
 
     args = (
@@ -36,14 +36,14 @@ def create_task(marker_locations, markers_3d_model):
     name = "Create calibration {}".format(markers_3d_model.name)
     return tasklib.background.create(
         name,
-        _create_markers_3d_model,
+        _optimize_markers_3d_model,
         args=args,
         patches=[bg_patches.IPCLoggingPatch()],
         pass_shared_memory=True,
     )
 
 
-def _create_markers_3d_model(
+def _optimize_markers_3d_model(
     ref_dicts_in_opt_range, camera_intrinsics, optimize_camera_intrinsics, shared_memory
 ):
     n_key_markers_added_once = 25
@@ -55,7 +55,7 @@ def _create_markers_3d_model(
     )
 
     for ref in ref_dicts_in_opt_range:
-        pick_key_markers.run(ref["marker_detection"], ref["timestamp"])
+        pick_key_markers.run(ref["markers"], ref["timestamp"])
 
     optimization_times = len(storage.all_key_markers) // n_key_markers_added_once + 5
     for _iter in range(optimization_times):

@@ -51,7 +51,7 @@ class Markers3DModelController(Observable):
 
     def calculate(self, check_complete=False):
         if check_complete and self._markers_3d_model.calculated:
-            self.on_building_markers_3d_model_had_completed_before()
+            self.on_markers_3d_model_optimization_had_completed_before()
         else:
             self._reset()
             self._create_optimize_markers_3d_model_task()
@@ -64,43 +64,46 @@ class Markers3DModelController(Observable):
         self._markers_3d_model.result = None
 
     def _create_optimize_markers_3d_model_task(self):
-        def on_yield_markers_3d_model(result):
+        def on_yield(result):
             self._update_result(result)
-            self._markers_3d_model.status = (
-                "Building markers 3d model {:.0f}% "
-                "complete".format(self._task.progress * 100)
+            self._markers_3d_model.status = "{:.0f}% completed".format(
+                self._task.progress * 100
             )
 
-        def on_completed_markers_3d_model(_):
-            if self._markers_3d_model.calculated:
-                self._markers_3d_model.status = "Building markers 3d model successfully"
+        def on_completed(_):
+            if self._markers_3d_model.result:
+                self._markers_3d_model.status = "successful"
                 self._camera_intrinsics.save(self._rec_dir)
                 logger.info(
-                    "Complete building markers 3d model '{}'".format(
+                    "markers 3d model '{}' optimization completed".format(
                         self._markers_3d_model.name
                     )
                 )
-                self.on_building_markers_3d_model_completed()
+                self.on_markers_3d_model_optimization_completed()
             else:
-                self._markers_3d_model.status = "Building markers 3d model failed"
+                self._markers_3d_model.status = "failed"
                 logger.info(
-                    "Building markers 3d model '{}' failed".format(
+                    "markers 3d model '{}' optimization failed".format(
                         self._markers_3d_model.name
                     )
                 )
 
             self._markers_3d_model_storage.save_to_disk()
 
-        self._task = worker.create_markers_3d_model.create_task(
+        self._task = worker.optimize_markers_3d_model.create_task(
             self._marker_locations, self._markers_3d_model
         )
-        self._task.add_observer("on_yield", on_yield_markers_3d_model)
-        self._task.add_observer("on_completed", on_completed_markers_3d_model)
+        self._task.add_observer("on_yield", on_yield)
+        self._task.add_observer("on_completed", on_completed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
-        self._task.add_observer("on_started", self.on_building_markers_3d_model_started)
+        self._task.add_observer(
+            "on_started", self.on_markers_3d_model_optimization_started
+        )
         self._task_manager.add_task(self._task)
         logger.info(
-            "Start building markers 3d model '{}'".format(self._markers_3d_model.name)
+            "Start markers 3d model '{}' optimization".format(
+                self._markers_3d_model.name
+            )
         )
 
     def _update_result(self, result):
@@ -109,13 +112,13 @@ class Markers3DModelController(Observable):
         self._camera_intrinsics.update_camera_matrix(intrinsics["camera_matrix"])
         self._camera_intrinsics.update_dist_coefs(intrinsics["dist_coefs"])
 
-    def on_building_markers_3d_model_had_completed_before(self):
+    def on_markers_3d_model_optimization_had_completed_before(self):
         pass
 
-    def on_building_markers_3d_model_started(self):
+    def on_markers_3d_model_optimization_started(self):
         pass
 
-    def on_building_markers_3d_model_completed(self):
+    def on_markers_3d_model_optimization_completed(self):
         pass
 
     def set_range_from_current_trim_marks(self):

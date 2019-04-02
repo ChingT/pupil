@@ -11,7 +11,9 @@ See COPYING and COPYING.LESSER for license details.
 
 import tasklib.background
 import tasklib.background.patches as bg_patches
-
+import video_capture
+from apriltag.python import apriltag
+from methods import normalize
 
 g_pool = None  # set by the plugin
 
@@ -35,10 +37,18 @@ class Empty(object):
 
 
 def _detect_apriltags(source_path, frame_index_range, shared_memory):
-    from apriltag_marker_detector import ApriltagMarkerDetector
-    import video_capture
+    apriltag_detector = apriltag.Detector()
 
-    _detector = ApriltagMarkerDetector()
+    def _detect(image):
+        apriltag_detections = apriltag_detector.detect(image)
+        img_size = image.shape[::-1]
+        return {
+            detection.tag_id: {
+                "verts": detection.corners[::-1].tolist(),
+                "centroid": normalize(detection.center, img_size, flip_y=True),
+            }
+            for detection in apriltag_detections
+        }
 
     src = video_capture.File_Source(Empty(), source_path, timing=None)
     frame_start, frame_end = frame_index_range
@@ -54,8 +64,7 @@ def _detect_apriltags(source_path, frame_index_range, shared_memory):
                 break
             shared_memory.progress = (frame.index - frame_start + 1) / frame_count
 
-            marker_detection = _detector.detect(frame.gray)
-
+            marker_detection = _detect(frame.gray)
             detection_data = {
                 "marker_detection": marker_detection,
                 "timestamp": frame.timestamp,

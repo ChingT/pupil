@@ -53,7 +53,7 @@ class MarkerLocationController(Observable):
             logger.info("Cancel marker detection")
             self.on_marker_detection_ended()
 
-        self._task = worker.detect_square_markers.create_task()
+        self._task = worker.detect_square_markers.create_task(self._marker_locations)
         self._task.add_observer("on_yield", on_yield_location)
         self._task.add_observer("on_completed", on_completed_location)
         self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
@@ -73,6 +73,9 @@ class MarkerLocationController(Observable):
     @property
     def detection_progress(self):
         return self._task.progress if self.is_running_detection else 0.0
+
+    def set_range_from_current_trim_marks(self):
+        self._marker_locations.frame_index_range = self._get_current_trim_mark_range()
 
     def on_marker_detection_started(self):
         pass

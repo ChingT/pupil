@@ -16,8 +16,10 @@ import tasklib.background.patches as bg_patches
 g_pool = None  # set by the plugin
 
 
-def create_task():
-    args = (g_pool.capture.source_path,)
+def create_task(marker_location):
+    assert g_pool, "You forgot to set g_pool by the plugin"
+
+    args = (g_pool.capture.source_path, marker_location.frame_index_range)
     name = "Create Apriltag Detection"
     return tasklib.background.create(
         name,
@@ -32,25 +34,29 @@ class Empty(object):
     pass
 
 
-def _detect_apriltags(source_path, shared_memory):
+def _detect_apriltags(source_path, frame_index_range, shared_memory):
     from apriltag_marker_detector import ApriltagMarkerDetector
     import video_capture
 
     _detector = ApriltagMarkerDetector()
-    src = video_capture.File_Source(Empty(), source_path, timing=None)
-    frame_count = src.get_frame_count()
 
+    src = video_capture.File_Source(Empty(), source_path, timing=None)
+    frame_start, frame_end = frame_index_range
+    frame_count = frame_end - frame_start + 1
+    src.seek_to_frame(frame_start)
     while True:
         try:
             frame = src.get_frame()
         except video_capture.EndofVideoError:
             break
+        else:
+            if frame.index >= frame_end:
+                break
+            shared_memory.progress = (frame.index - frame_start + 1) / frame_count
 
-        shared_memory.progress = (frame.index + 1) / frame_count
-
-        marker_detection = _detector.detect(frame.gray)
-        yield {
-            "marker_detection": marker_detection,
-            "timestamp": frame.timestamp,
-            "frame_index": frame.index,
-        }
+            marker_detection = _detector.detect(frame.gray)
+            yield {
+                "marker_detection": marker_detection,
+                "timestamp": frame.timestamp,
+                "frame_index": frame.index,
+            }

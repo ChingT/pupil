@@ -9,12 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from plugin_timeline import (
-    Row,
-    RangeElementFrameIdx,
-    RangeElementFramePerc,
-    BarsElementTs,
-)
+from plugin_timeline import Row, RangeElementFrameIdx, BarsElementTs
 
 
 class OfflineHeadPoseTrackerTimeline:
@@ -45,7 +40,10 @@ class MarkerLocationTimeline:
         self._marker_locations = marker_location_storage.item
 
         marker_location_controller.add_observer(
-            "on_marker_detection_yield", self.on_marker_detection_yield
+            "on_marker_detection_started", self._on_marker_detection_started
+        )
+        marker_location_controller.add_observer(
+            "on_marker_detection_yield", self._on_marker_detection_yield
         )
         marker_location_controller.add_observer(
             "on_marker_detection_ended", self._on_marker_detection_ended
@@ -53,10 +51,10 @@ class MarkerLocationTimeline:
         marker_location_storage.add_observer("add", self._on_storage_changed)
 
     def create_row(self):
-        elements = [
-            self._create_marker_location_bars(),
-            self._create_progress_indication(),
-        ]
+        elements = [self._create_marker_location_bars()]
+        if self._marker_location_controller.is_running_detection:
+            elements.append(self._create_progress_indication())
+
         return Row(label=self.timeline_label, elements=elements)
 
     def _create_marker_location_bars(self):
@@ -69,14 +67,20 @@ class MarkerLocationTimeline:
 
     def _create_progress_indication(self):
         progress = self._marker_location_controller.detection_progress
-        return RangeElementFramePerc(
-            from_perc=0, to_perc=progress, color_rgba=(1.0, 0.5, 0.5, 0.5)
+        return RangeElementFrameIdx(
+            from_idx=self._frame_start,
+            to_idx=int(self._frame_start + self._frame_count * progress),
+            color_rgba=(1.0, 0.5, 0.5, 0.5),
         )
+
+    def _on_marker_detection_started(self):
+        self._frame_start, frame_end = self._marker_locations.frame_index_range
+        self._frame_count = frame_end - self._frame_start + 1
 
     def _on_storage_changed(self, *args, **kwargs):
         self.render_parent_timeline()
 
-    def on_marker_detection_yield(self):
+    def _on_marker_detection_yield(self):
         self.render_parent_timeline()
 
     def _on_marker_detection_ended(self):

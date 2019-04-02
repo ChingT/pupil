@@ -36,10 +36,11 @@ class Markers3DModelController(Observable):
         self._get_current_trim_mark_range = get_current_trim_mark_range
         self._recording_uuid = recording_uuid
         self._rec_dir = rec_dir
-        self._task = None
 
-        self._markers_3d_model = self._markers_3d_model_storage.item
         self._marker_locations = marker_location_storage.item
+        self._markers_3d_model = markers_3d_model_storage.item
+
+        self._task = None
 
         marker_location_controller.add_observer(
             "on_marker_detection_ended", self._on_marker_detection_ended
@@ -49,7 +50,7 @@ class Markers3DModelController(Observable):
         self.calculate(check_complete=True)
 
     def calculate(self, check_complete=False):
-        if check_complete and self._markers_3d_model.result:
+        if check_complete and self._markers_3d_model.calculated:
             self.on_building_markers_3d_model_had_completed_before()
         else:
             self._reset()
@@ -64,14 +65,14 @@ class Markers3DModelController(Observable):
 
     def _create_optimize_markers_3d_model_task(self):
         def on_yield_markers_3d_model(result):
+            self._update_result(result)
             self._markers_3d_model.status = (
                 "Building markers 3d model {:.0f}% "
                 "complete".format(self._task.progress * 100)
             )
-            self._update_result(result)
 
         def on_completed_markers_3d_model(_):
-            if self._markers_3d_model.result:
+            if self._markers_3d_model.calculated:
                 self._markers_3d_model.status = "Building markers 3d model successfully"
                 self._camera_intrinsics.save(self._rec_dir)
                 logger.info(
@@ -91,7 +92,7 @@ class Markers3DModelController(Observable):
             self._markers_3d_model_storage.save_to_disk()
 
         self._task = worker.create_markers_3d_model.create_task(
-            self._markers_3d_model, self._marker_locations.detections
+            self._marker_locations, self._markers_3d_model
         )
         self._task.add_observer("on_yield", on_yield_markers_3d_model)
         self._task.add_observer("on_completed", on_completed_markers_3d_model)
@@ -103,8 +104,8 @@ class Markers3DModelController(Observable):
         )
 
     def _update_result(self, result):
-        model_datum, intrinsics = result
-        self._markers_3d_model.result = model_datum
+        model_data, intrinsics = result
+        self._markers_3d_model.result = model_data
         self._camera_intrinsics.update_camera_matrix(intrinsics["camera_matrix"])
         self._camera_intrinsics.update_dist_coefs(intrinsics["dist_coefs"])
 

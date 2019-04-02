@@ -50,7 +50,7 @@ class CameraLocalizerMenu:
 
     def _create_range_selector(self):
         range_string = "Localize camera in: " + self._index_range_as_str(
-            self._camera_localizer.localization_index_range
+            self._camera_localizer.frame_index_range
         )
         return ui.Button(
             outer_label=range_string,
@@ -60,9 +60,7 @@ class CameraLocalizerMenu:
 
     def _create_calculate_button(self):
         return ui.Button(
-            label="Recalculate"
-            if self._camera_localizer.calculate_complete
-            else "Calculate",
+            label="Recalculate" if self._camera_localizer.calculated else "Calculate",
             function=self._on_click_calculate,
         )
 

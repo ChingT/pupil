@@ -54,7 +54,7 @@ class Markers3DModelMenu:
         return menu
 
     def _info_text_for_markers_3d_model_from_other_recording(self):
-        if self._markers_3d_model.result:
+        if self._markers_3d_model.calculated:
             return (
                 "This Markers 3D Model '{}' was copied from another recording. "
                 "It is ready to be used in camera localizers.".format(
@@ -111,7 +111,7 @@ class Markers3DModelMenu:
 
     def _create_calculate_button(self):
         return ui.Button(
-            label="Recalculate" if self._markers_3d_model.result else "Calculate",
+            label="Recalculate" if self._markers_3d_model.calculated else "Calculate",
             function=self._on_click_calculate,
         )
 
@@ -134,7 +134,7 @@ class Markers3DModelMenu:
         )
 
     def _get_origin_marker_id(self):
-        if self._markers_3d_model.result:
+        if self._markers_3d_model.calculated:
             return self._markers_3d_model.result["origin_marker_id"]
         else:
             return None

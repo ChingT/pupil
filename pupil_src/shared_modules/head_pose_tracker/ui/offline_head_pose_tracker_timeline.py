@@ -39,6 +39,7 @@ class MarkerLocationTimeline:
         self._marker_location_controller = marker_location_controller
         self._marker_locations = marker_location_storage.item
 
+        marker_location_storage.add_observer("load_from_disk", self._on_storage_changed)
         marker_location_controller.add_observer(
             "on_marker_detection_started", self._on_marker_detection_started
         )
@@ -48,7 +49,6 @@ class MarkerLocationTimeline:
         marker_location_controller.add_observer(
             "on_marker_detection_ended", self._on_marker_detection_ended
         )
-        marker_location_storage.add_observer("add", self._on_storage_changed)
 
     def create_row(self):
         elements = [self._create_marker_location_bars()]
@@ -60,7 +60,7 @@ class MarkerLocationTimeline:
     def _create_marker_location_bars(self):
         bar_positions = [
             ref["timestamp"]
-            for ref in self._marker_locations.detections.values()
+            for ref in self._marker_locations.result.values()
             if ref["marker_detection"]
         ]
         return BarsElementTs(bar_positions, color_rgba=(1.0, 1.0, 1.0, 0.5))
@@ -93,13 +93,15 @@ class CameraLocalizerTimeline:
     def __init__(self, camera_localizer_controller, camera_localizer_storage):
         self.render_parent_timeline = None
 
+        camera_localizer_storage.add_observer(
+            "load_from_disk", self._on_storage_changed
+        )
         camera_localizer_controller.add_observer(
             "set_range_from_current_trim_marks", self._on_ranges_changed
         )
         camera_localizer_controller.add_observer(
             "save_pose_bisector", self._on_data_changed
         )
-        camera_localizer_storage.add_observer("add", self._on_storage_changed)
 
         self._camera_localizer = camera_localizer_storage.item
 
@@ -109,10 +111,10 @@ class CameraLocalizerTimeline:
         return rows
 
     def _create_localization_range(self):
-        from_idx, to_idx = self._camera_localizer.localization_index_range
+        from_idx, to_idx = self._camera_localizer.frame_index_range
         color = (
             (0.6, 0.8, 0.4, 0.8)
-            if self._camera_localizer.calculate_complete
+            if self._camera_localizer.calculated
             else (0.6, 0.8, 0.4, 0.4)
         )
         return RangeElementFrameIdx(from_idx, to_idx, color_rgba=color)

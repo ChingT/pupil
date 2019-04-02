@@ -9,7 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from head_pose_tracker.model import storage
+from head_pose_tracker.model.storage import StorageItem, Storage
 
 from head_pose_tracker.model.marker_location_storage import (
     MarkerLocationStorage,

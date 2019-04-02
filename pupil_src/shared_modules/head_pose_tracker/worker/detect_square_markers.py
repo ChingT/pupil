@@ -55,8 +55,10 @@ def _detect_apriltags(source_path, frame_index_range, shared_memory):
             shared_memory.progress = (frame.index - frame_start + 1) / frame_count
 
             marker_detection = _detector.detect(frame.gray)
-            yield {
+
+            detection_data = {
                 "marker_detection": marker_detection,
                 "timestamp": frame.timestamp,
                 "frame_index": frame.index,
             }
+            yield frame.index, detection_data

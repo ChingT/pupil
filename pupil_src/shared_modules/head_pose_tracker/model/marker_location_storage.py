@@ -9,20 +9,18 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import os
+
 from head_pose_tracker import model
 from observable import Observable
 
 
-class MarkerLocation(model.storage.StorageItem):
+class MarkerLocation(model.StorageItem):
     version = 1
 
-    def __init__(self, frame_index_range, detections):
-        self.frame_index_range = frame_index_range
-        self.detections = detections
-
-    @property
-    def calculate_complete(self):
-        return bool(self.detections)
+    def __init__(self, frame_index_range, result):
+        self.frame_index_range = tuple(frame_index_range)
+        self.result = result
 
     @staticmethod
     def from_tuple(tuple_):
@@ -30,51 +28,30 @@ class MarkerLocation(model.storage.StorageItem):
 
     @property
     def as_tuple(self):
-        return self.frame_index_range, self.detections
+        return self.frame_index_range, self.result
 
-    def __setitem__(self, frame_index, marker_location):
-        self.detections[frame_index] = marker_location
-
-    def __getitem__(self, frame_index):
-        try:
-            return self.detections[frame_index]["marker_detection"]
-        except KeyError:
-            return {}
+    @property
+    def calculated(self):
+        return bool(self.result)
 
 
-class MarkerLocationStorage(model.storage.SingleFileStorage, Observable):
+class MarkerLocationStorage(model.Storage, Observable):
     def __init__(self, rec_dir, plugin, get_recording_index_range):
-        super().__init__(rec_dir, plugin)
-        self._get_recording_index_range = get_recording_index_range
+        super().__init__(rec_dir, plugin, get_recording_index_range)
 
-        self._marker_locations = None
-        self._load_from_disk()
-        if not self._marker_locations:
-            self._add_empty_marker_locations()
-
-    def _add_empty_marker_locations(self):
-        self.add(self.create_empty_marker_locations())
-
-    def create_empty_marker_locations(self):
+    def _create_default_item(self):
         return MarkerLocation(
-            frame_index_range=self._get_recording_index_range(), detections={}
+            frame_index_range=self._get_recording_index_range(), result={}
         )
-
-    def add(self, marker_locations):
-        self._marker_locations = marker_locations
-
-    @property
-    def _storage_file_name(self):
-        return "marker_locations.msgpack"
-
-    @property
-    def item(self):
-        return self._marker_locations
-
-    @property
-    def items(self):
-        return [self._marker_locations] if self._marker_locations else []
 
     @property
     def _item_class(self):
         return MarkerLocation
+
+    @property
+    def _storage_folder_path(self):
+        return os.path.join(self._rec_dir, "offline_data")
+
+    @property
+    def _storage_file_name(self):
+        return "marker_locations.msgpack"

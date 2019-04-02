@@ -30,7 +30,7 @@ class MarkerLocationController(Observable):
         self._task = None
 
     def init_detection(self):
-        if self._marker_locations.calculate_complete:
+        if self._marker_locations.calculated:
             self.on_marker_detection_ended()
         else:
             self.start_detection()
@@ -39,8 +39,9 @@ class MarkerLocationController(Observable):
         self._create_detection_task()
 
     def _create_detection_task(self):
-        def on_yield_location(marker_location):
-            self._marker_locations[marker_location["frame_index"]] = marker_location
+        def on_yield_location(index_and_data):
+            frame_index, detection_data = index_and_data
+            self._marker_locations.result[frame_index] = detection_data
             self.on_marker_detection_yield()
 
         def on_completed_location(_):

@@ -75,8 +75,8 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
 
     def _save_pose_and_ts_to_disk(self):
         directory = self._camera_localizations_directory
+        file_name = self._camera_localization_file_name
         os.makedirs(directory, exist_ok=True)
-        file_name = self._camera_localization_file_name(self._camera_localizer)
         with fm.PLData_Writer(directory, file_name) as writer:
             for pose_ts, pose in zip(
                 self._camera_localizer.pose_bisector.timestamps,
@@ -90,14 +90,12 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
         # this will load everything except pose and pose_ts
         super()._load_from_disk()
 
-        self._load_pose_and_ts_from_disk()
+        if self._camera_localizer:
+            self._load_pose_and_ts_from_disk()
 
     def _load_pose_and_ts_from_disk(self):
         directory = self._camera_localizations_directory
-        if not self._camera_localizer:
-            return
-
-        file_name = self._camera_localization_file_name(self._camera_localizer)
+        file_name = self._camera_localization_file_name
         pldata = fm.load_pldata_file(directory, file_name)
         self._camera_localizer.pose_bisector = pm.Bisector(
             pldata.data, pldata.timestamps
@@ -123,11 +121,6 @@ class CameraLocalizerStorage(model.storage.SingleFileStorage, Observable):
     def _camera_localizations_directory(self):
         return os.path.join(self._storage_folder_path, "camera-poses")
 
-    def _camera_localization_file_name(self, camera_localizer):
-        return camera_localizer.unique_id
-
-    def _camera_localization_file_path(self, camera_localizer):
-        return os.path.join(
-            self._camera_localizations_directory,
-            self._camera_localization_file_name(camera_localizer),
-        )
+    @property
+    def _camera_localization_file_name(self):
+        return self._camera_localizer.unique_id

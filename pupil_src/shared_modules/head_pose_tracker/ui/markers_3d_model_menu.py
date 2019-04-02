@@ -99,7 +99,7 @@ class Markers3DModelMenu:
         return ui.Button(
             outer_label=range_string,
             label="Set From Trim Marks",
-            function=lambda: self._on_set_index_range_from_trim_marks(),
+            function=self._on_set_index_range_from_trim_marks,
         )
 
     def _create_optimize_camera_intrinsics_switch(self):
@@ -112,7 +112,7 @@ class Markers3DModelMenu:
     def _create_calculate_button(self):
         return ui.Button(
             label="Recalculate" if self._markers_3d_model.result else "Calculate",
-            function=lambda: self._on_click_calculate(),
+            function=self._on_click_calculate,
         )
 
     def _create_status_display(self):
@@ -124,8 +124,8 @@ class Markers3DModelMenu:
         return ui.Text_Input(
             "origin_marker_id",
             label="Origin of the coordinate system: marker with id",
-            getter=lambda: self._get_origin_marker_id(),
-            setter=lambda x: None,
+            getter=self._get_origin_marker_id,
+            setter=lambda _: _,
         )
 
     def _create_show_marker_id_switch(self):

@@ -19,21 +19,21 @@ logger = logging.getLogger(__name__)
 
 
 class OptimizationStorage:
-    def __init__(self, predetermined_origin_marker_id=None):
+    def __init__(self, user_defined_origin_marker_id=None):
         # {frame id: optimized camera extrinsics (which is composed of Rodrigues
         # rotation vector and translation vector, which brings points from the world
         # coordinate system to the camera coordinate system)}
         self.frame_id_to_extrinsics_opt = {}
         self.all_key_markers = []
         self.origin_marker_id = None
-        self.set_origin_marker_id(predetermined_origin_marker_id)
+        self.set_origin_marker_id(user_defined_origin_marker_id)
         self.centroid = [0.0, 0.0, 0.0]
 
-    def set_origin_marker_id(self, predetermined_origin_marker_id=None):
+    def set_origin_marker_id(self, user_defined_origin_marker_id=None):
         if self.origin_marker_id is not None:
             return
 
-        origin_marker_id = predetermined_origin_marker_id
+        origin_marker_id = user_defined_origin_marker_id
 
         if origin_marker_id is None:
             all_markers_id = [marker.marker_id for marker in self.all_key_markers]

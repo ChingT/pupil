@@ -9,7 +9,11 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import logging
+
 from pyglui import ui
+
+logger = logging.getLogger(__name__)
 
 
 class Markers3DModelMenu:
@@ -45,7 +49,7 @@ class Markers3DModelMenu:
             self.menu.elements.extend(
                 self._render_ui_markers_3d_model_from_other_recording()
             )
-        self.menu.elements.extend(self._render_ui_for_both_case())
+        self.menu.elements.extend(self._render_ui_for_both_cases())
 
     def _render_ui_markers_3d_model_from_other_recording(self):
         menu = [
@@ -75,12 +79,13 @@ class Markers3DModelMenu:
             self._create_name_input(),
             self._create_range_selector(),
             self._create_optimize_camera_intrinsics_switch(),
+            self._create_user_defined_origin_marker_id_display(),
             self._create_calculate_button(),
             self._create_status_display(),
         ]
         return menu
 
-    def _render_ui_for_both_case(self):
+    def _render_ui_for_both_cases(self):
         menu = [
             self._create_origin_marker_id_display(),
             self._create_show_marker_id_switch(),
@@ -128,6 +133,15 @@ class Markers3DModelMenu:
             setter=lambda _: _,
         )
 
+    def _create_user_defined_origin_marker_id_display(self):
+        return ui.Text_Input(
+            "user_defined_origin_marker_id",
+            self._markers_3d_model,
+            label="Define the origin marker id",
+            getter=self._get_user_defined_origin_marker_id,
+            setter=self._on_set_user_defined_origin_marker_id,
+        )
+
     def _create_show_marker_id_switch(self):
         return ui.Switch(
             "show_marker_id", self._markers_3d_model, label="Show Marker IDs"
@@ -138,6 +152,33 @@ class Markers3DModelMenu:
             return self._markers_3d_model.result["origin_marker_id"]
         else:
             return None
+
+    def _get_user_defined_origin_marker_id(self):
+        return str(self._markers_3d_model.user_defined_origin_marker_id)
+
+    def _on_set_user_defined_origin_marker_id(self, new_id):
+        if new_id.lower() == "none" or new_id.lower() == "nan":
+            logger.info(
+                "The origin of the coordinate system will be decided during the next "
+                "calculation of the markers 3d model '{}'".format(
+                    self._markers_3d_model.name
+                )
+            )
+            self._markers_3d_model.user_defined_origin_marker_id = None
+        else:
+            try:
+                self._markers_3d_model.user_defined_origin_marker_id = int(new_id)
+            except ValueError:
+                logger.info("'{}' is not a valid input".format(new_id))
+            else:
+                logger.info(
+                    "The marker with id {} will be defined as the origin of the"
+                    "coordinate system during the next calculation of the markers 3d "
+                    "model '{}'.".format(new_id, self._markers_3d_model.name)
+                )
+        # we need to render the menu again because otherwise the name in the selector
+        # is not refreshed
+        self.render()
 
     def _on_name_change(self, new_name):
         self._markers_3d_model_storage.rename(new_name)

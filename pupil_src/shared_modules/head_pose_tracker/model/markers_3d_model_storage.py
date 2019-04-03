@@ -35,6 +35,7 @@ class Markers3DModel(model.StorageItem):
         self.status = status
         self.result = result
 
+        self.user_defined_origin_marker_id = None
         self.optimize_camera_intrinsics = False
         self.show_marker_id = False
 

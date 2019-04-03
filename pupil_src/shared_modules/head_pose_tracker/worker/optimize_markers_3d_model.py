@@ -31,6 +31,7 @@ def create_task(marker_locations, markers_3d_model):
     args = (
         marker_locations_in_opt_range,
         g_pool.capture.intrinsics,
+        markers_3d_model.user_defined_origin_marker_id,
         markers_3d_model.optimize_camera_intrinsics,
     )
     name = "Create calibration {}".format(markers_3d_model.name)
@@ -46,11 +47,12 @@ def create_task(marker_locations, markers_3d_model):
 def _optimize_markers_3d_model(
     marker_locations_in_opt_range,
     camera_intrinsics,
+    user_defined_origin_marker_id,
     optimize_camera_intrinsics,
     shared_memory,
 ):
     n_key_markers_added_once = 25
-    storage = model.OptimizationStorage(predetermined_origin_marker_id=None)
+    storage = model.OptimizationStorage(user_defined_origin_marker_id)
 
     pick_key_markers = worker.PickKeyMarkers(storage)
     bundle_adjustment = worker.BundleAdjustment(

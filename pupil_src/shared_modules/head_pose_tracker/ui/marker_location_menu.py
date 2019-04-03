@@ -13,19 +13,46 @@ from pyglui import ui
 
 
 class MarkerLocationMenu:
-    def __init__(self, marker_location_controller):
-        self._marker_location_controller = marker_location_controller
+    menu_label = "Marker Detection"
 
-        self.menu = ui.Growing_Menu("Marker Detection")
+    def __init__(
+        self, marker_location_controller, marker_location_storage, index_range_as_str
+    ):
+        self._marker_location_controller = marker_location_controller
+        self._index_range_as_str = index_range_as_str
+        self._marker_locations = marker_location_storage.item
+
+        self.menu = ui.Growing_Menu(self.menu_label)
         self.menu.collapsed = False
 
         marker_location_controller.add_observer(
-            "on_detection_started", self._on_started_marker_detection
+            "on_marker_detection_started", self._on_marker_detection_started
+        )
+        marker_location_controller.add_observer(
+            "on_marker_detection_ended", self._on_marker_detection_ended
         )
 
     def render(self):
         self.menu.elements.clear()
-        self.menu.extend([self._create_toggle_marker_detection_button()])
+        self._render_custom_ui()
+
+    def _render_custom_ui(self):
+        self.menu.elements.extend(
+            [
+                self._create_range_selector(),
+                self._create_toggle_marker_detection_button(),
+            ]
+        )
+
+    def _create_range_selector(self):
+        range_string = "Detect Markers in: " + self._index_range_as_str(
+            self._marker_locations.frame_index_range
+        )
+        return ui.Button(
+            outer_label=range_string,
+            label="Set From Trim Marks",
+            function=self._on_set_index_range_from_trim_marks,
+        )
 
     def _create_toggle_marker_detection_button(self):
         if self._marker_location_controller.is_running_detection:
@@ -35,15 +62,18 @@ class MarkerLocationMenu:
                 "Detect Apriltags in Recording", self._on_click_start_marker_detection
             )
 
+    def _on_set_index_range_from_trim_marks(self):
+        self._marker_location_controller.set_range_from_current_trim_marks()
+        self.render()
+
     def _on_click_start_marker_detection(self):
         self._marker_location_controller.start_detection()
 
     def _on_click_cancel_marker_detection(self):
         self._marker_location_controller.cancel_detection()
 
-    def _on_started_marker_detection(self, detection_task):
-        detection_task.add_observer("on_ended", self._on_ended_marker_detection)
+    def _on_marker_detection_started(self):
         self.render()
 
-    def _on_ended_marker_detection(self):
+    def _on_marker_detection_ended(self):
         self.render()

@@ -9,104 +9,65 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import logging
+import tasklib.background
+import tasklib.background.patches as bg_patches
+import video_capture
+from apriltag.python import apriltag
+from methods import normalize
 
-import zmq_tools
-from head_pose_tracker import model
-from tasklib.interface import TaskInterface
-
-logger = logging.getLogger(__name__)
+g_pool = None  # set by the plugin
 
 
-class SquareMarkerDetectionTask(TaskInterface):
-    """
-    The actual marker detection is in launchabeles.marker_detector because OpenCV
-    needs a new and clean process and does not work with forked processes.
+def create_task(marker_locations):
+    assert g_pool, "You forgot to set g_pool by the plugin"
 
-    This task requests the start of the launchable via a notification and retrieves
-    results from the background. It does _not_ run in background itself, but does its
-    work in the update() method that is executed in the main process.
-    """
+    args = (g_pool.capture.source_path, marker_locations.frame_index_range)
+    name = "Create Apriltag Detection"
+    return tasklib.background.create(
+        name,
+        _detect_apriltags,
+        args=args,
+        patches=[bg_patches.IPCLoggingPatch()],
+        pass_shared_memory=True,
+    )
 
-    # plugin injected variables
-    zmq_ctx = None
-    capture_source_path = None
-    notify_all = None
 
-    def __init__(self):
-        super().__init__()
-        self._process_pipe = None
-        self._progress = 0.0
+class Empty(object):
+    pass
 
-    @property
-    def progress(self):
-        return self._progress
 
-    def start(self):
-        super().start()
-        self._process_pipe = zmq_tools.Msg_Pair_Server(self.zmq_ctx)
-        self._request_start_of_detection(self._process_pipe.url)
+def _detect_apriltags(source_path, frame_index_range, shared_memory):
+    apriltag_detector = apriltag.Detector()
 
-    def _request_start_of_detection(self, pair_url):
-        source_path = self.capture_source_path
-        self.notify_all(
-            {
-                "subject": "square_detector_process.should_start",
-                "source_path": source_path,
-                "pair_url": pair_url,
+    def _detect(image):
+        apriltag_detections = apriltag_detector.detect(image)
+        img_size = image.shape[::-1]
+        return {
+            detection.tag_id: {
+                "verts": detection.corners[::-1].tolist(),
+                "centroid": normalize(detection.center, img_size, flip_y=True),
             }
-        )
+            for detection in apriltag_detections
+        }
 
-    def cancel_gracefully(self):
-        super().cancel_gracefully()
-        self._terminate_background_detection()
-        self.on_canceled_or_killed()
-
-    def kill(self, grace_period):
-        super().kill(grace_period)
-        # we cannot kill the detection, just ask it to terminate
-        self._terminate_background_detection()
-        self.on_canceled_or_killed()
-
-    def _terminate_background_detection(self):
-        self._process_pipe.send({"topic": "terminate"})
-        self._process_pipe.socket.close()
-        self._process_pipe = None
-
-    def update(self):
-        super().update()
+    src = video_capture.File_Source(Empty(), source_path, timing=None)
+    frame_start, frame_end = frame_index_range
+    frame_count = frame_end - frame_start + 1
+    src.seek_to_frame(frame_start)
+    while True:
         try:
-            self._receive_detections()
-        except Exception as e:
-            self.on_exception(e)
+            frame = src.get_frame()
+        except video_capture.EndofVideoError:
+            break
+        else:
+            if frame.index >= frame_end:
+                break
+            shared_memory.progress = (frame.index - frame_start + 1) / frame_count
 
-    def _receive_detections(self):
-        while self._process_pipe.new_data:
-            topic, msg = self._process_pipe.recv()
-            if topic == "progress":
-                progress_detection_pairs = msg.get("data", [])
-                progress, detections = zip(*progress_detection_pairs)
-                self._progress = progress[-1] / 100.0
-                detections_without_None_items = (d for d in detections if d)
-                for detection in detections_without_None_items:
-                    self._yield_detection(detection)
-            elif topic == "finished":
-                self.on_completed(None)  # return_value_or_none
-                return
-            elif topic == "exception":
-                logger.warning(
-                    "Markers3DModel marker detection raised exception:\n{}".format(
-                        msg["reason"]
-                    )
-                )
-                logger.info("Marker detection was interrupted")
-                logger.debug("Reason: {}".format(msg.get("reason", "n/a")))
-                self.on_canceled_or_killed()
-                return
-
-    def _yield_detection(self, detection):
-        marker_detection = detection["marker_detection"]
-        frame_index = detection["index"]
-        timestamp = detection["timestamp"]
-        marker_location = model.MarkerLocation(marker_detection, frame_index, timestamp)
-        self.on_yield(marker_location)
+            markers = _detect(frame.gray)
+            detection_data = {
+                "markers": markers,
+                "timestamp": frame.timestamp,
+                "frame_index": frame.index,
+            }
+            yield detection_data

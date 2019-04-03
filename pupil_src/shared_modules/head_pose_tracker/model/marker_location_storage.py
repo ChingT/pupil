@@ -9,53 +9,49 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import os
+
 from head_pose_tracker import model
 from observable import Observable
 
 
-class MarkerLocation(model.storage.StorageItem):
+class MarkerLocations(model.StorageItem):
     version = 1
 
-    def __init__(self, marker_detection, frame_index, timestamp):
-        self.marker_detection = marker_detection
-        self.frame_index = frame_index
-        self.timestamp = timestamp
+    def __init__(self, frame_index_range, result):
+        self.frame_index_range = tuple(frame_index_range)
+        self.result = result
 
     @staticmethod
     def from_tuple(tuple_):
-        return MarkerLocation(*tuple_)
+        return MarkerLocations(*tuple_)
 
     @property
     def as_tuple(self):
-        return self.marker_detection, self.frame_index, self.timestamp
+        return self.frame_index_range, self.result
+
+    @property
+    def calculated(self):
+        return bool(self.result)
 
 
-class MarkerLocationStorage(model.storage.SingleFileStorage, Observable):
-    def __init__(self, rec_dir, plugin):
-        super().__init__(rec_dir, plugin)
-        self._marker_locations = {}
-        self._load_from_disk()
+class MarkerLocationStorage(model.Storage, Observable):
+    def __init__(self, rec_dir, plugin, get_recording_index_range):
+        super().__init__(rec_dir, plugin, get_recording_index_range)
 
-    def add(self, marker_location):
-        self._marker_locations[marker_location.frame_index] = marker_location
+    def _create_default_item(self):
+        return MarkerLocations(
+            frame_index_range=self._get_recording_index_range(), result={}
+        )
+
+    @property
+    def _item_class(self):
+        return MarkerLocations
+
+    @property
+    def _storage_folder_path(self):
+        return os.path.join(self._rec_dir, "offline_data")
 
     @property
     def _storage_file_name(self):
         return "marker_locations.msgpack"
-
-    @property
-    def _item_class(self):
-        return MarkerLocation
-
-    @property
-    def items(self):
-        return self._marker_locations.values()
-
-    def __setitem__(self, frame_index, marker_location):
-        self._marker_locations[frame_index] = marker_location
-
-    def __getitem__(self, frame_index):
-        return self._marker_locations.get(frame_index, None)
-
-    def __len__(self):
-        return len(self._marker_locations)

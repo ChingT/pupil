@@ -29,9 +29,10 @@ class MarkerLocationRenderer:
         plugin,
         get_current_frame_index,
     ):
-        self._marker_location_storage = marker_location_storage
-        self._markers_3d_model = markers_3d_model_storage.item
         self._get_current_frame_index = get_current_frame_index
+
+        self._marker_locations = marker_location_storage.item
+        self._markers_3d_model = markers_3d_model_storage.item
 
         self._square_definition = np.array(
             [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32
@@ -62,8 +63,8 @@ class MarkerLocationRenderer:
     def _get_current_markers(self):
         current_index = self._get_current_frame_index()
         try:
-            return self._marker_location_storage[current_index].marker_detection
-        except AttributeError:
+            return self._marker_locations.result[current_index]["markers"]
+        except KeyError:
             return {}
 
     def _get_marker_id_optimized(self):

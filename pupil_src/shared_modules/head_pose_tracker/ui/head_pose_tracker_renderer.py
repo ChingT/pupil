@@ -29,18 +29,18 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
     ):
         super().__init__(plugin)
 
-        self._marker_location_storage = marker_location_storage
         self._camera_intrinsics = camera_intrinsics
         self._plugin = plugin
         self._get_current_frame_index = get_current_frame_index
 
-        self._camera_localizer = camera_localizer_storage.item
+        self._marker_locations = marker_location_storage.item
         self._markers_3d_model = markers_3d_model_storage.item
+        self._camera_localizer = camera_localizer_storage.item
 
         self.recent_camera_trace = collections.deque(maxlen=300)
 
     def _render(self):
-        if not self._markers_3d_model.result:
+        if not self._markers_3d_model.calculated:
             return
 
         rotate_center_matrix = self._get_rotate_center_matrix()
@@ -72,8 +72,8 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
     def _get_current_markers(self):
         current_index = self._get_current_frame_index()
         try:
-            return self._marker_location_storage[current_index].marker_detection
-        except AttributeError:
+            return self._marker_locations.result[current_index]["markers"]
+        except KeyError:
             return {}
 
     def _render_markers(self, marker_id_to_points_3d, current_markers):
@@ -89,13 +89,13 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
         current_frame_index = self._get_current_frame_index()
         ts = self._plugin.g_pool.timestamps[current_frame_index]
         try:
-            pose_datum = self._camera_localizer.pose_bisector.by_ts(ts)
+            pose_data = self._camera_localizer.pose_bisector.by_ts(ts)
         except ValueError:
             camera_trace = np.full((3,), np.nan)
             camera_pose_matrix = None
         else:
-            camera_trace = pose_datum["camera_trace"]
-            camera_pose_matrix = pose_datum["camera_pose_matrix"]
+            camera_trace = pose_data["camera_trace"]
+            camera_pose_matrix = pose_data["camera_pose_matrix"]
 
         # recent_camera_trace is updated no matter show_camera_trace is on or not
         self.recent_camera_trace.append(camera_trace)

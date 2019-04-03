@@ -74,12 +74,13 @@ def _localize_pose(
                 "camera_trace": camera_trace.tolist(),
                 "camera_pose_matrix": camera_pose_matrix.tolist(),
                 "timestamp": marker_location["timestamp"],
+                "marker_ids": list(marker_location["markers"].keys()),
             }
             yield fm.Serialized_Dict(camera_pose_data)
 
             camera_extrinsics_prv = camera_extrinsics
             not_localized_count = 0
         else:
-            if not_localized_count >= 3:
+            if not_localized_count >= 5:
                 camera_extrinsics_prv = None
             not_localized_count += 1

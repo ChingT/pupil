@@ -25,13 +25,13 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
         camera_localizer_storage,
         camera_intrinsics,
         plugin,
-        get_current_frame_index,
+        get_current_frame_window,
     ):
         super().__init__(plugin)
 
         self._camera_intrinsics = camera_intrinsics
         self._plugin = plugin
-        self._get_current_frame_index = get_current_frame_index
+        self._get_current_frame_window = get_current_frame_window
 
         self._marker_locations = marker_location_storage.item
         self._markers_3d_model = markers_3d_model_storage.item
@@ -70,15 +70,16 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
         return self._markers_3d_model.result["marker_id_to_points_3d"]
 
     def _get_current_markers(self):
-        current_index = self._get_current_frame_index()
-        try:
-            return self._marker_locations.result[current_index]["markers"]
-        except KeyError:
-            return {}
+        frame_window = self._get_current_frame_window()
+        markers = self._marker_locations.markers_bisector.by_ts_window(frame_window)
+        return markers
 
     def _render_markers(self, marker_id_to_points_3d, current_markers):
+        current_marker_ids = [marker["id"] for marker in current_markers]
         for marker_id, points_3d in marker_id_to_points_3d.items():
-            color = (1, 0, 0, 0.2) if marker_id in current_markers else (1, 0, 0, 0.1)
+            color = (
+                (1, 0, 0, 0.2) if marker_id in current_marker_ids else (1, 0, 0, 0.1)
+            )
             utils.render_polygon_in_3d_window(points_3d, color)
 
             if self._markers_3d_model.show_marker_id:
@@ -86,11 +87,12 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
                 utils.render_text_in_3d_window(str(marker_id), points_3d[0], color)
 
     def _get_camera_pose_matrix(self):
-        current_frame_index = self._get_current_frame_index()
-        ts = self._plugin.g_pool.timestamps[current_frame_index]
+        frame_window = self._get_current_frame_window()
         try:
-            pose_data = self._camera_localizer.pose_bisector.by_ts(ts)
-        except ValueError:
+            pose_data = self._camera_localizer.pose_bisector.by_ts_window(frame_window)[
+                0
+            ]
+        except IndexError:
             camera_trace = np.full((3,), np.nan)
             camera_pose_matrix = None
         else:

@@ -12,6 +12,7 @@ See COPYING and COPYING.LESSER for license details.
 import os
 
 import csv_utils
+import player_methods as pm
 from head_pose_tracker import ui as plugin_ui, controller, model
 from observable import Observable
 from plugin import Plugin
@@ -67,6 +68,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._marker_location_storage,
             task_manager=self._task_manager,
             get_current_trim_mark_range=self._current_trim_mark_range,
+            all_timestamps=self.g_pool.timestamps,
         )
         self._markers_3d_model_controller = controller.Markers3DModelController(
             self._marker_location_controller,
@@ -75,6 +77,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self.g_pool.capture.intrinsics,
             task_manager=self._task_manager,
             get_current_trim_mark_range=self._current_trim_mark_range,
+            all_timestamps=self.g_pool.timestamps,
             recording_uuid=self._recording_uuid,
             rec_dir=self.g_pool.rec_dir,
         )
@@ -85,6 +88,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._camera_localizer_storage,
             task_manager=self._task_manager,
             get_current_trim_mark_range=self._current_trim_mark_range,
+            all_timestamps=self.g_pool.timestamps,
         )
 
     def _setup_menus(self):
@@ -115,7 +119,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._marker_location_storage,
             self._markers_3d_model_storage,
             plugin=self,
-            get_current_frame_index=self.g_pool.capture.get_frame_index,
+            get_current_frame_window=self.get_current_frame_window,
         )
         self._head_pose_tracker_renderer = plugin_ui.HeadPoseTrackerRenderer(
             self._marker_location_storage,
@@ -123,7 +127,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._camera_localizer_storage,
             self.g_pool.capture.intrinsics,
             plugin=self,
-            get_current_frame_index=self.g_pool.capture.get_frame_index,
+            get_current_frame_window=self.get_current_frame_window,
         )
 
     def _setup_timelines(self):
@@ -185,3 +189,8 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         with open(info_csv_path, "r", encoding="utf-8") as csv_file:
             recording_info = csv_utils.read_key_value_file(csv_file)
             return recording_info["Recording UUID"]
+
+    def get_current_frame_window(self):
+        frame_index = self.g_pool.capture.get_frame_index()
+        frame_window = pm.enclosing_window(self.g_pool.timestamps, frame_index)
+        return frame_window

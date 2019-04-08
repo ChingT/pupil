@@ -11,6 +11,8 @@ See COPYING and COPYING.LESSER for license details.
 
 import os
 
+import file_methods as fm
+import player_methods as pm
 from head_pose_tracker import model
 from observable import Observable
 
@@ -18,9 +20,10 @@ from observable import Observable
 class MarkerLocations(model.StorageItem):
     version = 1
 
-    def __init__(self, frame_index_range, result):
+    def __init__(self, frame_index_range):
         self.frame_index_range = tuple(frame_index_range)
-        self.result = result
+
+        self.markers_bisector = pm.Mutable_Bisector()
 
     @staticmethod
     def from_tuple(tuple_):
@@ -28,11 +31,11 @@ class MarkerLocations(model.StorageItem):
 
     @property
     def as_tuple(self):
-        return self.frame_index_range, self.result
+        return (self.frame_index_range,)
 
     @property
     def calculated(self):
-        return bool(self.result)
+        return bool(self.markers_bisector)
 
 
 class MarkerLocationStorage(model.Storage, Observable):
@@ -40,9 +43,37 @@ class MarkerLocationStorage(model.Storage, Observable):
         super().__init__(rec_dir, plugin, get_recording_index_range)
 
     def _create_default_item(self):
-        return MarkerLocations(
-            frame_index_range=self._get_recording_index_range(), result={}
-        )
+        return MarkerLocations(frame_index_range=self._get_recording_index_range())
+
+    def save_to_disk(self):
+        # this will save everything except markers and markers_ts
+        super().save_to_disk()
+
+        self._save_markers_and_ts_to_disk()
+
+    def _save_markers_and_ts_to_disk(self):
+        directory = self._storage_folder_path
+        file_name = self._marker_locations_file_name
+        with fm.PLData_Writer(directory, file_name) as writer:
+            for marker_ts, marker in zip(
+                self.item.markers_bisector.timestamps, self.item.markers_bisector.data
+            ):
+                writer.append_serialized(
+                    marker_ts, topic="marker", datum_serialized=marker.serialized
+                )
+
+    def load_from_disk(self, file_path):
+        # this will load everything except pose and pose_ts
+        super().load_from_disk(file_path)
+
+        if self.item:
+            self._load_markers_and_ts_to_disk()
+
+    def _load_markers_and_ts_to_disk(self):
+        directory = self._storage_folder_path
+        file_name = self._marker_locations_file_name
+        pldata = fm.load_pldata_file(directory, file_name)
+        self.item.markers_bisector = pm.Mutable_Bisector(pldata.data, pldata.timestamps)
 
     @property
     def _item_class(self):
@@ -55,3 +86,7 @@ class MarkerLocationStorage(model.Storage, Observable):
     @property
     def _storage_file_name(self):
         return "marker_locations.msgpack"
+
+    @property
+    def _marker_locations_file_name(self):
+        return "marker_locations"

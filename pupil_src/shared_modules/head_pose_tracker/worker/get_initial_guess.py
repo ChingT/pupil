@@ -94,15 +94,15 @@ def _get_frame_id_to_extrinsics_init(
 
     frame_ids_not_computed = set(frame_ids) - set(frame_id_to_extrinsics_init.keys())
     for frame_id in frame_ids_not_computed:
-        marker_id_to_detections = {
-            marker.marker_id: {"verts": marker.verts}
+        markers_in_frame = [
+            {"id": marker.marker_id, "verts": marker.verts}
             for marker in key_markers
             if marker.frame_id == frame_id
             and marker.marker_id in marker_id_to_extrinsics_init.keys()
-        }
+        ]
 
         camera_extrinsics = worker.solvepnp.calculate(
-            camera_intrinsics, marker_id_to_detections, marker_id_to_extrinsics_init
+            camera_intrinsics, markers_in_frame, marker_id_to_extrinsics_init
         )
         if camera_extrinsics is not None:
             frame_id_to_extrinsics_init[frame_id] = camera_extrinsics

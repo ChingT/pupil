@@ -11,6 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 
 
 import file_methods as fm
+import player_methods as pm
 import tasklib
 import tasklib.background.patches as bg_patches
 from head_pose_tracker import worker
@@ -18,19 +19,13 @@ from head_pose_tracker import worker
 g_pool = None  # set by the plugin
 
 
-def create_task(marker_locations, markers_3d_model, camera_localizer):
+def create_task(timestamps, marker_locations, markers_3d_model, camera_localizer):
     assert g_pool, "You forgot to set g_pool by the plugin"
 
-    frame_start, frame_end = camera_localizer.frame_index_range
-    marker_locations_in_loc_range = [
-        marker_location
-        for marker_location in marker_locations.result.values()
-        if frame_start <= marker_location["frame_index"] <= frame_end
-        and marker_location["markers"]
-    ]
-
     args = (
-        marker_locations_in_loc_range,
+        timestamps,
+        camera_localizer.frame_index_range,
+        marker_locations.markers_bisector,
         g_pool.capture.intrinsics,
         markers_3d_model.result["marker_id_to_extrinsics"],
     )
@@ -45,19 +40,26 @@ def create_task(marker_locations, markers_3d_model, camera_localizer):
 
 
 def _localize_pose(
-    marker_locations_in_loc_range,
+    timestamps,
+    frame_index_range,
+    markers_bisector,
     camera_intrinsics,
     marker_id_to_extrinsics,
     shared_memory,
 ):
     camera_extrinsics_prv = None
     not_localized_count = 0
-    for idx, marker_location in enumerate(marker_locations_in_loc_range):
-        shared_memory.progress = (idx + 1) / len(marker_locations_in_loc_range)
 
+    frame_start, frame_end = frame_index_range
+    frame_count = frame_end - frame_start + 1
+    for frame_index in range(frame_start, frame_end + 1):
+        shared_memory.progress = (frame_index - frame_start + 1) / frame_count
+
+        frame_window = pm.enclosing_window(timestamps, frame_index)
+        markers_in_frame = markers_bisector.by_ts_window(frame_window)
         camera_extrinsics = worker.solvepnp.calculate(
             camera_intrinsics,
-            marker_location["markers"],
+            markers_in_frame,
             marker_id_to_extrinsics,
             camera_extrinsics_prv=camera_extrinsics_prv,
             min_n_markers_per_frame=1,
@@ -73,8 +75,8 @@ def _localize_pose(
                 "camera_poses": camera_poses.tolist(),
                 "camera_trace": camera_trace.tolist(),
                 "camera_pose_matrix": camera_pose_matrix.tolist(),
-                "timestamp": marker_location["timestamp"],
-                "marker_ids": list(marker_location["markers"].keys()),
+                "timestamp": timestamps[frame_index],
+                "marker_ids": [marker["id"] for marker in markers_in_frame],
             }
             yield fm.Serialized_Dict(camera_pose_data)
 

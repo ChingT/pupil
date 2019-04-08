@@ -20,11 +20,16 @@ logger = logging.getLogger(__name__)
 
 class MarkerLocationController(Observable):
     def __init__(
-        self, marker_location_storage, task_manager, get_current_trim_mark_range
+        self,
+        marker_location_storage,
+        task_manager,
+        get_current_trim_mark_range,
+        all_timestamps,
     ):
         self._marker_location_storage = marker_location_storage
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
+        self._all_timestamps = all_timestamps
 
         self._marker_locations = marker_location_storage.item
         self._task = None
@@ -39,8 +44,8 @@ class MarkerLocationController(Observable):
         self._create_detection_task()
 
     def _create_detection_task(self):
-        def on_yield(data):
-            self._marker_locations.result[data["frame_index"]] = data
+        def on_yield(ts_and_data):
+            self._insert_markers_bisector(ts_and_data)
             self.on_marker_detection_yield()
 
         def on_completed(_):
@@ -53,7 +58,9 @@ class MarkerLocationController(Observable):
             logger.info("Cancel marker detection")
             self.on_marker_detection_ended()
 
-        self._task = worker.detect_square_markers.create_task(self._marker_locations)
+        self._task = worker.detect_square_markers.create_task(
+            self._all_timestamps, self._marker_locations
+        )
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)
         self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
@@ -61,6 +68,11 @@ class MarkerLocationController(Observable):
         self._task.add_observer("on_started", self.on_marker_detection_started)
         self._task_manager.add_task(self._task)
         logger.info("Start marker detection")
+
+    def _insert_markers_bisector(self, ts_and_data):
+        timestamp, markers = ts_and_data
+        for marker in markers:
+            self._marker_locations.markers_bisector.insert(timestamp, marker)
 
     def cancel_detection(self):
         if self.is_running_detection:

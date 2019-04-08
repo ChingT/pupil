@@ -9,27 +9,21 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import player_methods as pm
 import tasklib.background
 import tasklib.background.patches as bg_patches
 from head_pose_tracker import worker, model
 
-
 g_pool = None  # set by the plugin
 
 
-def create_task(marker_locations, markers_3d_model):
+def create_task(timestamps, marker_locations, markers_3d_model):
     assert g_pool, "You forgot to set g_pool by the plugin"
 
-    frame_start, frame_end = markers_3d_model.frame_index_range
-    marker_locations_in_opt_range = [
-        marker_location
-        for marker_location in marker_locations.result.values()
-        if frame_start <= marker_location["frame_index"] <= frame_end
-        and marker_location["markers"]
-    ]
-
     args = (
-        marker_locations_in_opt_range,
+        timestamps,
+        markers_3d_model.frame_index_range,
+        marker_locations.markers_bisector,
         g_pool.capture.intrinsics,
         markers_3d_model.user_defined_origin_marker_id,
         markers_3d_model.optimize_camera_intrinsics,
@@ -45,22 +39,27 @@ def create_task(marker_locations, markers_3d_model):
 
 
 def _optimize_markers_3d_model(
-    marker_locations_in_opt_range,
+    timestamps,
+    frame_index_range,
+    markers_bisector,
     camera_intrinsics,
     user_defined_origin_marker_id,
     optimize_camera_intrinsics,
     shared_memory,
 ):
-    n_key_markers_added_once = 25
     storage = model.OptimizationStorage(user_defined_origin_marker_id)
 
+    n_key_markers_added_once = 25
     pick_key_markers = worker.PickKeyMarkers(storage)
     bundle_adjustment = worker.BundleAdjustment(
         camera_intrinsics, optimize_camera_intrinsics
     )
 
-    for marker_location in marker_locations_in_opt_range:
-        pick_key_markers.run(marker_location["markers"], marker_location["timestamp"])
+    frame_start, frame_end = frame_index_range
+    for frame_index in range(frame_start, frame_end + 1):
+        frame_window = pm.enclosing_window(timestamps, frame_index)
+        markers_in_frame = markers_bisector.by_ts_window(frame_window)
+        pick_key_markers.run(markers_in_frame)
 
     optimization_times = len(storage.all_key_markers) // n_key_markers_added_once + 5
     for _iter in range(optimization_times):

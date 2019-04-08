@@ -42,32 +42,32 @@ class PickKeyMarkers:
 
         self._n_frames_passed = -1
 
-    def run(self, marker_id_to_detections, timestamp):
-        if self._decide_key_markers(marker_id_to_detections):
-            self._save_key_markers(marker_id_to_detections, timestamp)
+    def run(self, markers_in_frame):
+        if self._decide_key_markers(markers_in_frame):
+            self._save_key_markers(markers_in_frame)
 
-    def _decide_key_markers(self, marker_id_to_detections):
+    def _decide_key_markers(self, markers_in_frame):
         self._n_frames_passed += 1
         if self._n_frames_passed >= self._select_key_markers_interval:
             self._n_frames_passed = -1
 
             if len(
-                marker_id_to_detections
+                markers_in_frame
             ) >= self._min_n_markers_per_frame and self._check_bins_availability(
-                marker_id_to_detections
+                markers_in_frame
             ):
                 return True
 
         return False
 
-    def _check_bins_availability(self, marker_id_to_detections):
-        for marker_id, detection in marker_id_to_detections.items():
+    def _check_bins_availability(self, markers_in_frame):
+        for marker in markers_in_frame:
             n_same_markers_in_bin = len(
                 [
-                    marker
-                    for marker in self._optimization_storage.all_key_markers
-                    if marker.marker_id == marker_id
-                    and marker.bin == self._get_bin(detection)
+                    key_marker
+                    for key_marker in self._optimization_storage.all_key_markers
+                    if key_marker.marker_id == marker["id"]
+                    and key_marker.bin == self._get_bin(marker)
                 ]
             )
             if n_same_markers_in_bin < self._max_n_same_markers_per_bin:
@@ -75,10 +75,15 @@ class PickKeyMarkers:
 
         return False
 
-    def _save_key_markers(self, marker_id_to_detections, frame_id):
+    def _save_key_markers(self, markers_in_frame):
         key_markers = [
-            KeyMarker(frame_id, marker_id, detection["verts"], self._get_bin(detection))
-            for marker_id, detection in marker_id_to_detections.items()
+            KeyMarker(
+                marker["timestamp"],
+                marker["id"],
+                marker["verts"],
+                self._get_bin(marker),
+            )
+            for marker in markers_in_frame
         ]
         self._optimization_storage.all_key_markers += key_markers
 

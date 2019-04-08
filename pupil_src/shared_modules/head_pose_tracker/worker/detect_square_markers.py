@@ -9,6 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import file_methods as fm
 import tasklib.background
 import tasklib.background.patches as bg_patches
 import video_capture
@@ -18,10 +19,15 @@ from methods import normalize
 g_pool = None  # set by the plugin
 
 
-def create_task(marker_locations):
+def create_task(timestamps, marker_locations):
     assert g_pool, "You forgot to set g_pool by the plugin"
-
-    args = (g_pool.capture.source_path, marker_locations.frame_index_range)
+    calculated_timestamps = set(marker_locations.markers_bisector.timestamps)
+    args = (
+        g_pool.capture.source_path,
+        timestamps,
+        marker_locations.frame_index_range,
+        calculated_timestamps,
+    )
     name = "Create Apriltag Detection"
     return tasklib.background.create(
         name,
@@ -36,38 +42,37 @@ class Empty(object):
     pass
 
 
-def _detect_apriltags(source_path, frame_index_range, shared_memory):
-    apriltag_detector = apriltag.Detector()
-
+def _detect_apriltags(
+    source_path, timestamps, frame_index_range, calculated_timestamps, shared_memory
+):
     def _detect(image):
         apriltag_detections = apriltag_detector.detect(image)
         img_size = image.shape[::-1]
-        return {
-            detection.tag_id: {
-                "verts": detection.corners[::-1].tolist(),
-                "centroid": normalize(detection.center, img_size, flip_y=True),
-            }
+        return [
+            fm.Serialized_Dict(
+                {
+                    "id": detection.tag_id,
+                    "verts": detection.corners[::-1].tolist(),
+                    "centroid": normalize(detection.center, img_size, flip_y=True),
+                    "timestamp": timestamp,
+                }
+            )
             for detection in apriltag_detections
-        }
+        ]
 
+    apriltag_detector = apriltag.Detector()
     src = video_capture.File_Source(Empty(), source_path, timing=None)
+
     frame_start, frame_end = frame_index_range
     frame_count = frame_end - frame_start + 1
-    src.seek_to_frame(frame_start)
-    while True:
-        try:
-            frame = src.get_frame()
-        except video_capture.EndofVideoError:
-            break
-        else:
-            if frame.index >= frame_end:
-                break
-            shared_memory.progress = (frame.index - frame_start + 1) / frame_count
+    for frame_index in range(frame_start, frame_end + 1):
+        shared_memory.progress = (frame_index - frame_start + 1) / frame_count
 
+        timestamp = timestamps[frame_index]
+        if timestamp in calculated_timestamps:
+            yield timestamp, []
+        else:
+            src.seek_to_frame(frame_index)
+            frame = src.get_frame()
             markers = _detect(frame.gray)
-            detection_data = {
-                "markers": markers,
-                "timestamp": frame.timestamp,
-                "frame_index": frame.index,
-            }
-            yield detection_data
+            yield timestamp, markers

@@ -27,6 +27,7 @@ class Markers3DModelController(Observable):
         camera_intrinsics,
         task_manager,
         get_current_trim_mark_range,
+        all_timestamps,
         recording_uuid,
         rec_dir,
     ):
@@ -34,6 +35,7 @@ class Markers3DModelController(Observable):
         self._camera_intrinsics = camera_intrinsics
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
+        self._all_timestamps = all_timestamps
         self._recording_uuid = recording_uuid
         self._rec_dir = rec_dir
 
@@ -91,7 +93,7 @@ class Markers3DModelController(Observable):
             self._markers_3d_model_storage.save_to_disk()
 
         self._task = worker.optimize_markers_3d_model.create_task(
-            self._marker_locations, self._markers_3d_model
+            self._all_timestamps, self._marker_locations, self._markers_3d_model
         )
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)

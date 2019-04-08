@@ -58,18 +58,14 @@ class MarkerLocationTimeline:
         return Row(label=self.timeline_label, elements=elements)
 
     def _create_marker_location_bars(self):
-        bar_positions = [
-            marker_location["timestamp"]
-            for marker_location in self._marker_locations.result.values()
-            if marker_location["markers"]
-        ]
-        return BarsElementTs(bar_positions, color_rgba=(1.0, 1.0, 1.0, 0.5))
+        bar_positions = self._marker_locations.markers_bisector.timestamps
+        return BarsElementTs(bar_positions, color_rgba=(1.0, 1.0, 1.0, 0.25))
 
     def _create_progress_indication(self):
         progress = self._marker_location_controller.detection_progress
         return RangeElementFrameIdx(
             from_idx=self._frame_start,
-            to_idx=int(self._frame_start + self._frame_count * progress),
+            to_idx=int(self._frame_start + self._frame_count * progress) - 1,
             color_rgba=(1.0, 0.5, 0.5, 0.5),
         )
 

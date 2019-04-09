@@ -71,6 +71,7 @@ class MarkerLocationController(Observable):
 
     def _insert_markers_bisector(self, ts_and_data):
         timestamp, markers = ts_and_data
+        self._marker_locations.calculated_timestamps.append(timestamp)
         for marker in markers:
             self._marker_locations.markers_bisector.insert(timestamp, marker)
 

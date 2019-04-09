@@ -20,8 +20,9 @@ from observable import Observable
 class MarkerLocations(model.StorageItem):
     version = 1
 
-    def __init__(self, frame_index_range):
+    def __init__(self, frame_index_range, calculated_timestamps):
         self.frame_index_range = tuple(frame_index_range)
+        self.calculated_timestamps = calculated_timestamps
 
         self.markers_bisector = pm.Mutable_Bisector()
 
@@ -31,7 +32,7 @@ class MarkerLocations(model.StorageItem):
 
     @property
     def as_tuple(self):
-        return (self.frame_index_range,)
+        return self.frame_index_range, self.calculated_timestamps
 
     @property
     def calculated(self):
@@ -43,7 +44,10 @@ class MarkerLocationStorage(model.Storage, Observable):
         super().__init__(rec_dir, plugin, get_recording_index_range)
 
     def _create_default_item(self):
-        return MarkerLocations(frame_index_range=self._get_recording_index_range())
+        return MarkerLocations(
+            frame_index_range=self._get_recording_index_range(),
+            calculated_timestamps=[],
+        )
 
     def save_to_disk(self):
         # this will save everything except markers and markers_ts

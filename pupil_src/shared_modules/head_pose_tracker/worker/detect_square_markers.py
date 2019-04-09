@@ -21,12 +21,11 @@ g_pool = None  # set by the plugin
 
 def create_task(timestamps, marker_locations):
     assert g_pool, "You forgot to set g_pool by the plugin"
-    calculated_timestamps = set(marker_locations.markers_bisector.timestamps)
     args = (
         g_pool.capture.source_path,
         timestamps,
         marker_locations.frame_index_range,
-        calculated_timestamps,
+        marker_locations.calculated_timestamps,
     )
     name = "Create Apriltag Detection"
     return tasklib.background.create(
@@ -65,13 +64,11 @@ def _detect_apriltags(
 
     frame_start, frame_end = frame_index_range
     frame_count = frame_end - frame_start + 1
-    for frame_index in range(frame_start, frame_end + 1):
-        shared_memory.progress = (frame_index - frame_start + 1) / frame_count
 
+    for frame_index in range(frame_start, frame_end + 1):
         timestamp = timestamps[frame_index]
-        if timestamp in calculated_timestamps:
-            yield timestamp, []
-        else:
+        if timestamp not in calculated_timestamps:
+            shared_memory.progress = (frame_index - frame_start + 1) / frame_count
             src.seek_to_frame(frame_index)
             frame = src.get_frame()
             markers = _detect(frame.gray)

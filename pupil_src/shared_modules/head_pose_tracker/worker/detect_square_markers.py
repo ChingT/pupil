@@ -59,6 +59,8 @@ def _detect_apriltags(
             for detection in apriltag_detections
         ]
 
+    yield None
+
     apriltag_detector = apriltag.Detector()
     src = video_capture.File_Source(Empty(), source_path, timing=None)
 

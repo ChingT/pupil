@@ -54,6 +54,9 @@ class CameraLocalizerController(Observable):
             self._on_markers_3d_model_optimization_completed,
         )
 
+        self._timestamps_queue = []
+        self._poses_queue = []
+
     def _on_markers_3d_model_optimization_had_completed_before(self):
         if not self._camera_localizer.calculated:
             self.calculate()
@@ -94,19 +97,22 @@ class CameraLocalizerController(Observable):
 
     def _create_localization_task(self):
         def on_yield(ts_and_data):
-            self._insert_pose_bisector(ts_and_data)
+            self._add_data_to_queue(ts_and_data)
+            self._insert_pose_bisector(force=False)
             self._camera_localizer.status = "{:.0f}% completed".format(
                 self._task.progress * 100
             )
             self.on_camera_localization_yield()
 
         def on_completed(_):
+            self._insert_pose_bisector(force=True)
             self._camera_localizer.status = "successful"
             self._camera_localizer_storage.save_to_disk()
             logger.info("camera localization completed")
             self.on_camera_localization_ended()
 
         def on_canceled_or_killed():
+            self._insert_pose_bisector(force=True)
             self._camera_localizer_storage.save_to_disk()
             logger.info("camera localization canceled")
             self.on_camera_localization_ended()
@@ -126,8 +132,17 @@ class CameraLocalizerController(Observable):
         logger.info("Start camera localization")
         self._camera_localizer.status = "0% completed"
 
-    def _insert_pose_bisector(self, ts_and_data):
-        self._camera_localizer.pose_bisector.insert(*ts_and_data)
+    def _add_data_to_queue(self, ts_and_data):
+        timestamp, pose = ts_and_data
+        self._timestamps_queue.append(timestamp)
+        self._poses_queue.append(pose)
+
+    def _insert_pose_bisector(self, force):
+        if force or len(self._timestamps_queue) > 20:
+            for timestamp, pose in zip(self._timestamps_queue, self._poses_queue):
+                self._camera_localizer.pose_bisector.insert(timestamp, pose)
+            self._timestamps_queue = []
+            self._poses_queue = []
 
     def cancel_task(self):
         if self.is_running_task:

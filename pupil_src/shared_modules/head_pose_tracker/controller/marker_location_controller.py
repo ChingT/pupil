@@ -34,6 +34,9 @@ class MarkerLocationController(Observable):
         self._marker_locations = marker_location_storage.item
         self._task = None
 
+        self._timestamps_queue = []
+        self._markers_queue = []
+
     def init_detection(self):
         if self._marker_locations.calculated:
             self.on_marker_detection_ended()
@@ -44,16 +47,19 @@ class MarkerLocationController(Observable):
         self._create_detection_task()
 
     def _create_detection_task(self):
-        def on_yield(ts_and_data):
-            self._insert_markers_bisector(ts_and_data)
+        def on_yield(ts_idx_data):
+            self._add_data_to_queue(ts_idx_data)
+            self._insert_markers_bisector(force=False)
             self.on_marker_detection_yield()
 
         def on_completed(_):
+            self._insert_markers_bisector(force=True)
             self._marker_location_storage.save_to_disk()
             logger.info("marker detection completed")
             self.on_marker_detection_ended()
 
         def on_canceled_or_killed():
+            self._insert_markers_bisector(force=True)
             self._marker_location_storage.save_to_disk()
             logger.info("marker detection canceled")
             self.on_marker_detection_ended()
@@ -69,11 +75,21 @@ class MarkerLocationController(Observable):
         self._task_manager.add_task(self._task)
         logger.info("Start marker detection")
 
-    def _insert_markers_bisector(self, ts_idx_data):
+    def _add_data_to_queue(self, ts_idx_data):
+        if not ts_idx_data:
+            return
         timestamp, frame_index, markers = ts_idx_data
         self._marker_locations.calculated_frame_indices.append(frame_index)
         for marker in markers:
-            self._marker_locations.markers_bisector.insert(timestamp, marker)
+            self._timestamps_queue.append(timestamp)
+            self._markers_queue.append(marker)
+
+    def _insert_markers_bisector(self, force):
+        if force or len(self._timestamps_queue) > 20:
+            for timestamp, marker in zip(self._timestamps_queue, self._markers_queue):
+                self._marker_locations.markers_bisector.insert(timestamp, marker)
+            self._timestamps_queue = []
+            self._markers_queue = []
 
     def cancel_task(self):
         if self.is_running_task:

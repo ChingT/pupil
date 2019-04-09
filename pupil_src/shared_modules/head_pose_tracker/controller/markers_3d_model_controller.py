@@ -49,7 +49,8 @@ class Markers3DModelController(Observable):
         )
 
     def _on_marker_detection_ended(self):
-        self.calculate(check_complete=True)
+        if self._markers_3d_model_storage.is_from_same_recording:
+            self.calculate(check_complete=True)
 
     def calculate(self, check_complete=False):
         if check_complete and self._markers_3d_model.calculated:

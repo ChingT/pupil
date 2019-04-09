@@ -39,9 +39,6 @@ class CameraLocalizerController(Observable):
         self._markers_3d_model = markers_3d_model_storage.item
         self._camera_localizer = camera_localizer_storage.item
 
-        self.pose = []
-        self.pose_ts = []
-
         self._task = None
 
         markers_3d_model_controller.add_observer(
@@ -62,7 +59,7 @@ class CameraLocalizerController(Observable):
             self.calculate()
 
     def _on_markers_3d_model_optimization_started(self):
-        self._reset()
+        self.reset()
 
     def _on_markers_3d_model_optimization_completed(self):
         self.calculate()
@@ -71,15 +68,16 @@ class CameraLocalizerController(Observable):
         if not self._check_valid_markers_3d_model():
             return
 
-        self._reset()
+        self.reset()
         self._create_localization_task()
 
     def _check_valid_markers_3d_model(self):
         if not self._markers_3d_model.calculated:
-            self._abort_calculation(
-                "You first need to calculate markers_3d_model '{}' before calculating "
+            error_message = (
+                "You first need to calculate markers 3d model '{}' before calculating "
                 "the camera localizer".format(self._markers_3d_model.name)
             )
+            self._abort_calculation(error_message)
             return False
         return True
 
@@ -88,32 +86,30 @@ class CameraLocalizerController(Observable):
         self._camera_localizer.status = error_message
         self.on_calculation_could_not_be_started()
         # the pose from this localizer got cleared, so don't show it anymore
-        self.save_pose_bisector()
 
-    def _reset(self):
-        if self._task is not None and self._task.running:
-            self._task.kill(None)
-
-        self.pose = []
-        self.pose_ts = []
-
-        self.save_pose_bisector()
+    def reset(self):
+        self.cancel_task()
+        self._camera_localizer.pose_bisector = pm.Mutable_Bisector()
         self._camera_localizer.status = "Not calculated yet"
 
     def _create_localization_task(self):
-        def on_yield(data):
-            self.pose.append(data)
-            self.pose_ts.append(data["timestamp"])
+        def on_yield(ts_and_data):
+            self._insert_pose_bisector(ts_and_data)
             self._camera_localizer.status = "{:.0f}% completed".format(
                 self._task.progress * 100
             )
+            self.on_camera_localization_yield()
 
         def on_completed(_):
             self._camera_localizer.status = "successful"
-            self.save_pose_bisector()
             self._camera_localizer_storage.save_to_disk()
             logger.info("camera localization completed")
-            self.on_camera_localization_completed()
+            self.on_camera_localization_ended()
+
+        def on_canceled_or_killed():
+            self._camera_localizer_storage.save_to_disk()
+            logger.info("camera localization canceled")
+            self.on_camera_localization_ended()
 
         self._task = worker.localize_pose.create_task(
             self._all_timestamps,
@@ -123,12 +119,27 @@ class CameraLocalizerController(Observable):
         )
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)
+        self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
+        self._task.add_observer("on_started", self.on_camera_localization_started)
         self._task_manager.add_task(self._task)
         logger.info("Start camera localization")
+        self._camera_localizer.status = "0% completed"
 
-    def save_pose_bisector(self):
-        self._camera_localizer.pose_bisector = pm.Bisector(self.pose, self.pose_ts)
+    def _insert_pose_bisector(self, ts_and_data):
+        self._camera_localizer.pose_bisector.insert(*ts_and_data)
+
+    def cancel_task(self):
+        if self.is_running_task:
+            self._task.kill(None)
+
+    @property
+    def is_running_task(self):
+        return self._task is not None and self._task.running
+
+    @property
+    def localization_progress(self):
+        return self._task.progress if self.is_running_task else 0.0
 
     def set_range_from_current_trim_marks(self):
         self._camera_localizer.frame_index_range = self._get_current_trim_mark_range()
@@ -136,5 +147,11 @@ class CameraLocalizerController(Observable):
     def on_calculation_could_not_be_started(self):
         pass
 
-    def on_camera_localization_completed(self):
+    def on_camera_localization_started(self):
+        pass
+
+    def on_camera_localization_yield(self):
+        pass
+
+    def on_camera_localization_ended(self):
         pass

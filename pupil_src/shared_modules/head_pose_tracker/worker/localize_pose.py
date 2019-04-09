@@ -47,16 +47,34 @@ def _localize_pose(
     marker_id_to_extrinsics,
     shared_memory,
 ):
+    def get_camera_pose_data(extrinsics, ts, markers):
+        camera_poses = worker.utils.get_camera_pose(extrinsics)
+        camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(camera_poses)
+
+        return fm.Serialized_Dict(
+            python_dict={
+                "camera_extrinsics": extrinsics.tolist(),
+                "camera_poses": camera_poses.tolist(),
+                "camera_trace": camera_poses[3:6].tolist(),
+                "camera_pose_matrix": camera_pose_matrix.tolist(),
+                "timestamp": ts,
+                "marker_ids": [marker["id"] for marker in markers],
+            }
+        )
+
+    def find_markers_in_frame(index):
+        window = pm.enclosing_window(timestamps, index)
+        return markers_bisector.by_ts_window(window)
+
     camera_extrinsics_prv = None
     not_localized_count = 0
 
     frame_start, frame_end = frame_index_range
     frame_count = frame_end - frame_start + 1
     for frame_index in range(frame_start, frame_end + 1):
-        shared_memory.progress = (frame_index - frame_start + 1) / frame_count
+        markers_in_frame = find_markers_in_frame(frame_index)
+        timestamp = timestamps[frame_index]
 
-        frame_window = pm.enclosing_window(timestamps, frame_index)
-        markers_in_frame = markers_bisector.by_ts_window(frame_window)
         camera_extrinsics = worker.solvepnp.calculate(
             camera_intrinsics,
             markers_in_frame,
@@ -64,24 +82,15 @@ def _localize_pose(
             camera_extrinsics_prv=camera_extrinsics_prv,
             min_n_markers_per_frame=1,
         )
-
         if camera_extrinsics is not None:
-            camera_poses = worker.utils.get_camera_pose(camera_extrinsics)
-            camera_trace = camera_poses[3:6]
-            camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(camera_poses)
-
-            camera_pose_data = {
-                "camera_extrinsics": camera_extrinsics.tolist(),
-                "camera_poses": camera_poses.tolist(),
-                "camera_trace": camera_trace.tolist(),
-                "camera_pose_matrix": camera_pose_matrix.tolist(),
-                "timestamp": timestamps[frame_index],
-                "marker_ids": [marker["id"] for marker in markers_in_frame],
-            }
-            yield fm.Serialized_Dict(camera_pose_data)
-
             camera_extrinsics_prv = camera_extrinsics
             not_localized_count = 0
+
+            camera_pose_data = get_camera_pose_data(
+                camera_extrinsics, timestamp, markers_in_frame
+            )
+            shared_memory.progress = (frame_index - frame_start + 1) / frame_count
+            yield timestamp, camera_pose_data
         else:
             if not_localized_count >= 5:
                 camera_extrinsics_prv = None

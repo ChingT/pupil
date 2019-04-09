@@ -25,7 +25,7 @@ class CameraLocalizer(model.StorageItem):
         self.status = status
 
         # for visualization of pose data
-        self.pose_bisector = pm.Bisector()
+        self.pose_bisector = pm.Mutable_Bisector()
 
         self.show_camera_trace = True
 
@@ -77,7 +77,7 @@ class CameraLocalizerStorage(model.Storage, Observable):
         directory = self._storage_folder_path
         file_name = self._camera_localization_file_name
         pldata = fm.load_pldata_file(directory, file_name)
-        self.item.pose_bisector = pm.Bisector(pldata.data, pldata.timestamps)
+        self.item.pose_bisector = pm.Mutable_Bisector(pldata.data, pldata.timestamps)
 
     @property
     def _item_class(self):

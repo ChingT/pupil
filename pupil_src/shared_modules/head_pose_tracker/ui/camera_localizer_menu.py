@@ -27,11 +27,11 @@ class CameraLocalizerMenu:
         self._camera_localizer = camera_localizer_storage.item
 
         camera_localizer_controller.add_observer(
-            "on_camera_localization_completed", self._on_camera_localization_completed
-        )
-        camera_localizer_controller.add_observer(
             "on_calculation_could_not_be_started",
             self._on_calculation_could_not_be_started,
+        )
+        camera_localizer_controller.add_observer(
+            "on_camera_localization_ended", self._on_camera_localization_ended
         )
 
     def render(self):
@@ -81,9 +81,8 @@ class CameraLocalizerMenu:
     def _on_click_calculate(self):
         self._camera_localizer_controller.calculate()
 
-    def _on_camera_localization_completed(self):
-        # mostly to change button "calculate" -> "recalculate"
+    def _on_calculation_could_not_be_started(self):
         self.render()
 
-    def _on_calculation_could_not_be_started(self):
+    def _on_camera_localization_ended(self):
         self.render()

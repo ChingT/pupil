@@ -55,7 +55,7 @@ class MarkerLocationController(Observable):
 
         def on_canceled_or_killed():
             self._marker_location_storage.save_to_disk()
-            logger.info("Cancel marker detection")
+            logger.info("marker detection canceled")
             self.on_marker_detection_ended()
 
         self._task = worker.detect_square_markers.create_task(
@@ -69,23 +69,23 @@ class MarkerLocationController(Observable):
         self._task_manager.add_task(self._task)
         logger.info("Start marker detection")
 
-    def _insert_markers_bisector(self, ts_and_data):
-        timestamp, markers = ts_and_data
-        self._marker_locations.calculated_timestamps.append(timestamp)
+    def _insert_markers_bisector(self, ts_idx_data):
+        timestamp, frame_index, markers = ts_idx_data
+        self._marker_locations.calculated_frame_indices.append(frame_index)
         for marker in markers:
             self._marker_locations.markers_bisector.insert(timestamp, marker)
 
-    def cancel_detection(self):
-        if self.is_running_detection:
+    def cancel_task(self):
+        if self.is_running_task:
             self._task.kill(None)
 
     @property
-    def is_running_detection(self):
+    def is_running_task(self):
         return self._task is not None and self._task.running
 
     @property
     def detection_progress(self):
-        return self._task.progress if self.is_running_detection else 0.0
+        return self._task.progress if self.is_running_task else 0.0
 
     def set_range_from_current_trim_marks(self):
         self._marker_locations.frame_index_range = self._get_current_trim_mark_range()

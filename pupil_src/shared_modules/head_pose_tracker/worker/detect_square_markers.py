@@ -25,7 +25,7 @@ def create_task(timestamps, marker_locations):
         g_pool.capture.source_path,
         timestamps,
         marker_locations.frame_index_range,
-        marker_locations.calculated_timestamps,
+        marker_locations.calculated_frame_indices,
     )
     name = "Create Apriltag Detection"
     return tasklib.background.create(
@@ -42,14 +42,14 @@ class Empty(object):
 
 
 def _detect_apriltags(
-    source_path, timestamps, frame_index_range, calculated_timestamps, shared_memory
+    source_path, timestamps, frame_index_range, calculated_frame_indices, shared_memory
 ):
     def _detect(image):
         apriltag_detections = apriltag_detector.detect(image)
         img_size = image.shape[::-1]
         return [
             fm.Serialized_Dict(
-                {
+                python_dict={
                     "id": detection.tag_id,
                     "verts": detection.corners[::-1].tolist(),
                     "centroid": normalize(detection.center, img_size, flip_y=True),
@@ -65,11 +65,14 @@ def _detect_apriltags(
     frame_start, frame_end = frame_index_range
     frame_count = frame_end - frame_start + 1
 
-    for frame_index in range(frame_start, frame_end + 1):
+    frame_indices = set(range(frame_start, frame_end + 1)) - set(
+        calculated_frame_indices
+    )
+
+    for frame_index in frame_indices:
         timestamp = timestamps[frame_index]
-        if timestamp not in calculated_timestamps:
-            shared_memory.progress = (frame_index - frame_start + 1) / frame_count
-            src.seek_to_frame(frame_index)
-            frame = src.get_frame()
-            markers = _detect(frame.gray)
-            yield timestamp, markers
+        shared_memory.progress = (frame_index - frame_start + 1) / frame_count
+        src.seek_to_frame(frame_index)
+        frame = src.get_frame()
+        markers = _detect(frame.gray)
+        yield timestamp, frame_index, markers

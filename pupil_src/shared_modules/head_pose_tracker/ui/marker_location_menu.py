@@ -55,7 +55,7 @@ class MarkerLocationMenu:
         )
 
     def _create_toggle_marker_detection_button(self):
-        if self._marker_location_controller.is_running_detection:
+        if self._marker_location_controller.is_running_task:
             return ui.Button("Cancel Detection", self._on_click_cancel_marker_detection)
         else:
             return ui.Button(
@@ -70,7 +70,7 @@ class MarkerLocationMenu:
         self._marker_location_controller.start_detection()
 
     def _on_click_cancel_marker_detection(self):
-        self._marker_location_controller.cancel_detection()
+        self._marker_location_controller.cancel_task()
 
     def _on_marker_detection_started(self):
         self.render()

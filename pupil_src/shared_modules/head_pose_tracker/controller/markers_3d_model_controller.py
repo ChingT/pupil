@@ -73,7 +73,7 @@ class Markers3DModelController(Observable):
             )
 
         def on_completed(_):
-            if self._markers_3d_model.result:
+            if self._markers_3d_model.calculated:
                 self._markers_3d_model.status = "successful"
                 self._camera_intrinsics.save(self._rec_dir)
                 logger.info(
@@ -107,6 +107,7 @@ class Markers3DModelController(Observable):
                 self._markers_3d_model.name
             )
         )
+        self._markers_3d_model.status = "0% completed"
 
     def _update_result(self, result):
         model_data, intrinsics = result

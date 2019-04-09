@@ -28,14 +28,15 @@ class Markers3DModel(model.StorageItem):
         frame_index_range,
         status="Not calculated yet",
         result=None,
+        user_defined_origin_marker_id=None,
     ):
         self.name = name
         self.recording_uuid = recording_uuid
         self.frame_index_range = tuple(frame_index_range)
         self.status = status
         self.result = result
+        self.user_defined_origin_marker_id = user_defined_origin_marker_id
 
-        self.user_defined_origin_marker_id = None
         self.optimize_camera_intrinsics = False
         self.show_marker_id = False
 
@@ -51,11 +52,12 @@ class Markers3DModel(model.StorageItem):
             self.frame_index_range,
             self.status,
             self.result,
+            self.user_defined_origin_marker_id,
         )
 
     @property
     def calculated(self):
-        return bool(self.result)
+        return self.result and self.result["marker_id_to_extrinsics"]
 
 
 class Markers3DModelStorage(model.Storage, Observable):

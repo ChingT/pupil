@@ -47,43 +47,44 @@ def _optimize_markers_3d_model(
     optimize_camera_intrinsics,
     shared_memory,
 ):
-    storage = model.OptimizationStorage(user_defined_origin_marker_id)
+    def find_markers_in_frame(index):
+        window = pm.enclosing_window(timestamps, index)
+        return markers_bisector.by_ts_window(window)
 
-    n_key_markers_added_once = 25
+    storage = model.OptimizationStorage(user_defined_origin_marker_id)
     pick_key_markers = worker.PickKeyMarkers(storage)
     bundle_adjustment = worker.BundleAdjustment(
         camera_intrinsics, optimize_camera_intrinsics
     )
 
     frame_start, frame_end = frame_index_range
-    for frame_index in range(frame_start, frame_end + 1):
-        frame_window = pm.enclosing_window(timestamps, frame_index)
-        markers_in_frame = markers_bisector.by_ts_window(frame_window)
+    frame_count = frame_end - frame_start + 1
+    for idx, frame_index in enumerate(range(frame_start, frame_end + 1)):
+        markers_in_frame = find_markers_in_frame(frame_index)
         pick_key_markers.run(markers_in_frame)
 
-    optimization_times = len(storage.all_key_markers) // n_key_markers_added_once + 5
-    for _iter in range(optimization_times):
-        shared_memory.progress = (_iter + 1) / optimization_times
+        if idx % 100 == 50 or idx == frame_end:
+            shared_memory.progress = (idx + 1) / frame_count
 
-        initial_guess_result = worker.get_initial_guess.calculate(
-            storage, camera_intrinsics
-        )
-        if not initial_guess_result:
-            continue
+            initial_guess_result = worker.get_initial_guess.calculate(
+                storage, camera_intrinsics
+            )
+            if initial_guess_result:
+                bundle_adjustment_result = bundle_adjustment.calculate(
+                    initial_guess_result
+                )
+                storage = worker.update_optimization_storage.run(
+                    storage, bundle_adjustment_result
+                )
 
-        bundle_adjustment_result = bundle_adjustment.calculate(initial_guess_result)
-        storage = worker.update_optimization_storage.run(
-            storage, bundle_adjustment_result
-        )
-
-        model_data = {
-            "marker_id_to_extrinsics": storage.marker_id_to_extrinsics_opt,
-            "marker_id_to_points_3d": storage.marker_id_to_points_3d_opt,
-            "origin_marker_id": storage.origin_marker_id,
-            "centroid": storage.centroid,
-        }
-        intrinsics_params = {
-            "camera_matrix": camera_intrinsics.K,
-            "dist_coefs": camera_intrinsics.D,
-        }
-        yield model_data, intrinsics_params
+            model_data = {
+                "marker_id_to_extrinsics": storage.marker_id_to_extrinsics_opt,
+                "marker_id_to_points_3d": storage.marker_id_to_points_3d_opt,
+                "origin_marker_id": storage.origin_marker_id,
+                "centroid": storage.centroid,
+            }
+            intrinsics_params = {
+                "camera_matrix": camera_intrinsics.K,
+                "dist_coefs": camera_intrinsics.D,
+            }
+            yield model_data, intrinsics_params

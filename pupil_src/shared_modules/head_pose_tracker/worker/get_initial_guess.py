@@ -19,20 +19,17 @@ InitialGuessResult = collections.namedtuple(
 )
 
 
-_n_key_markers_processed = 0
-
-
 def calculate(storage, camera_intrinsics):
     """ get marker and camera initial guess for bundle adjustment """
 
     try:
-        marker_id_to_extrinsics_init = storage.marker_id_to_extrinsics_opt
-    except AttributeError:
+        storage.marker_id_to_extrinsics_opt[storage.origin_marker_id]
+    except KeyError:
         storage.set_origin_marker_id()
-        return None
 
+    marker_id_to_extrinsics_init = storage.marker_id_to_extrinsics_opt
     frame_id_to_extrinsics_init = storage.frame_id_to_extrinsics_opt
-    key_markers = _get_key_markers_proccessed(storage.all_key_markers)
+    key_markers = storage.all_key_markers
     frame_ids = list(set(marker.frame_id for marker in key_markers))
     marker_ids = list(set(marker.marker_id for marker in key_markers))
 
@@ -70,17 +67,6 @@ def calculate(storage, camera_intrinsics):
         key_markers_useful, frame_id_to_extrinsics_init, marker_id_to_extrinsics_init
     )
     return initial_guess_result
-
-
-def _get_key_markers_proccessed(all_key_markers, n_key_markers_added_once=25):
-    global _n_key_markers_processed
-
-    key_markers_proccessed = all_key_markers[
-        : _n_key_markers_processed + n_key_markers_added_once
-    ]
-    _n_key_markers_processed = len(key_markers_proccessed)
-
-    return key_markers_proccessed
 
 
 def _get_frame_id_to_extrinsics_init(

@@ -53,9 +53,13 @@ class CameraLocalizerController(Observable):
             "on_markers_3d_model_optimization_completed",
             self._on_markers_3d_model_optimization_completed,
         )
+        self._set_to_default_values()
 
+    def _set_to_default_values(self):
         self._timestamps_queue = []
         self._poses_queue = []
+        self._calculated_count = 0
+        self._last_count = 0
 
     def _on_markers_3d_model_optimization_had_completed_before(self):
         if not self._camera_localizer.calculated:
@@ -94,6 +98,7 @@ class CameraLocalizerController(Observable):
         self.cancel_task()
         self._camera_localizer.pose_bisector = pm.Mutable_Bisector()
         self._camera_localizer.status = "Not calculated yet"
+        self._set_to_default_values()
 
     def _create_localization_task(self):
         def on_yield(ts_and_data):
@@ -102,7 +107,6 @@ class CameraLocalizerController(Observable):
             self._camera_localizer.status = "{:.0f}% completed".format(
                 self._task.progress * 100
             )
-            self.on_camera_localization_yield()
 
         def on_completed(_):
             self._insert_pose_bisector(force=True)
@@ -133,16 +137,19 @@ class CameraLocalizerController(Observable):
         self._camera_localizer.status = "0% completed"
 
     def _add_data_to_queue(self, ts_and_data):
+        self._calculated_count += 1
         timestamp, pose = ts_and_data
         self._timestamps_queue.append(timestamp)
         self._poses_queue.append(pose)
 
     def _insert_pose_bisector(self, force):
-        if force or len(self._timestamps_queue) > 20:
+        if force or self._calculated_count - self._last_count >= 300:
+            self._last_count = self._calculated_count
             for timestamp, pose in zip(self._timestamps_queue, self._poses_queue):
                 self._camera_localizer.pose_bisector.insert(timestamp, pose)
             self._timestamps_queue = []
             self._poses_queue = []
+            self.on_camera_localization_yield()
 
     def cancel_task(self):
         if self.is_running_task:

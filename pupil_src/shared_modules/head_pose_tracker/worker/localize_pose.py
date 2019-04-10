@@ -72,26 +72,27 @@ def _localize_pose(
     frame_start, frame_end = frame_index_range
     frame_count = frame_end - frame_start + 1
     for frame_index in range(frame_start, frame_end + 1):
+        shared_memory.progress = (frame_index - frame_start + 1) / frame_count
         markers_in_frame = find_markers_in_frame(frame_index)
-        timestamp = timestamps[frame_index]
-
-        camera_extrinsics = worker.solvepnp.calculate(
-            camera_intrinsics,
-            markers_in_frame,
-            marker_id_to_extrinsics,
-            camera_extrinsics_prv=camera_extrinsics_prv,
-            min_n_markers_per_frame=1,
-        )
-        if camera_extrinsics is not None:
-            camera_extrinsics_prv = camera_extrinsics
-            not_localized_count = 0
-
-            camera_pose_data = get_camera_pose_data(
-                camera_extrinsics, timestamp, markers_in_frame
+        if markers_in_frame:
+            camera_extrinsics = worker.solvepnp.calculate(
+                camera_intrinsics,
+                markers_in_frame,
+                marker_id_to_extrinsics,
+                camera_extrinsics_prv=camera_extrinsics_prv,
+                min_n_markers_per_frame=1,
             )
-            shared_memory.progress = (frame_index - frame_start + 1) / frame_count
-            yield timestamp, camera_pose_data
-        else:
-            if not_localized_count >= 5:
-                camera_extrinsics_prv = None
-            not_localized_count += 1
+            if camera_extrinsics is not None:
+                camera_extrinsics_prv = camera_extrinsics
+                not_localized_count = 0
+
+                timestamp = timestamps[frame_index]
+                camera_pose_data = get_camera_pose_data(
+                    camera_extrinsics, timestamp, markers_in_frame
+                )
+                yield timestamp, camera_pose_data
+                continue
+
+        not_localized_count += 1
+        if not_localized_count >= 5:
+            camera_extrinsics_prv = None

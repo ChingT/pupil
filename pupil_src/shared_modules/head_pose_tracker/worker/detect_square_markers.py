@@ -44,6 +44,17 @@ class Empty(object):
 def _detect_apriltags(
     source_path, timestamps, frame_index_range, calculated_frame_indices, shared_memory
 ):
+    frame_start, frame_end = frame_index_range
+    frame_indices = list(
+        set(range(frame_start, frame_end + 1)) - set(calculated_frame_indices)
+    )
+    if not frame_indices:
+        return
+
+    frame_count = frame_end - frame_start + 1
+    shared_memory.progress = (frame_indices[0] - frame_start + 1) / frame_count
+    yield None
+
     def _detect(image):
         apriltag_detections = apriltag_detector.detect(image)
         img_size = image.shape[::-1]
@@ -59,21 +70,12 @@ def _detect_apriltags(
             for detection in apriltag_detections
         ]
 
-    yield None
-
     apriltag_detector = apriltag.Detector()
     src = video_capture.File_Source(Empty(), source_path, timing=None)
 
-    frame_start, frame_end = frame_index_range
-    frame_count = frame_end - frame_start + 1
-
-    frame_indices = set(range(frame_start, frame_end + 1)) - set(
-        calculated_frame_indices
-    )
-
     for frame_index in frame_indices:
-        timestamp = timestamps[frame_index]
         shared_memory.progress = (frame_index - frame_start + 1) / frame_count
+        timestamp = timestamps[frame_index]
         src.seek_to_frame(frame_index)
         frame = src.get_frame()
         markers = _detect(frame.gray)

@@ -25,8 +25,8 @@ class OfflineHeadPoseTrackerTimeline:
 
     def render(self):
         self._plugin_timeline.clear_rows()
-        self._plugin_timeline.add_row(self._marker_location_timeline.create_row())
-        self._plugin_timeline.add_row(self._camera_localizer_timeline.create_row())
+        self._plugin_timeline.add_row(self._marker_location_timeline.row)
+        self._plugin_timeline.add_row(self._camera_localizer_timeline.row)
         self._plugin_timeline.refresh()
 
 
@@ -49,40 +49,48 @@ class MarkerLocationTimeline:
         marker_location_controller.add_observer(
             "on_marker_detection_ended", self._on_marker_detection_ended
         )
+        self.row = None
+        self.update_row()
 
-    def create_row(self):
+    def update_row(self):
         elements = [self._create_marker_location_bars()]
         if self._marker_location_controller.is_running_task:
             elements.append(self._create_progress_indication())
 
-        return Row(label=self.timeline_label, elements=elements)
+        self.row = Row(label=self.timeline_label, elements=elements)
 
     def _create_marker_location_bars(self):
         bar_positions = self._marker_locations.markers_bisector.timestamps
         return BarsElementTs(
-            bar_positions, color_rgba=(0.9, 0.4, 0.0, 0.33), width=1, height=12
+            bar_positions, color_rgba=(0.7, 0.3, 0.2, 0.33), width=1, height=12
         )
 
     def _create_progress_indication(self):
         progress = self._marker_location_controller.detection_progress
-        return RangeElementFrameIdx(
-            from_idx=self._frame_start,
-            to_idx=int(self._frame_start + self._frame_count * progress),
-            color_rgba=(1.0, 1.0, 1.0, 0.8),
-            height=4,
-        )
+        if progress > 0:
+            return RangeElementFrameIdx(
+                from_idx=self._frame_start,
+                to_idx=int(self._frame_start + self._frame_count * progress) - 1,
+                color_rgba=(1.0, 1.0, 1.0, 0.8),
+                height=4,
+            )
+        else:
+            return RangeElementFrameIdx()
 
     def _on_marker_detection_started(self):
         self._frame_start, frame_end = self._marker_locations.frame_index_range
         self._frame_count = frame_end - self._frame_start + 1
 
     def _on_storage_changed(self, *args, **kwargs):
+        self.update_row()
         self.render_parent_timeline()
 
     def _on_marker_detection_yield(self):
+        self.update_row()
         self.render_parent_timeline()
 
     def _on_marker_detection_ended(self):
+        self.update_row()
         self.render_parent_timeline()
 
 
@@ -110,13 +118,15 @@ class CameraLocalizerTimeline:
         camera_localizer_controller.add_observer(
             "on_camera_localization_ended", self._on_camera_localization_ended
         )
+        self.row = None
+        self.update_row()
 
-    def create_row(self):
+    def update_row(self):
         elements = [self._create_camera_localization_bars()]
         if self._camera_localizer_controller.is_running_task:
             elements.append(self._create_progress_indication())
 
-        return Row(label=self.timeline_label, elements=elements)
+        self.row = Row(label=self.timeline_label, elements=elements)
 
     def _create_camera_localization_bars(self):
         bar_positions = self._camera_localizer.pose_bisector.timestamps
@@ -126,12 +136,15 @@ class CameraLocalizerTimeline:
 
     def _create_progress_indication(self):
         progress = self._camera_localizer_controller.localization_progress
-        return RangeElementFrameIdx(
-            from_idx=self._frame_start,
-            to_idx=int(self._frame_start + self._frame_count * progress),
-            color_rgba=(1.0, 1.0, 1.0, 0.8),
-            height=4,
-        )
+        if progress > 0:
+            return RangeElementFrameIdx(
+                from_idx=self._frame_start,
+                to_idx=int(self._frame_start + self._frame_count * progress) - 1,
+                color_rgba=(1.0, 1.0, 1.0, 0.8),
+                height=4,
+            )
+        else:
+            return RangeElementFrameIdx()
 
     def _on_camera_localization_reset(self):
         self.render_parent_timeline()
@@ -141,10 +154,13 @@ class CameraLocalizerTimeline:
         self._frame_count = frame_end - self._frame_start + 1
 
     def _on_storage_changed(self, *args, **kwargs):
+        self.update_row()
         self.render_parent_timeline()
 
     def _on_camera_localization_yield(self):
+        self.update_row()
         self.render_parent_timeline()
 
     def _on_camera_localization_ended(self):
+        self.update_row()
         self.render_parent_timeline()

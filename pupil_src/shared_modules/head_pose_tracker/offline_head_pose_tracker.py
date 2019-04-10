@@ -13,7 +13,7 @@ import os
 
 import csv_utils
 import player_methods as pm
-from head_pose_tracker import ui as plugin_ui, controller, model
+from head_pose_tracker import ui as plugin_ui, controller, storage
 from observable import Observable
 from plugin import Plugin
 from plugin_timeline import PluginTimeline
@@ -45,20 +45,20 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         self._marker_location_controller.init_detection()
 
     def _setup_storages(self):
-        self._general_settings = model.GeneralSettings(
+        self._general_settings = storage.GeneralSettings(
             self.g_pool.rec_dir,
             get_recording_index_range=self._recording_index_range,
             plugin=self,
         )
-        self._marker_location_storage = model.MarkerLocationStorage(
+        self._marker_location_storage = storage.MarkerLocationStorage(
             self.g_pool.rec_dir, plugin=self
         )
-        self._markers_3d_model_storage = model.Markers3DModelStorage(
+        self._markers_3d_model_storage = storage.Markers3DModelStorage(
             self.g_pool.rec_dir,
             current_recording_uuid=self._current_recording_uuid,
             plugin=self,
         )
-        self._camera_localizer_storage = model.CameraLocalizerStorage(
+        self._camera_localizer_storage = storage.CameraLocalizerStorage(
             self.g_pool.rec_dir, plugin=self
         )
 

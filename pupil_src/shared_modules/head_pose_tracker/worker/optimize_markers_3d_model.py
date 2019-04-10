@@ -12,7 +12,7 @@ See COPYING and COPYING.LESSER for license details.
 import player_methods as pm
 import tasklib.background
 import tasklib.background.patches as bg_patches
-from head_pose_tracker import worker, model
+from head_pose_tracker import worker, storage
 
 g_pool = None  # set by the plugin
 
@@ -51,8 +51,8 @@ def _optimize_markers_3d_model(
         window = pm.enclosing_window(timestamps, index)
         return markers_bisector.by_ts_window(window)
 
-    storage = model.OptimizationStorage(user_defined_origin_marker_id)
-    pick_key_markers = worker.PickKeyMarkers(storage)
+    optimization_storage = storage.OptimizationStorage(user_defined_origin_marker_id)
+    pick_key_markers = worker.PickKeyMarkers(optimization_storage)
     bundle_adjustment = worker.BundleAdjustment(
         camera_intrinsics, optimize_camera_intrinsics
     )
@@ -67,21 +67,21 @@ def _optimize_markers_3d_model(
             shared_memory.progress = (idx + 1) / frame_count
 
             initial_guess_result = worker.get_initial_guess.calculate(
-                storage, camera_intrinsics
+                optimization_storage, camera_intrinsics
             )
             if initial_guess_result:
                 bundle_adjustment_result = bundle_adjustment.calculate(
                     initial_guess_result
                 )
-                storage = worker.update_optimization_storage.run(
-                    storage, bundle_adjustment_result
+                worker.update_optimization_storage.run(
+                    optimization_storage, bundle_adjustment_result
                 )
 
             model_data = {
-                "marker_id_to_extrinsics": storage.marker_id_to_extrinsics_opt,
-                "marker_id_to_points_3d": storage.marker_id_to_points_3d_opt,
-                "origin_marker_id": storage.origin_marker_id,
-                "centroid": storage.centroid,
+                "marker_id_to_extrinsics": optimization_storage.marker_id_to_extrinsics_opt,
+                "marker_id_to_points_3d": optimization_storage.marker_id_to_points_3d_opt,
+                "origin_marker_id": optimization_storage.origin_marker_id,
+                "centroid": optimization_storage.centroid,
             }
             intrinsics_params = {
                 "camera_matrix": camera_intrinsics.K,

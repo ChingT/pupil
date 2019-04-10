@@ -77,6 +77,7 @@ class GeneralSettings:
 
     def _create_default_settings(self):
         self.marker_location_frame_index_range = self._get_recording_index_range()
+        # TODO: fix marker_location_calculated_frame_indices
         self.marker_location_calculated_frame_indices = []
         self.markers_3d_model_frame_index_range = self._get_recording_index_range()
         self.markers_3d_model_status = "Not calculated yet"

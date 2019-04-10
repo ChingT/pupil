@@ -26,6 +26,7 @@ class Markers3DModelStorage(Observable):
     def __init__(self, rec_dir, current_recording_uuid, plugin):
         self._rec_dir = rec_dir
         self._current_recording_uuid = current_recording_uuid
+        self._saved_recording_uuid = current_recording_uuid
 
         self.result = None
 
@@ -80,7 +81,9 @@ class Markers3DModelStorage(Observable):
         fm.save_object(dict_representation, file_path)
 
     def _load_plmodel_from_disk(self):
-        self._saved_recording_uuid, self.result = self._load_from_file()
+        recording_uuid, self.result = self._load_from_file()
+        if recording_uuid:
+            self._saved_recording_uuid = recording_uuid
 
     def _load_from_file(self):
         file_path = self._plmodel_file_path

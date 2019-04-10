@@ -17,18 +17,18 @@ from head_pose_tracker import worker, model
 g_pool = None  # set by the plugin
 
 
-def create_task(timestamps, marker_locations, markers_3d_model):
+def create_task(timestamps, marker_locations, general_settings):
     assert g_pool, "You forgot to set g_pool by the plugin"
 
     args = (
         timestamps,
-        markers_3d_model.frame_index_range,
+        general_settings.markers_3d_model_frame_index_range,
         marker_locations.markers_bisector,
         g_pool.capture.intrinsics,
-        markers_3d_model.user_defined_origin_marker_id,
-        markers_3d_model.optimize_camera_intrinsics,
+        general_settings.user_defined_origin_marker_id,
+        general_settings.optimize_camera_intrinsics,
     )
-    name = "Create calibration {}".format(markers_3d_model.name)
+    name = "optimize markers 3d model"
     return tasklib.background.create(
         name,
         _optimize_markers_3d_model,

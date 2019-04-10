@@ -20,6 +20,7 @@ from head_pose_tracker.ui import gl_renderer_utils as utils
 class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
     def __init__(
         self,
+        general_settings,
         marker_location_storage,
         markers_3d_model_storage,
         camera_localizer_storage,
@@ -33,14 +34,15 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
         self._plugin = plugin
         self._get_current_frame_window = get_current_frame_window
 
-        self._marker_locations = marker_location_storage.item
-        self._markers_3d_model = markers_3d_model_storage.item
-        self._camera_localizer = camera_localizer_storage.item
+        self._general_settings = general_settings
+        self._marker_location_storage = marker_location_storage
+        self._markers_3d_model_storage = markers_3d_model_storage
+        self._camera_localizer_storage = camera_localizer_storage
 
         self.recent_camera_trace = collections.deque(maxlen=300)
 
     def _render(self):
-        if not self._markers_3d_model.calculated:
+        if not self._markers_3d_model_storage.calculated:
             return
 
         rotate_center_matrix = self._get_rotate_center_matrix()
@@ -56,7 +58,7 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
     def _get_rotate_center_matrix(self):
         rotate_center_matrix = np.eye(4, dtype=np.float32)
         rotate_center_matrix[0:3, 3] = -np.array(
-            self._markers_3d_model.result["centroid"]
+            self._markers_3d_model_storage.result["centroid"]
         )
         return rotate_center_matrix
 
@@ -67,11 +69,13 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
         utils.render_coordinate()
 
     def _get_marker_id_to_points_3d(self):
-        return self._markers_3d_model.result["marker_id_to_points_3d"]
+        return self._markers_3d_model_storage.result["marker_id_to_points_3d"]
 
     def _get_current_markers(self):
         frame_window = self._get_current_frame_window()
-        markers = self._marker_locations.markers_bisector.by_ts_window(frame_window)
+        markers = self._marker_location_storage.markers_bisector.by_ts_window(
+            frame_window
+        )
         return markers
 
     def _render_markers(self, marker_id_to_points_3d, current_markers):
@@ -82,16 +86,16 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
             )
             utils.render_polygon_in_3d_window(points_3d, color)
 
-            if self._markers_3d_model.show_marker_id:
+            if self._general_settings.show_marker_id:
                 color = (1, 0, 0, 1)
                 utils.render_text_in_3d_window(str(marker_id), points_3d[0], color)
 
     def _get_camera_pose_matrix(self):
         frame_window = self._get_current_frame_window()
         try:
-            pose_data = self._camera_localizer.pose_bisector.by_ts_window(frame_window)[
-                0
-            ]
+            pose_data = self._camera_localizer_storage.pose_bisector.by_ts_window(
+                frame_window
+            )[0]
         except IndexError:
             camera_trace = np.full((3,), np.nan)
             camera_pose_matrix = None
@@ -106,7 +110,7 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
 
     def _render_camera(self, camera_pose_matrix):
         color = (0.2, 0.2, 0.2, 0.1)
-        if self._camera_localizer.show_camera_trace:
+        if self._general_settings.show_camera_trace:
             utils.render_camera_trace(self.recent_camera_trace, color)
 
         if camera_pose_matrix is not None:

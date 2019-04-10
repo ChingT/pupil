@@ -24,16 +24,18 @@ class MarkerLocationRenderer:
 
     def __init__(
         self,
+        general_settings,
         marker_location_storage,
         markers_3d_model_storage,
         plugin,
         get_current_frame_window,
     ):
-        self._get_current_frame_window = get_current_frame_window
+        self._general_settings = general_settings
+        self._marker_location_storage = marker_location_storage
+        self._markers_3d_model_storage = markers_3d_model_storage
 
-        self._marker_locations = marker_location_storage.item
-        self._markers_3d_model = markers_3d_model_storage.item
         self._plugin = plugin
+        self._get_current_frame_window = get_current_frame_window
 
         self._square_definition = np.array(
             [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32
@@ -63,12 +65,16 @@ class MarkerLocationRenderer:
 
     def _get_current_markers(self):
         frame_window = self._get_current_frame_window()
-        markers = self._marker_locations.markers_bisector.by_ts_window(frame_window)
+        markers = self._marker_location_storage.markers_bisector.by_ts_window(
+            frame_window
+        )
         return markers
 
     def _get_marker_id_optimized(self):
         try:
-            return self._markers_3d_model.result["marker_id_to_extrinsics"].keys()
+            return self._markers_3d_model_storage.result[
+                "marker_id_to_extrinsics"
+            ].keys()
         except TypeError:
             return []
 
@@ -83,7 +89,7 @@ class MarkerLocationRenderer:
 
             self._draw_hat(hat_points, color)
 
-            if self._markers_3d_model.show_marker_id:
+            if self._general_settings.show_marker_id:
                 self._draw_marker_id(marker_points, marker["id"])
 
     def _calculate_hat_points(self, marker_points):

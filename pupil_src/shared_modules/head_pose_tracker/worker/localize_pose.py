@@ -19,12 +19,12 @@ from head_pose_tracker import worker
 g_pool = None  # set by the plugin
 
 
-def create_task(timestamps, marker_locations, markers_3d_model, camera_localizer):
+def create_task(timestamps, marker_locations, markers_3d_model, general_settings):
     assert g_pool, "You forgot to set g_pool by the plugin"
 
     args = (
         timestamps,
-        camera_localizer.frame_index_range,
+        general_settings.camera_localizer_frame_index_range,
         marker_locations.markers_bisector,
         g_pool.capture.intrinsics,
         markers_3d_model.result["marker_id_to_extrinsics"],

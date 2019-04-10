@@ -21,17 +21,18 @@ logger = logging.getLogger(__name__)
 class MarkerLocationController(Observable):
     def __init__(
         self,
+        general_settings,
         marker_location_storage,
         task_manager,
         get_current_trim_mark_range,
         all_timestamps,
     ):
+        self._general_settings = general_settings
         self._marker_location_storage = marker_location_storage
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
         self._all_timestamps = all_timestamps
 
-        self._marker_locations = marker_location_storage.item
         self._task = None
         self._set_to_default_values()
 
@@ -42,7 +43,7 @@ class MarkerLocationController(Observable):
         self._last_count = 0
 
     def init_detection(self):
-        if self._marker_locations.calculated:
+        if self._marker_location_storage.calculated:
             self.on_marker_detection_ended()
         else:
             self.calculate()
@@ -62,18 +63,18 @@ class MarkerLocationController(Observable):
 
         def on_completed(_):
             self._insert_markers_bisector(force=True)
-            self._marker_location_storage.save_to_disk()
+            self._marker_location_storage.save_pldata_to_disk()
             logger.info("marker detection completed")
             self.on_marker_detection_ended()
 
         def on_canceled_or_killed():
             self._insert_markers_bisector(force=True)
-            self._marker_location_storage.save_to_disk()
+            self._marker_location_storage.save_pldata_to_disk()
             logger.info("marker detection canceled")
             self.on_marker_detection_ended()
 
         self._task = worker.detect_square_markers.create_task(
-            self._all_timestamps, self._marker_locations
+            self._all_timestamps, self._general_settings
         )
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)
@@ -86,7 +87,9 @@ class MarkerLocationController(Observable):
     def _add_data_to_queue(self, ts_idx_data):
         self._calculated_count += 1
         timestamp, frame_index, markers = ts_idx_data
-        self._marker_locations.calculated_frame_indices.append(frame_index)
+        self._general_settings.marker_location_calculated_frame_indices.append(
+            frame_index
+        )
         for marker in markers:
             self._timestamps_queue.append(timestamp)
             self._markers_queue.append(marker)
@@ -95,7 +98,7 @@ class MarkerLocationController(Observable):
         if force or self._calculated_count - self._last_count > 150:
             self._last_count = self._calculated_count
             for timestamp, marker in zip(self._timestamps_queue, self._markers_queue):
-                self._marker_locations.markers_bisector.insert(timestamp, marker)
+                self._marker_location_storage.markers_bisector.insert(timestamp, marker)
             self._timestamps_queue = []
             self._markers_queue = []
             self.on_marker_detection_yield()
@@ -113,7 +116,9 @@ class MarkerLocationController(Observable):
         return self._task.progress if self.is_running_task else 0.0
 
     def set_range_from_current_trim_marks(self):
-        self._marker_locations.frame_index_range = self._get_current_trim_mark_range()
+        self._general_settings.marker_location_frame_index_range = (
+            self._get_current_trim_mark_range()
+        )
 
     def on_marker_detection_started(self):
         pass

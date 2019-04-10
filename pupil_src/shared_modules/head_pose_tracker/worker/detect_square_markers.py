@@ -19,13 +19,13 @@ from methods import normalize
 g_pool = None  # set by the plugin
 
 
-def create_task(timestamps, marker_locations):
+def create_task(timestamps, general_settings):
     assert g_pool, "You forgot to set g_pool by the plugin"
     args = (
         g_pool.capture.source_path,
         timestamps,
-        marker_locations.frame_index_range,
-        marker_locations.calculated_frame_indices,
+        general_settings.marker_location_frame_index_range,
+        general_settings.marker_location_calculated_frame_indices,
     )
     name = "Create Apriltag Detection"
     return tasklib.background.create(

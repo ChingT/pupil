@@ -11,119 +11,134 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 import os
+import re
 
-from head_pose_tracker import model
+import file_methods as fm
 from observable import Observable
 
 logger = logging.getLogger(__name__)
 
 
-class Markers3DModel(model.StorageItem):
+class Markers3DModelStorage(Observable):
     version = 1
+    _plmodel_suffix = "plmodel"
 
-    def __init__(
-        self,
-        name,
-        recording_uuid,
-        frame_index_range,
-        status="Not calculated yet",
-        result=None,
-        user_defined_origin_marker_id=None,
-    ):
-        self.name = name
-        self.recording_uuid = recording_uuid
-        self.frame_index_range = tuple(frame_index_range)
-        self.status = status
-        self.result = result
-        self.user_defined_origin_marker_id = user_defined_origin_marker_id
+    def __init__(self, rec_dir, current_recording_uuid, plugin):
+        self._rec_dir = rec_dir
+        self._current_recording_uuid = current_recording_uuid
 
-        self.optimize_camera_intrinsics = False
-        self.show_marker_id = False
+        self.result = None
 
-    @staticmethod
-    def from_tuple(tuple_):
-        return Markers3DModel(*tuple_)
+        file_name = self._find_file_name()
+        if file_name:
+            self.name = file_name
+            self._load_plmodel_from_disk()
+        else:
+            self.name = "Default"
 
-    @property
-    def as_tuple(self):
-        return (
-            self.name,
-            self.recording_uuid,
-            self.frame_index_range,
-            self.status,
-            self.result,
-            self.user_defined_origin_marker_id,
-        )
+        plugin.add_observer("cleanup", self._on_cleanup)
+
+    def _on_cleanup(self):
+        self.save_plmodel_to_disk()
 
     @property
     def calculated(self):
         return self.result and self.result["marker_id_to_extrinsics"]
 
-
-class Markers3DModelStorage(model.Storage, Observable):
-    _markers_3d_model_suffix = "plmodel"
-
-    def __init__(self, rec_dir, plugin, get_recording_index_range, recording_uuid):
-        self._recording_uuid = recording_uuid
-        super().__init__(rec_dir, plugin, get_recording_index_range)
-
-    def _find_file_path(self):
+    def _find_file_name(self):
         try:
             markers_3d_model_files = [
                 file_name
-                for file_name in os.listdir(self._storage_folder_path)
-                if file_name.endswith(self._markers_3d_model_suffix)
+                for file_name in os.listdir(self._plmodel_folder_path)
+                if file_name.endswith(self._plmodel_suffix)
             ]
         except FileNotFoundError:
-            return
+            return None
 
         if len(markers_3d_model_files) == 0:
-            return
+            return None
         elif len(markers_3d_model_files) > 1:
             logger.warning(
-                "There should be only one markers_3d_model file in "
-                "{}".format(self._storage_folder_path)
+                "There should be only one markers 3d model file in "
+                "{}".format(self._plmodel_folder_path)
             )
-        file_name = markers_3d_model_files[0]
-        file_path = os.path.join(self._storage_folder_path, file_name)
-        return file_path
+        return os.path.splitext(markers_3d_model_files[0])[0]
 
-    def save_to_disk(self):
+    def save_plmodel_to_disk(self):
         if self.is_from_same_recording:
-            super().save_to_disk()
+            self._save_to_file()
 
-    def _create_default_item(self):
-        return Markers3DModel(
-            name="Default",
-            recording_uuid=self._recording_uuid,
-            frame_index_range=self._get_recording_index_range(),
+    def _save_to_file(self):
+        file_path = self._plmodel_file_path
+        data = self.result
+        dict_representation = {
+            "version": self.version,
+            "data": data,
+            "recording_uuid": self._current_recording_uuid,
+        }
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        fm.save_object(dict_representation, file_path)
+
+    def _load_plmodel_from_disk(self):
+        self._saved_recording_uuid, self.result = self._load_from_file()
+
+    def _load_from_file(self):
+        file_path = self._plmodel_file_path
+        try:
+            dict_representation = fm.load_object(file_path)
+        except FileNotFoundError:
+            return None, None
+        if dict_representation.get("version", None) != self.version:
+            logger.warning(
+                "Data in {} is in old file format. Will not load these!".format(
+                    file_path
+                )
+            )
+            return None, None
+        return (
+            dict_representation.get("recording_uuid", None),
+            dict_representation.get("data", None),
         )
 
     @property
-    def _item_class(self):
-        return Markers3DModel
-
-    @property
-    def _storage_folder_path(self):
+    def _plmodel_folder_path(self):
         return os.path.join(self._rec_dir, "Markers 3D Model")
 
     @property
-    def _storage_file_name(self):
-        file_name = "{}.{}".format(self.item.name, self._markers_3d_model_suffix)
-        return self._get_valid_filename(file_name)
+    def _plmodel_file_name(self):
+        return "{}.{}".format(self.name, self._plmodel_suffix)
+
+    @property
+    def _plmodel_file_path(self):
+        return os.path.join(self._plmodel_folder_path, self._plmodel_file_name)
 
     def rename(self, new_name):
-        old_markers_3d_model_file_path = self._storage_file_path
-        self.item.name = new_name
-        new_markers_3d_model_file_path = self._storage_file_path
+        old_plmodel_file_path = self._plmodel_file_path
+        self.name = self._get_valid_filename(new_name)
+        new_plmodel_file_path = self._plmodel_file_path
         try:
-            os.rename(old_markers_3d_model_file_path, new_markers_3d_model_file_path)
+            os.rename(old_plmodel_file_path, new_plmodel_file_path)
         except FileNotFoundError:
             pass
 
+    @staticmethod
+    def _get_valid_filename(file_name):
+        """
+        Return the given string converted to a string that can be used for a clean
+        filename. Remove leading and trailing spaces; convert other spaces to
+        underscores; and remove anything that is not an alphanumeric, dash,
+        underscore, or dot.
+        E.g.: get_valid_filename("john's portrait in 2004.jpg")
+        'johns_portrait_in_2004.jpg'
+
+        Copied from Django:
+        https://github.com/django/django/blob/master/django/utils/text.py#L219
+        """
+        file_name = str(file_name).strip().replace(" ", "_")
+        # django uses \w instead of _a-zA-Z0-9 but this leaves characters like ä, Ü, é
+        # in the filename, which might be problematic
+        return re.sub(r"(?u)[^-_a-zA-Z0-9.]", "", file_name)
+
     @property
     def is_from_same_recording(self):
-        # There is a very similar, but public method in the Markers3DModelController.
-        # This method only exists because its extremely inconvenient to access
-        # controllers from storages and the logic is very simple.
-        return self.item.recording_uuid == self._recording_uuid
+        return self._saved_recording_uuid == self._current_recording_uuid

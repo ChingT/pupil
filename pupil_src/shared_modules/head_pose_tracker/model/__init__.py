@@ -9,18 +9,8 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from head_pose_tracker.model.storage import StorageItem, Storage
-
-from head_pose_tracker.model.marker_location_storage import (
-    MarkerLocationStorage,
-    MarkerLocations,
-)
-from head_pose_tracker.model.camera_localizer_storage import (
-    CameraLocalizerStorage,
-    CameraLocalizer,
-)
-from head_pose_tracker.model.markers_3d_model_storage import (
-    Markers3DModelStorage,
-    Markers3DModel,
-)
+from head_pose_tracker.model.general_settings import GeneralSettings
+from head_pose_tracker.model.marker_location_storage import MarkerLocationStorage
+from head_pose_tracker.model.camera_localizer_storage import CameraLocalizerStorage
+from head_pose_tracker.model.markers_3d_model_storage import Markers3DModelStorage
 from head_pose_tracker.model.optimization_storage import OptimizationStorage

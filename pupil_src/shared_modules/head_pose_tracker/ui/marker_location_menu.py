@@ -67,7 +67,7 @@ class MarkerLocationMenu:
         self.render()
 
     def _on_click_start_marker_detection(self):
-        self._marker_location_controller.start_detection()
+        self._marker_location_controller.calculate()
 
     def _on_click_cancel_marker_detection(self):
         self._marker_location_controller.cancel_task()

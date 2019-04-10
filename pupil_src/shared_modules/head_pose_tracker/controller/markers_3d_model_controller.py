@@ -49,15 +49,17 @@ class Markers3DModelController(Observable):
         )
 
     def _on_marker_detection_ended(self):
-        if self._markers_3d_model_storage.is_from_same_recording:
-            self.calculate(check_complete=True)
-
-    def calculate(self, check_complete=False):
-        if check_complete and self._markers_3d_model.calculated:
-            self.on_markers_3d_model_optimization_had_completed_before()
+        if (
+            self._markers_3d_model_storage.is_from_same_recording
+            and not self._markers_3d_model.calculated
+        ):
+            self.calculate()
         else:
-            self._reset()
-            self._create_optimize_markers_3d_model_task()
+            self.on_markers_3d_model_optimization_had_completed_before()
+
+    def calculate(self):
+        self._reset()
+        self._create_optimize_markers_3d_model_task()
 
     def _reset(self):
         if self._task is not None and self._task.running:

@@ -45,9 +45,10 @@ class MarkerLocationController(Observable):
         if self._marker_locations.calculated:
             self.on_marker_detection_ended()
         else:
-            self.start_detection()
+            self.calculate()
 
-    def start_detection(self):
+    def calculate(self):
+        self._set_to_default_values()
         self._create_detection_task()
 
     def _create_detection_task(self):

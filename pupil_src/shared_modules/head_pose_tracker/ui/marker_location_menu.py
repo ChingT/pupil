@@ -16,11 +16,11 @@ class MarkerLocationMenu:
     menu_label = "Marker Detection"
 
     def __init__(
-        self, marker_location_controller, marker_location_storage, index_range_as_str
+        self, marker_location_controller, general_settings, index_range_as_str
     ):
         self._marker_location_controller = marker_location_controller
+        self._general_settings = general_settings
         self._index_range_as_str = index_range_as_str
-        self._marker_locations = marker_location_storage.item
 
         self.menu = ui.Growing_Menu(self.menu_label)
         self.menu.collapsed = False
@@ -46,7 +46,7 @@ class MarkerLocationMenu:
 
     def _create_range_selector(self):
         range_string = "Detect Markers in: " + self._index_range_as_str(
-            self._marker_locations.frame_index_range
+            self._general_settings.marker_location_frame_index_range
         )
         return ui.Button(
             outer_label=range_string,
@@ -55,7 +55,7 @@ class MarkerLocationMenu:
         )
 
     def _create_toggle_marker_detection_button(self):
-        if self._marker_location_controller.is_running_detection:
+        if self._marker_location_controller.is_running_task:
             return ui.Button("Cancel Detection", self._on_click_cancel_marker_detection)
         else:
             return ui.Button(
@@ -67,10 +67,10 @@ class MarkerLocationMenu:
         self.render()
 
     def _on_click_start_marker_detection(self):
-        self._marker_location_controller.start_detection()
+        self._marker_location_controller.calculate()
 
     def _on_click_cancel_marker_detection(self):
-        self._marker_location_controller.cancel_detection()
+        self._marker_location_controller.cancel_task()
 
     def _on_marker_detection_started(self):
         self.render()

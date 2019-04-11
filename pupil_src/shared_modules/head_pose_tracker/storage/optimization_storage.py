@@ -20,29 +20,30 @@ logger = logging.getLogger(__name__)
 
 class OptimizationStorage:
     def __init__(self, user_defined_origin_marker_id=None):
+        self.marker_id_to_extrinsics_opt = {}
+        self.marker_id_to_points_3d_opt = {}
         # {frame id: optimized camera extrinsics (which is composed of Rodrigues
         # rotation vector and translation vector, which brings points from the world
         # coordinate system to the camera coordinate system)}
         self.frame_id_to_extrinsics_opt = {}
         self.all_key_markers = []
+        self._user_defined_origin_marker_id = user_defined_origin_marker_id
         self.origin_marker_id = None
-        self.set_origin_marker_id(user_defined_origin_marker_id)
+        self.set_origin_marker_id()
         self.centroid = [0.0, 0.0, 0.0]
 
-    def set_origin_marker_id(self, user_defined_origin_marker_id=None):
-        if self.origin_marker_id is not None:
+    def set_origin_marker_id(self):
+        if self.origin_marker_id is not None or not self.all_key_markers:
             return
 
-        origin_marker_id = user_defined_origin_marker_id
-
-        if origin_marker_id is None:
-            all_markers_id = [marker.marker_id for marker in self.all_key_markers]
-            try:
-                most_common_marker_id = max(all_markers_id, key=all_markers_id.count)
-            except ValueError:
-                pass
-            else:
-                origin_marker_id = most_common_marker_id
+        all_markers_id = [marker.marker_id for marker in self.all_key_markers]
+        if self._user_defined_origin_marker_id is None:
+            most_common_marker_id = max(all_markers_id, key=all_markers_id.count)
+            origin_marker_id = most_common_marker_id
+        elif self._user_defined_origin_marker_id in all_markers_id:
+            origin_marker_id = self._user_defined_origin_marker_id
+        else:
+            origin_marker_id = None
 
         if origin_marker_id is not None:
             self._set_coordinate_system(origin_marker_id)

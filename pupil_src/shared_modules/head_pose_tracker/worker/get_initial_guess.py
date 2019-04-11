@@ -19,20 +19,17 @@ InitialGuessResult = collections.namedtuple(
 )
 
 
-_n_key_markers_processed = 0
-
-
 def calculate(storage, camera_intrinsics):
     """ get marker and camera initial guess for bundle adjustment """
 
     try:
-        marker_id_to_extrinsics_init = storage.marker_id_to_extrinsics_opt
-    except AttributeError:
+        storage.marker_id_to_extrinsics_opt[storage.origin_marker_id]
+    except KeyError:
         storage.set_origin_marker_id()
-        return None
 
+    marker_id_to_extrinsics_init = storage.marker_id_to_extrinsics_opt
     frame_id_to_extrinsics_init = storage.frame_id_to_extrinsics_opt
-    key_markers = _get_key_markers_proccessed(storage.all_key_markers)
+    key_markers = storage.all_key_markers
     frame_ids = list(set(marker.frame_id for marker in key_markers))
     marker_ids = list(set(marker.marker_id for marker in key_markers))
 
@@ -72,17 +69,6 @@ def calculate(storage, camera_intrinsics):
     return initial_guess_result
 
 
-def _get_key_markers_proccessed(all_key_markers, n_key_markers_added_once=25):
-    global _n_key_markers_processed
-
-    key_markers_proccessed = all_key_markers[
-        : _n_key_markers_processed + n_key_markers_added_once
-    ]
-    _n_key_markers_processed = len(key_markers_proccessed)
-
-    return key_markers_proccessed
-
-
 def _get_frame_id_to_extrinsics_init(
     camera_intrinsics,
     key_markers,
@@ -94,15 +80,15 @@ def _get_frame_id_to_extrinsics_init(
 
     frame_ids_not_computed = set(frame_ids) - set(frame_id_to_extrinsics_init.keys())
     for frame_id in frame_ids_not_computed:
-        marker_id_to_detections = {
-            marker.marker_id: {"verts": marker.verts}
+        markers_in_frame = [
+            {"id": marker.marker_id, "verts": marker.verts}
             for marker in key_markers
             if marker.frame_id == frame_id
             and marker.marker_id in marker_id_to_extrinsics_init.keys()
-        }
+        ]
 
         camera_extrinsics = worker.solvepnp.calculate(
-            camera_intrinsics, marker_id_to_detections, marker_id_to_extrinsics_init
+            camera_intrinsics, markers_in_frame, marker_id_to_extrinsics_init
         )
         if camera_extrinsics is not None:
             frame_id_to_extrinsics_init[frame_id] = camera_extrinsics

@@ -9,6 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import file_methods as fm
 import tasklib.background
 import tasklib.background.patches as bg_patches
 import video_capture
@@ -18,10 +19,14 @@ from methods import normalize
 g_pool = None  # set by the plugin
 
 
-def create_task(marker_locations):
+def create_task(timestamps, general_settings, marker_location_storage):
     assert g_pool, "You forgot to set g_pool by the plugin"
-
-    args = (g_pool.capture.source_path, marker_locations.frame_index_range)
+    args = (
+        g_pool.capture.source_path,
+        timestamps,
+        general_settings.marker_location_frame_index_range,
+        marker_location_storage.frame_index_to_num_markers,
+    )
     name = "Create Apriltag Detection"
     return tasklib.background.create(
         name,
@@ -36,38 +41,59 @@ class Empty(object):
     pass
 
 
-def _detect_apriltags(source_path, frame_index_range, shared_memory):
-    apriltag_detector = apriltag.Detector()
+def _detect_apriltags(
+    source_path,
+    timestamps,
+    frame_index_range,
+    frame_index_to_num_markers,
+    shared_memory,
+):
+    batch_size = 30
+    frame_start, frame_end = frame_index_range
+    frame_indices = sorted(
+        set(range(frame_start, frame_end + 1)) - set(frame_index_to_num_markers.keys())
+    )
+    if not frame_indices:
+        return
+
+    frame_count = frame_end - frame_start + 1
+    shared_memory.progress = (frame_indices[0] - frame_start + 1) / frame_count
+    yield None
 
     def _detect(image):
         apriltag_detections = apriltag_detector.detect(image)
-        img_size = image.shape[::-1]
-        return {
-            detection.tag_id: {
-                "verts": detection.corners[::-1].tolist(),
-                "centroid": normalize(detection.center, img_size, flip_y=True),
-            }
-            for detection in apriltag_detections
-        }
-
-    src = video_capture.File_Source(Empty(), source_path, timing=None)
-    frame_start, frame_end = frame_index_range
-    frame_count = frame_end - frame_start + 1
-    src.seek_to_frame(frame_start)
-    while True:
-        try:
-            frame = src.get_frame()
-        except video_capture.EndofVideoError:
-            break
+        if apriltag_detections:
+            img_size = image.shape[::-1]
+            serialized_dicts = [
+                fm.Serialized_Dict(
+                    python_dict={
+                        "id": detection.tag_id,
+                        "verts": detection.corners[::-1].tolist(),
+                        "centroid": normalize(detection.center, img_size, flip_y=True),
+                        "timestamp": timestamp,
+                    }
+                )
+                for detection in apriltag_detections
+            ]
+            return len(apriltag_detections), serialized_dicts
         else:
-            if frame.index >= frame_end:
-                break
-            shared_memory.progress = (frame.index - frame_start + 1) / frame_count
+            return 0, [fm.Serialized_Dict(python_dict={})]
 
-            markers = _detect(frame.gray)
-            detection_data = {
-                "markers": markers,
-                "timestamp": frame.timestamp,
-                "frame_index": frame.index,
-            }
-            yield detection_data
+    apriltag_detector = apriltag.Detector()
+    src = video_capture.File_Source(Empty(), source_path, timing=None)
+
+    queue = []
+    for frame_index in frame_indices:
+        shared_memory.progress = (frame_index - frame_start + 1) / frame_count
+        timestamp = timestamps[frame_index]
+        src.seek_to_frame(frame_index)
+        frame = src.get_frame()
+        num_markers, markers = _detect(frame.gray)
+        queue.append((timestamp, markers, frame_index, num_markers))
+
+        if len(queue) >= batch_size:
+            data = queue[:batch_size]
+            del queue[:batch_size]
+            yield data
+
+    yield queue

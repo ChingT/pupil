@@ -24,15 +24,19 @@ class MarkerLocationRenderer:
 
     def __init__(
         self,
+        general_settings,
         marker_location_storage,
         markers_3d_model_storage,
         plugin,
         get_current_frame_index,
+        get_current_frame_window,
     ):
+        self._general_settings = general_settings
+        self._marker_location_storage = marker_location_storage
+        self._markers_3d_model_storage = markers_3d_model_storage
+        self._plugin = plugin
         self._get_current_frame_index = get_current_frame_index
-
-        self._marker_locations = marker_location_storage.item
-        self._markers_3d_model = markers_3d_model_storage.item
+        self._get_current_frame_window = get_current_frame_window
 
         self._square_definition = np.array(
             [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32
@@ -61,31 +65,43 @@ class MarkerLocationRenderer:
         self._render_markers(current_markers, marker_id_optimized)
 
     def _get_current_markers(self):
-        current_index = self._get_current_frame_index()
+        frame_index = self._get_current_frame_index()
         try:
-            return self._marker_locations.result[current_index]["markers"]
+            num_markers = self._marker_location_storage.frame_index_to_num_markers[
+                frame_index
+            ]
         except KeyError:
-            return {}
+            num_markers = 0
+
+        if num_markers:
+            frame_window = self._get_current_frame_window()
+            return self._marker_location_storage.markers_bisector.by_ts_window(
+                frame_window
+            )
+        else:
+            return []
 
     def _get_marker_id_optimized(self):
         try:
-            return self._markers_3d_model.result["marker_id_to_extrinsics"].keys()
+            return self._markers_3d_model_storage.result[
+                "marker_id_to_extrinsics"
+            ].keys()
         except TypeError:
             return []
 
     def _render_markers(self, current_markers, marker_id_optimized):
-        for marker_id, detection in current_markers.items():
-            marker_points = np.array(detection["verts"], dtype=np.float32)
+        for marker in current_markers:
+            marker_points = np.array(marker["verts"], dtype=np.float32)
             hat_points = self._calculate_hat_points(marker_points)
-            if marker_id in marker_id_optimized:
+            if marker["id"] in marker_id_optimized:
                 color = (1.0, 0.0, 0.0, 0.2)
             else:
                 color = (0.0, 1.0, 1.0, 0.2)
 
             self._draw_hat(hat_points, color)
 
-            if self._markers_3d_model.show_marker_id:
-                self._draw_marker_id(marker_points, marker_id)
+            if self._general_settings.show_marker_id:
+                self._draw_marker_id(marker_points, marker["id"])
 
     def _calculate_hat_points(self, marker_points):
         perspective_matrix = cv2.getPerspectiveTransform(

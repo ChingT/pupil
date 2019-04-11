@@ -14,14 +14,24 @@ from plugin_timeline import Row, RangeElementFrameIdx, BarsElementTs
 
 class OfflineHeadPoseTrackerTimeline:
     def __init__(
-        self, plugin_timeline, marker_location_timeline, camera_localizer_timeline
+        self,
+        plugin_timeline,
+        marker_location_timeline,
+        camera_localizer_timeline,
+        plugin,
     ):
         self._plugin_timeline = plugin_timeline
         self._marker_location_timeline = marker_location_timeline
         self._camera_localizer_timeline = camera_localizer_timeline
+        self._plugin = plugin
+
+        plugin.add_observer("init_ui", self._on_init_ui)
 
         marker_location_timeline.render_parent_timeline = self.render
         camera_localizer_timeline.render_parent_timeline = self.render
+
+    def _on_init_ui(self):
+        self.render()
 
     def render(self):
         self._plugin_timeline.clear_rows()

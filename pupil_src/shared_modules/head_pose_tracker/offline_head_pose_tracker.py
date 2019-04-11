@@ -158,6 +158,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             plugin_timeline,
             self._marker_location_timeline,
             self._camera_localizer_timeline,
+            plugin=self,
         )
 
     def _inject_plugin_dependencies(self):

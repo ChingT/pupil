@@ -40,7 +40,7 @@ class PickKeyMarkers:
         self._bins_x = np.linspace(0, 1, n_bins_x + 1)[1:-1]
         self._bins_y = np.linspace(0, 1, n_bins_y + 1)[1:-1]
 
-        self._n_frames_passed = -1
+        self._n_frames_passed = 0
 
     def run(self, markers_in_frame):
         if self._decide_key_markers(markers_in_frame):
@@ -49,7 +49,7 @@ class PickKeyMarkers:
     def _decide_key_markers(self, markers_in_frame):
         self._n_frames_passed += 1
         if self._n_frames_passed >= self._select_key_markers_interval:
-            self._n_frames_passed = -1
+            self._n_frames_passed = 0
 
             if len(
                 markers_in_frame

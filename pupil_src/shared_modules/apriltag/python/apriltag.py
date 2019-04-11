@@ -73,7 +73,8 @@ class Detector:
     """
 
     def __init__(self, detector_options=DetectorOptions()):
-        filename = self._get_filename()
+        # filename = self._get_filename()
+        filename = "/cluster/users/Ching/codebase/apriltag/build/lib/libapriltag.so"
         self.libc = ctypes.CDLL(filename)
         if self.libc is None:
             raise RuntimeError("could not find DLL named " + filename)

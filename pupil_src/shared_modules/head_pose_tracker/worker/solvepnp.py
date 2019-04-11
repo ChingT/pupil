@@ -118,7 +118,7 @@ def _check_result_reasonable(retval, rotation, translation, pts_3d_world):
 
     # if magnitude of translation is too large, it is very possible that the output of
     # solvePnP is wrong.
-    if (np.abs(translation) > 2e2).any():
+    if (np.abs(translation) > 1e3).any():
         return False
 
     # the magnitude of rotation should be less than 2*pi

@@ -212,7 +212,7 @@ def save_intrinsics(directory, cam_name, resolution, intrinsics):
 
 
 class Fisheye_Dist_Camera(object):
-    """ Camera model assuming a lense with fisheye distortion.
+    """ Camera storage assuming a lense with fisheye distortion.
         Provides functionality to make use of a fisheye camera calibration.
         The implementation of cv2.fisheye is buggy and some functions had to be customized.
     """
@@ -225,7 +225,7 @@ class Fisheye_Dist_Camera(object):
 
     def undistort(self, img):
         """
-        Undistortes an image based on the camera model.
+        Undistortes an image based on the camera storage.
         :param img: Distorted input image
         :return: Undistorted image
         """
@@ -252,7 +252,7 @@ class Fisheye_Dist_Camera(object):
 
     def unprojectPoints(self, pts_2d, use_distortion=True, normalize=False):
         """
-        Undistorts points according to the camera model.
+        Undistorts points according to the camera storage.
         cv2.fisheye.undistortPoints does *NOT* perform the same unprojection step the original cv2.unprojectPoints does.
         Thus we implement this function ourselves.
         :param pts_2d, shape: Nx2
@@ -304,7 +304,7 @@ class Fisheye_Dist_Camera(object):
 
     def projectPoints(self, object_points, rvec=None, tvec=None, use_distortion=True):
         """
-        Projects a set of points onto the camera plane as defined by the camera model.
+        Projects a set of points onto the camera plane as defined by the camera storage.
         :param object_points: Set of 3D world points
         :param rvec: Set of vectors describing the rotation of the camera when recording the corresponding object point
         :param tvec: Set of vectors describing the translation of the camera when recording the corresponding object point
@@ -408,7 +408,7 @@ class Fisheye_Dist_Camera(object):
 
 
 class Radial_Dist_Camera(object):
-    """ Camera model assuming a lense with radial distortion (this is the defaut model in opencv).
+    """ Camera storage assuming a lense with radial distortion (this is the defaut storage in opencv).
         Provides functionality to make use of a pinhole camera calibration that is also compensating for lense distortion
     """
 
@@ -426,7 +426,7 @@ class Radial_Dist_Camera(object):
 
     def undistort(self, img):
         """
-                Undistortes an image based on the camera model.
+                Undistortes an image based on the camera storage.
                 :param img: Distorted input image
                 :return: Undistorted image
                 """
@@ -435,7 +435,7 @@ class Radial_Dist_Camera(object):
 
     def unprojectPoints(self, pts_2d, use_distortion=True, normalize=False):
         """
-        Undistorts points according to the camera model.
+        Undistorts points according to the camera storage.
         :param pts_2d, shape: Nx2
         :return: Array of unprojected 3d points, shape: Nx3
         """
@@ -466,7 +466,7 @@ class Radial_Dist_Camera(object):
 
     def projectPoints(self, object_points, rvec=None, tvec=None, use_distortion=True):
         """
-        Projects a set of points onto the camera plane as defined by the camera model.
+        Projects a set of points onto the camera plane as defined by the camera storage.
         :param object_points: Set of 3D world points
         :param rvec: Set of vectors describing the rotation of the camera when recording the corresponding object point
         :param tvec: Set of vectors describing the translation of the camera when recording the corresponding object point
@@ -553,7 +553,7 @@ class Radial_Dist_Camera(object):
 
 class Dummy_Camera(Radial_Dist_Camera):
     """
-    Dummy Camera model assuming no lense distortion and idealized camera intrinsics.
+    Dummy Camera storage assuming no lense distortion and idealized camera intrinsics.
     """
 
     def __init__(self, resolution, name):

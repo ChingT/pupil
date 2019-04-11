@@ -87,7 +87,7 @@ def _check_result_reasonable(translation, error):
 
     # if magnitude of translation is too large, it is very possible that the
     # triangulate result is wrong.
-    if (np.abs(translation) > 2e2).any():
+    if (np.abs(translation) > 1e3).any():
         return False
 
     return True

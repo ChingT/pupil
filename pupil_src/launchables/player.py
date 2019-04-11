@@ -478,15 +478,16 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url, ipc_push_url, user_dir, app_versio
             ("Plugin_Manager", {}),
             ("Seek_Control", {}),
             ("Log_Display", {}),
-            ("Raw_Data_Exporter", {}),
+            # ("Raw_Data_Exporter", {}),
             ("Vis_Polyline", {}),
             ("Vis_Circle", {}),
             ("System_Graphs", {}),
             ("System_Timelines", {}),
-            ("World_Video_Exporter", {}),
+            # ("World_Video_Exporter", {}),
             ("Pupil_From_Recording", {}),
             ("GazeFromRecording", {}),
             ("Audio_Playback", {}),
+            ("Offline_Head_Pose_Tracker", {}),
         ]
 
         g_pool.plugins = Plugin_List(
@@ -808,7 +809,6 @@ def player_profiled(
     import cProfile
     import subprocess
     import os
-    from .player import player
 
     cProfile.runctx(
         "player(rec_dir, ipc_pub_url, ipc_sub_url, ipc_push_url, user_dir, app_version)",

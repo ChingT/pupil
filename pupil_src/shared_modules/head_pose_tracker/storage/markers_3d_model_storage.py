@@ -44,7 +44,7 @@ class Markers3DModelStorage(Observable):
 
     @property
     def calculated(self):
-        return self.result and self.result["marker_id_to_extrinsics"]
+        return bool(self.result and self.result["marker_id_to_extrinsics"])
 
     def _find_file_name(self):
         try:

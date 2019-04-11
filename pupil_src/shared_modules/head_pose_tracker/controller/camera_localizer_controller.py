@@ -53,13 +53,6 @@ class CameraLocalizerController(Observable):
             "on_markers_3d_model_optimization_completed",
             self._on_markers_3d_model_optimization_completed,
         )
-        self._set_to_default_values()
-
-    def _set_to_default_values(self):
-        self._timestamps_queue = []
-        self._poses_queue = []
-        self._calculated_count = 0
-        self._last_count = 0
 
     def _on_markers_3d_model_optimization_had_completed_before(self):
         if not self._camera_localizer_storage.calculated:
@@ -98,25 +91,21 @@ class CameraLocalizerController(Observable):
         self.cancel_task()
         self._camera_localizer_storage.pose_bisector = pm.Mutable_Bisector()
         self._general_settings.camera_localizer_status = "Not calculated yet"
-        self._set_to_default_values()
 
     def _create_localization_task(self):
-        def on_yield(ts_and_data):
-            self._add_data_to_queue(ts_and_data)
-            self._insert_pose_bisector(force=False)
+        def on_yield(data_pairs):
+            self._insert_pose_bisector(data_pairs)
             self._general_settings.camera_localizer_status = "{:.0f}% completed".format(
                 self._task.progress * 100
             )
 
         def on_completed(_):
-            self._insert_pose_bisector(force=True)
             self._general_settings.camera_localizer_status = "successful"
             self._camera_localizer_storage.save_pldata_to_disk()
             logger.info("camera localization completed")
             self.on_camera_localization_ended()
 
         def on_canceled_or_killed():
-            self._insert_pose_bisector(force=True)
             self._camera_localizer_storage.save_pldata_to_disk()
             logger.info("camera localization canceled")
             self.on_camera_localization_ended()
@@ -136,20 +125,10 @@ class CameraLocalizerController(Observable):
         logger.info("Start camera localization")
         self._general_settings.camera_localizer_status = "0% completed"
 
-    def _add_data_to_queue(self, ts_and_data):
-        self._calculated_count += 1
-        timestamp, pose = ts_and_data
-        self._timestamps_queue.append(timestamp)
-        self._poses_queue.append(pose)
-
-    def _insert_pose_bisector(self, force):
-        if force or self._calculated_count - self._last_count >= 300:
-            self._last_count = self._calculated_count
-            for timestamp, pose in zip(self._timestamps_queue, self._poses_queue):
-                self._camera_localizer_storage.pose_bisector.insert(timestamp, pose)
-            self._timestamps_queue = []
-            self._poses_queue = []
-            self.on_camera_localization_yield()
+    def _insert_pose_bisector(self, data_pairs):
+        for timestamp, pose in data_pairs:
+            self._camera_localizer_storage.pose_bisector.insert(timestamp, pose)
+        self.on_camera_localization_yield()
 
     def cancel_task(self):
         if self.is_running_task:

@@ -28,13 +28,14 @@ class MarkerLocationRenderer:
         marker_location_storage,
         markers_3d_model_storage,
         plugin,
+        get_current_frame_index,
         get_current_frame_window,
     ):
         self._general_settings = general_settings
         self._marker_location_storage = marker_location_storage
         self._markers_3d_model_storage = markers_3d_model_storage
-
         self._plugin = plugin
+        self._get_current_frame_index = get_current_frame_index
         self._get_current_frame_window = get_current_frame_window
 
         self._square_definition = np.array(
@@ -64,11 +65,21 @@ class MarkerLocationRenderer:
         self._render_markers(current_markers, marker_id_optimized)
 
     def _get_current_markers(self):
-        frame_window = self._get_current_frame_window()
-        markers = self._marker_location_storage.markers_bisector.by_ts_window(
-            frame_window
-        )
-        return markers
+        frame_index = self._get_current_frame_index()
+        try:
+            num_markers = self._marker_location_storage.frame_index_to_num_markers[
+                frame_index
+            ]
+        except KeyError:
+            num_markers = 0
+
+        if num_markers:
+            frame_window = self._get_current_frame_window()
+            return self._marker_location_storage.markers_bisector.by_ts_window(
+                frame_window
+            )
+        else:
+            return []
 
     def _get_marker_id_optimized(self):
         try:

@@ -19,15 +19,18 @@ from head_pose_tracker import worker
 g_pool = None  # set by the plugin
 
 
-def create_task(timestamps, marker_locations, markers_3d_model, general_settings):
+def create_task(
+    timestamps, marker_location_storage, markers_3d_model_storage, general_settings
+):
     assert g_pool, "You forgot to set g_pool by the plugin"
 
     args = (
         timestamps,
         general_settings.camera_localizer_frame_index_range,
-        marker_locations.markers_bisector,
+        marker_location_storage.markers_bisector,
+        marker_location_storage.frame_index_to_num_markers,
+        markers_3d_model_storage.result["marker_id_to_extrinsics"],
         g_pool.capture.intrinsics,
-        markers_3d_model.result["marker_id_to_extrinsics"],
     )
     name = "Create camera localizer"
     return tasklib.background.create(
@@ -43,10 +46,13 @@ def _localize_pose(
     timestamps,
     frame_index_range,
     markers_bisector,
-    camera_intrinsics,
+    frame_index_to_num_markers,
     marker_id_to_extrinsics,
+    camera_intrinsics,
     shared_memory,
 ):
+    batch_size = 300
+
     def get_camera_pose_data(extrinsics, ts, markers):
         camera_poses = worker.utils.get_camera_pose(extrinsics)
         camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(camera_poses)
@@ -71,10 +77,15 @@ def _localize_pose(
 
     frame_start, frame_end = frame_index_range
     frame_count = frame_end - frame_start + 1
-    for frame_index in range(frame_start, frame_end + 1):
+    frame_indices = sorted(
+        set(range(frame_start, frame_end + 1)) & set(frame_index_to_num_markers.keys())
+    )
+
+    queue = []
+    for frame_index in frame_indices:
         shared_memory.progress = (frame_index - frame_start + 1) / frame_count
-        markers_in_frame = find_markers_in_frame(frame_index)
-        if markers_in_frame:
+        if frame_index_to_num_markers[frame_index]:
+            markers_in_frame = find_markers_in_frame(frame_index)
             camera_extrinsics = worker.solvepnp.calculate(
                 camera_intrinsics,
                 markers_in_frame,
@@ -90,9 +101,17 @@ def _localize_pose(
                 camera_pose_data = get_camera_pose_data(
                     camera_extrinsics, timestamp, markers_in_frame
                 )
-                yield timestamp, camera_pose_data
+                queue.append((timestamp, camera_pose_data))
+
+                if len(queue) >= batch_size:
+                    data = queue[:batch_size]
+                    del queue[:batch_size]
+                    yield data
+
                 continue
 
         not_localized_count += 1
         if not_localized_count >= 5:
             camera_extrinsics_prv = None
+
+    yield queue

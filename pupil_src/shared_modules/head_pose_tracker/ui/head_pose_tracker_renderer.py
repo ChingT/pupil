@@ -26,18 +26,19 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
         camera_localizer_storage,
         camera_intrinsics,
         plugin,
+        get_current_frame_index,
         get_current_frame_window,
     ):
         super().__init__(plugin)
-
-        self._camera_intrinsics = camera_intrinsics
-        self._plugin = plugin
-        self._get_current_frame_window = get_current_frame_window
 
         self._general_settings = general_settings
         self._marker_location_storage = marker_location_storage
         self._markers_3d_model_storage = markers_3d_model_storage
         self._camera_localizer_storage = camera_localizer_storage
+        self._camera_intrinsics = camera_intrinsics
+        self._plugin = plugin
+        self._get_current_frame_index = get_current_frame_index
+        self._get_current_frame_window = get_current_frame_window
 
         self.recent_camera_trace = collections.deque(maxlen=300)
 
@@ -72,11 +73,21 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
         return self._markers_3d_model_storage.result["marker_id_to_points_3d"]
 
     def _get_current_markers(self):
-        frame_window = self._get_current_frame_window()
-        markers = self._marker_location_storage.markers_bisector.by_ts_window(
-            frame_window
-        )
-        return markers
+        frame_index = self._get_current_frame_index()
+        try:
+            num_markers = self._marker_location_storage.frame_index_to_num_markers[
+                frame_index
+            ]
+        except KeyError:
+            num_markers = 0
+
+        if num_markers:
+            frame_window = self._get_current_frame_window()
+            return self._marker_location_storage.markers_bisector.by_ts_window(
+                frame_window
+            )
+        else:
+            return []
 
     def _render_markers(self, marker_id_to_points_3d, current_markers):
         current_marker_ids = [marker["id"] for marker in current_markers]

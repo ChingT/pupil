@@ -51,7 +51,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             plugin=self,
         )
         self._marker_location_storage = storage.MarkerLocationStorage(
-            self.g_pool.rec_dir, plugin=self
+            self.g_pool.rec_dir, all_timestamps=self.g_pool.timestamps, plugin=self
         )
         self._markers_3d_model_storage = storage.Markers3DModelStorage(
             self.g_pool.rec_dir,
@@ -123,6 +123,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._marker_location_storage,
             self._markers_3d_model_storage,
             plugin=self,
+            get_current_frame_index=self.get_current_frame_index,
             get_current_frame_window=self.get_current_frame_window,
         )
         self._head_pose_tracker_renderer = plugin_ui.HeadPoseTrackerRenderer(
@@ -132,6 +133,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._camera_localizer_storage,
             self.g_pool.capture.intrinsics,
             plugin=self,
+            get_current_frame_index=self.get_current_frame_index,
             get_current_frame_window=self.get_current_frame_window,
         )
 
@@ -199,7 +201,10 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             recording_info = csv_utils.read_key_value_file(csv_file)
             return recording_info["Recording UUID"]
 
+    def get_current_frame_index(self):
+        return self.g_pool.capture.get_frame_index()
+
     def get_current_frame_window(self):
-        frame_index = self.g_pool.capture.get_frame_index()
+        frame_index = self.get_current_frame_index()
         frame_window = pm.enclosing_window(self.g_pool.timestamps, frame_index)
         return frame_window

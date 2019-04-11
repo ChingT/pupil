@@ -17,10 +17,12 @@ from observable import Observable
 
 
 class MarkerLocationStorage(Observable):
-    def __init__(self, rec_dir, plugin):
+    def __init__(self, rec_dir, all_timestamps, plugin):
         self._rec_dir = rec_dir
+        self._all_timestamps = all_timestamps.tolist()
 
         self.markers_bisector = pm.Mutable_Bisector()
+        self.frame_index_to_num_markers = {}
 
         self.load_pldata_from_disk()
 
@@ -39,12 +41,20 @@ class MarkerLocationStorage(Observable):
     def _save_to_file(self):
         directory = self._offline_data_folder_path
         file_name = self._pldata_file_name
+        all_topics = {
+            self._all_timestamps[frame_index]: "{}.{}".format(
+                frame_index, self.frame_index_to_num_markers[frame_index]
+            )
+            for frame_index, num_markers in self.frame_index_to_num_markers.items()
+        }
         with fm.PLData_Writer(directory, file_name) as writer:
             for marker_ts, marker in zip(
                 self.markers_bisector.timestamps, self.markers_bisector.data
             ):
                 writer.append_serialized(
-                    marker_ts, topic="marker", datum_serialized=marker.serialized
+                    timestamp=marker_ts,
+                    topic=all_topics[marker_ts],
+                    datum_serialized=marker.serialized,
                 )
 
     def load_pldata_from_disk(self):
@@ -55,6 +65,9 @@ class MarkerLocationStorage(Observable):
         file_name = self._pldata_file_name
         pldata = fm.load_pldata_file(directory, file_name)
         self.markers_bisector = pm.Mutable_Bisector(pldata.data, pldata.timestamps)
+        for topic in set(pldata.topics):
+            frame_index, num_markers = topic.split(".")
+            self.frame_index_to_num_markers[int(frame_index)] = int(num_markers)
 
     @property
     def _pldata_file_name(self):

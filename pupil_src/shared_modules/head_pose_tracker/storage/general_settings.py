@@ -80,9 +80,13 @@ class GeneralSettings(Settings):
     def load_from_disk(self):
         settings_tuple = self._load_msgpack_from_file(self._msgpack_file_path)
         if settings_tuple:
-            self._load_default_settings(settings_tuple)
-        else:
-            self._create_default_settings()
+            try:
+                self._load_default_settings(settings_tuple)
+            except TypeError:
+                pass
+            else:
+                return
+        self._create_default_settings()
 
     def _load_default_settings(self, settings_tuple):
         self.load_settings(*settings_tuple)

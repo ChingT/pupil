@@ -91,7 +91,7 @@ class BackgroundTask(TaskInterface, metaclass=abc.ABCMeta):
             # have a proper traceback.
             # If you are debugging an exception, you can print datum.traceback to
             # get the traceback in the other process. Just uncomment:
-            print(signal.traceback)
+            # print(signal.traceback)
             # If this happens often, we can consider using tblib to send tracebacks
             # to the foreground (see https://stackoverflow.com/a/26096355)
             self.on_exception(signal.exception)
@@ -155,7 +155,7 @@ def _generator_wrapper(
     else:
         pipe_send.send(_TaskCompletedSignal(return_value=None))
     finally:
-        pipe_send.close()
+        pipe_send._close()
 
 
 class BackgroundRoutine(BackgroundTask):
@@ -182,4 +182,4 @@ def _routine_wrapper(pipe_send, routine, args, kwargs, patches):
 
         pipe_send.send(_TaskExceptionSignal(e, traceback.format_exc()))
     finally:
-        pipe_send.close()
+        pipe_send._close()

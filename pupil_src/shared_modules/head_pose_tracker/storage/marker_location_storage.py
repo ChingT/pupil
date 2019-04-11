@@ -41,6 +41,7 @@ class MarkerLocationStorage(Observable):
     def _save_to_file(self):
         directory = self._offline_data_folder_path
         file_name = self._pldata_file_name
+        os.makedirs(directory, exist_ok=True)
         all_topics = {
             self._all_timestamps[frame_index]: "{}.{}".format(
                 frame_index, self.frame_index_to_num_markers[frame_index]

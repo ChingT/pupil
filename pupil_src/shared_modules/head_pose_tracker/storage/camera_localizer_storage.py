@@ -39,6 +39,7 @@ class CameraLocalizerStorage(Observable):
     def _save_to_file(self):
         directory = self._offline_data_folder_path
         file_name = self._pldata_file_name
+        os.makedirs(directory, exist_ok=True)
         with fm.PLData_Writer(directory, file_name) as writer:
             for pose_ts, pose in zip(
                 self.pose_bisector.timestamps, self.pose_bisector.data

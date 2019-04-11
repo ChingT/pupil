@@ -155,7 +155,7 @@ def _generator_wrapper(
     else:
         pipe_send.send(_TaskCompletedSignal(return_value=None))
     finally:
-        pipe_send._close()
+        pipe_send.close()
 
 
 class BackgroundRoutine(BackgroundTask):
@@ -182,4 +182,4 @@ def _routine_wrapper(pipe_send, routine, args, kwargs, patches):
 
         pipe_send.send(_TaskExceptionSignal(e, traceback.format_exc()))
     finally:
-        pipe_send._close()
+        pipe_send.close()

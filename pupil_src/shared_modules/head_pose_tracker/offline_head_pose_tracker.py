@@ -38,8 +38,8 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
 
         self._setup_storages()
         self._setup_controllers()
-        self._setup_menus()
         self._setup_renderers()
+        self._setup_menus()
         self._setup_timelines()
 
         self._marker_location_controller.init_detection()
@@ -92,6 +92,26 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             all_timestamps=self.g_pool.timestamps,
         )
 
+    def _setup_renderers(self):
+        self._marker_location_renderer = plugin_ui.MarkerLocationRenderer(
+            self._general_settings,
+            self._marker_location_storage,
+            self._markers_3d_model_storage,
+            plugin=self,
+            get_current_frame_index=self.get_current_frame_index,
+            get_current_frame_window=self.get_current_frame_window,
+        )
+        self._head_pose_tracker_renderer = plugin_ui.HeadPoseTrackerRenderer(
+            self._general_settings,
+            self._marker_location_storage,
+            self._markers_3d_model_storage,
+            self._camera_localizer_storage,
+            self.g_pool.capture.intrinsics,
+            plugin=self,
+            get_current_frame_index=self.get_current_frame_index,
+            get_current_frame_window=self.get_current_frame_window,
+        )
+
     def _setup_menus(self):
         self._marker_location_menu = plugin_ui.MarkerLocationMenu(
             self._marker_location_controller,
@@ -114,27 +134,8 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._marker_location_menu,
             self._markers_3d_model_menu,
             self._camera_localizer_menu,
+            self._head_pose_tracker_renderer,
             plugin=self,
-        )
-
-    def _setup_renderers(self):
-        self._marker_location_renderer = plugin_ui.MarkerLocationRenderer(
-            self._general_settings,
-            self._marker_location_storage,
-            self._markers_3d_model_storage,
-            plugin=self,
-            get_current_frame_index=self.get_current_frame_index,
-            get_current_frame_window=self.get_current_frame_window,
-        )
-        self._head_pose_tracker_renderer = plugin_ui.HeadPoseTrackerRenderer(
-            self._general_settings,
-            self._marker_location_storage,
-            self._markers_3d_model_storage,
-            self._camera_localizer_storage,
-            self.g_pool.capture.intrinsics,
-            plugin=self,
-            get_current_frame_index=self.get_current_frame_index,
-            get_current_frame_window=self.get_current_frame_window,
         )
 
     def _setup_timelines(self):

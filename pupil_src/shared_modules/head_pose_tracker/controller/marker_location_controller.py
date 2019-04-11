@@ -35,12 +35,6 @@ class MarkerLocationController(Observable):
 
         self._task = None
 
-    def init_detection(self):
-        if self._marker_location_storage.calculated:
-            self.on_marker_detection_ended()
-        else:
-            self.calculate()
-
     def calculate(self):
         self._create_detection_task()
 

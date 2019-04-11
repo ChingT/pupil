@@ -42,8 +42,6 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         self._setup_menus()
         self._setup_timelines()
 
-        self._marker_location_controller.init_detection()
-
     def _setup_storages(self):
         self._general_settings = storage.GeneralSettings(
             self.g_pool.rec_dir,

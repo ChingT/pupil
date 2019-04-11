@@ -34,13 +34,18 @@ class MarkerLocationTimeline:
     timeline_label = "Marker detection"
 
     def __init__(
-        self, marker_location_controller, general_settings, marker_location_storage
+        self,
+        marker_location_controller,
+        general_settings,
+        marker_location_storage,
+        all_timestamps,
     ):
         self.render_parent_timeline = None
 
         self._marker_location_controller = marker_location_controller
         self._general_settings = general_settings
         self._marker_location_storage = marker_location_storage
+        self._all_timestamps = all_timestamps
 
         marker_location_storage.add_observer(
             "load_pldata_from_disk", self._on_storage_changed
@@ -65,7 +70,12 @@ class MarkerLocationTimeline:
         self.row = Row(label=self.timeline_label, elements=elements)
 
     def _create_marker_location_bars(self):
-        bar_positions = self._marker_location_storage.markers_bisector.timestamps
+        frame_indices = [
+            frame_index
+            for frame_index in self._marker_location_storage.frame_index_to_num_markers
+            if self._marker_location_storage.frame_index_to_num_markers[frame_index] > 0
+        ]
+        bar_positions = self._all_timestamps[frame_indices]
         return BarsElementTs(
             bar_positions, color_rgba=(0.7, 0.3, 0.2, 0.33), width=1, height=12
         )

@@ -142,6 +142,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._marker_location_controller,
             self._general_settings,
             self._marker_location_storage,
+            all_timestamps=self.g_pool.timestamps,
         )
         self._camera_localizer_timeline = plugin_ui.CameraLocalizerTimeline(
             self._camera_localizer_controller,

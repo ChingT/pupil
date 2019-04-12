@@ -26,42 +26,28 @@ class Markers3DModelController(Observable):
         markers_3d_model_storage,
         camera_intrinsics,
         task_manager,
-        user_dir,
     ):
         self._general_settings = general_settings
         self._marker_location_storage = marker_location_storage
         self._markers_3d_model_storage = markers_3d_model_storage
         self._camera_intrinsics = camera_intrinsics
         self._task_manager = task_manager
-        self._user_dir = user_dir
-
-        self._pick_key_markers = worker.PickKeyMarkers(
-            self._markers_3d_model_storage, select_key_markers_interval=1
-        )
 
         self._task = None
 
-    def pick_key_markers(self):
-        self._pick_key_markers.run(self._marker_location_storage.current_markers)
-
     def calculate(self):
-        if self._task is None or not self._task.running:
-            if self._check_ready():
-                self._create_optimize_markers_3d_model_task()
-
-    def _check_ready(self):
-        try:
-            self._markers_3d_model_storage.marker_id_to_extrinsics[
-                self._markers_3d_model_storage.origin_marker_id
-            ]
-        except KeyError:
-            self._markers_3d_model_storage.set_origin_marker_id()
-        return len(self._markers_3d_model_storage.all_key_markers) > 50
+        self._markers_3d_model_storage.all_key_markers += worker.pick_key_markers.run(
+            self._marker_location_storage.current_markers,
+            self._markers_3d_model_storage.all_key_markers,
+        )
+        if not self.is_running_task:
+            self._create_optimize_markers_3d_model_task()
 
     def _create_optimize_markers_3d_model_task(self):
         def on_completed(result):
-            self._update_result(result)
-            self._markers_3d_model_storage.save_plmodel_to_disk()
+            if result:
+                self._update_result(result)
+                self._markers_3d_model_storage.save_plmodel_to_disk()
 
         self._task = worker.optimize_markers_3d_model.create_task(
             self._markers_3d_model_storage,
@@ -76,18 +62,18 @@ class Markers3DModelController(Observable):
         self._task_manager.add_task(self._task)
 
     def _update_result(self, result):
-        if not result:
-            return
-        bundle_adjustment_result, intrinsics = result
-        worker.update_storage.run(
-            self._markers_3d_model_storage, bundle_adjustment_result
-        )
+        model_tuple, intrinsics_tuple, frame_ids_failed = result
+        self._markers_3d_model_storage.discard_failed_key_markers(frame_ids_failed)
+        self._markers_3d_model_storage.load_model(*model_tuple)
+        self._camera_intrinsics.update_camera_matrix(intrinsics_tuple.camera_matrix)
+        self._camera_intrinsics.update_dist_coefs(intrinsics_tuple.dist_coefs)
 
-        self._camera_intrinsics.update_camera_matrix(intrinsics["camera_matrix"])
-        self._camera_intrinsics.update_dist_coefs(intrinsics["dist_coefs"])
+    @property
+    def is_running_task(self):
+        return self._task is not None and self._task.running
 
-    def _reset(self):
-        if self._task is not None and self._task.running:
+    def cancel_task(self):
+        if self.is_running_task:
             self._task.kill(None)
 
     def on_markers_3d_model_optimization_started(self):

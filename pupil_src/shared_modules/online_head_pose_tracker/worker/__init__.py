@@ -17,7 +17,6 @@ from online_head_pose_tracker.worker import (
     get_initial_guess,
     optimize_markers_3d_model,
     localize_pose,
-    update_storage,
+    pick_key_markers,
 )
-from online_head_pose_tracker.worker.pick_key_markers import PickKeyMarkers
 from online_head_pose_tracker.worker.bundle_adjustment import BundleAdjustment

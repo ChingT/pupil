@@ -18,13 +18,7 @@ from online_head_pose_tracker import worker
 
 BundleAdjustmentResult = collections.namedtuple(
     "BundleAdjustmentResult",
-    [
-        "frame_id_to_extrinsics",
-        "marker_id_to_extrinsics",
-        "frame_ids_failed",
-        "camera_matrix",
-        "dist_coefs",
-    ],
+    ["frame_id_to_extrinsics", "marker_id_to_extrinsics", "frame_ids_failed"],
 )
 
 
@@ -48,9 +42,6 @@ class BundleAdjustment:
         """ run bundle adjustment given the initial guess and then check the result of
         markers_3d_model
         """
-
-        if not initial_guess_result:
-            return None
 
         self._enough_samples = bool(len(initial_guess_result.key_markers) >= 100)
 
@@ -245,11 +236,7 @@ class BundleAdjustment:
         frame_ids_failed = [self._frame_ids[i] for i in frame_indices_failed]
 
         bundle_adjustment_result = BundleAdjustmentResult(
-            frame_id_to_extrinsics_opt,
-            marker_id_to_extrinsics_opt,
-            frame_ids_failed,
-            self._camera_intrinsics.K,
-            self._camera_intrinsics.D,
+            frame_id_to_extrinsics_opt, marker_id_to_extrinsics_opt, frame_ids_failed
         )
         return bundle_adjustment_result
 

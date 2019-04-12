@@ -58,7 +58,6 @@ class Online_Head_Pose_Tracker(Plugin, Observable):
             self._markers_3d_model_storage,
             self.g_pool.capture.intrinsics,
             task_manager=self._task_manager,
-            user_dir=self.g_pool.user_dir,
         )
         self._camera_localizer_controller = controller.CameraLocalizerController(
             self._general_settings,
@@ -71,6 +70,8 @@ class Online_Head_Pose_Tracker(Plugin, Observable):
             self._marker_location_controller,
             self._markers_3d_model_controller,
             self._camera_localizer_controller,
+            self.g_pool.capture.intrinsics,
+            user_dir=self.g_pool.user_dir,
             plugin=self,
         )
 

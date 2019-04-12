@@ -87,6 +87,13 @@ class Markers3DModel:
             "system".format(origin_marker_id)
         )
 
+    def discard_failed_key_markers(self, frame_ids_failed):
+        self.all_key_markers = [
+            marker
+            for marker in self.all_key_markers
+            if marker.frame_id not in frame_ids_failed
+        ]
+
 
 class Markers3DModelStorage(Observable, Markers3DModel):
     _plmodel_suffix = "plmodel"

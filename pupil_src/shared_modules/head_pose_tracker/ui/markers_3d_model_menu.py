@@ -128,8 +128,8 @@ class Markers3DModelMenu:
 
     def _create_status_display(self):
         return ui.Text_Input(
-            "markers_3d_model_status",
-            self._general_settings,
+            "status",
+            self._markers_3d_model_controller,
             label="Status",
             setter=lambda _: _,
         )
@@ -176,7 +176,7 @@ class Markers3DModelMenu:
         ):
             origin_marker_id = self._general_settings.user_defined_origin_marker_id
         elif self._markers_3d_model_storage.calculated:
-            origin_marker_id = self._markers_3d_model_storage.result["origin_marker_id"]
+            origin_marker_id = self._markers_3d_model_storage.origin_marker_id
         else:
             origin_marker_id = None
         return str(origin_marker_id)

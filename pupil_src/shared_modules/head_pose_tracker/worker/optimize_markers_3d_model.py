@@ -9,6 +9,8 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import collections
+
 import player_methods as pm
 import tasklib.background
 import tasklib.background.patches as bg_patches
@@ -39,6 +41,11 @@ def create_task(timestamps, marker_location_storage, general_settings):
     )
 
 
+IntrinsicsTuple = collections.namedtuple(
+    "IntrinsicsTuple", ["camera_matrix", "dist_coefs"]
+)
+
+
 def _optimize_markers_3d_model(
     timestamps,
     frame_index_range,
@@ -53,9 +60,9 @@ def _optimize_markers_3d_model(
         window = pm.enclosing_window(timestamps, index)
         return markers_bisector.by_ts_window(window)
 
-    optimization_storage = storage.OptimizationStorage(user_defined_origin_marker_id)
+    bg_task_storage = storage.BgTaskStorage(user_defined_origin_marker_id)
     pick_key_markers = worker.PickKeyMarkers(
-        optimization_storage, select_key_markers_interval=1
+        bg_task_storage, select_key_markers_interval=1
     )
     bundle_adjustment = worker.BundleAdjustment(
         camera_intrinsics, optimize_camera_intrinsics
@@ -79,25 +86,29 @@ def _optimize_markers_3d_model(
         if idx % 50 == 25 or idx == frame_count - 1:
             shared_memory.progress = (idx + 1) / frame_count
 
+            try:
+                bg_task_storage.marker_id_to_extrinsics[
+                    bg_task_storage.origin_marker_id
+                ]
+            except KeyError:
+                bg_task_storage.set_origin_marker_id()
+
             initial_guess_result = worker.get_initial_guess.calculate(
-                optimization_storage, camera_intrinsics
+                bg_task_storage.marker_id_to_extrinsics,
+                bg_task_storage.frame_id_to_extrinsics,
+                bg_task_storage.all_key_markers,
+                camera_intrinsics,
             )
             if initial_guess_result:
                 bundle_adjustment_result = bundle_adjustment.calculate(
                     initial_guess_result
                 )
-                worker.update_optimization_storage.run(
-                    optimization_storage, bundle_adjustment_result
-                )
+                worker.update_storage.run(bg_task_storage, bundle_adjustment_result)
 
-            model_data = {
-                "marker_id_to_extrinsics": optimization_storage.marker_id_to_extrinsics_opt,
-                "marker_id_to_points_3d": optimization_storage.marker_id_to_points_3d_opt,
-                "origin_marker_id": optimization_storage.origin_marker_id,
-                "centroid": optimization_storage.centroid,
-            }
-            intrinsics_params = {
-                "camera_matrix": camera_intrinsics.K,
-                "dist_coefs": camera_intrinsics.D,
-            }
-            yield model_data, intrinsics_params
+            model_tuple = (
+                bg_task_storage.origin_marker_id,
+                bg_task_storage.marker_id_to_extrinsics,
+                bg_task_storage.marker_id_to_points_3d,
+            )
+            intrinsics_tuple = IntrinsicsTuple(camera_intrinsics.K, camera_intrinsics.D)
+            yield model_tuple, intrinsics_tuple

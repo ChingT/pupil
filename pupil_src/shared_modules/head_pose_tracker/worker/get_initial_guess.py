@@ -11,6 +11,8 @@ See COPYING and COPYING.LESSER for license details.
 
 import collections
 
+import numpy as np
+
 from head_pose_tracker import worker
 
 InitialGuessResult = collections.namedtuple(
@@ -19,17 +21,22 @@ InitialGuessResult = collections.namedtuple(
 )
 
 
-def calculate(storage, camera_intrinsics):
+def calculate(
+    marker_id_to_extrinsics_opt,
+    frame_id_to_extrinsics_opt,
+    key_markers,
+    camera_intrinsics,
+):
     """ get marker and camera initial guess for bundle adjustment """
 
-    try:
-        storage.marker_id_to_extrinsics_opt[storage.origin_marker_id]
-    except KeyError:
-        storage.set_origin_marker_id()
-
-    marker_id_to_extrinsics_init = storage.marker_id_to_extrinsics_opt
-    frame_id_to_extrinsics_init = storage.frame_id_to_extrinsics_opt
-    key_markers = storage.all_key_markers
+    marker_id_to_extrinsics_init = {
+        marker_id: np.array(extrinsics)
+        for marker_id, extrinsics in marker_id_to_extrinsics_opt.items()
+    }
+    frame_id_to_extrinsics_init = {
+        frame_id: np.array(extrinsics)
+        for frame_id, extrinsics in frame_id_to_extrinsics_opt.items()
+    }
     frame_ids = list(set(marker.frame_id for marker in key_markers))
     marker_ids = list(set(marker.marker_id for marker in key_markers))
 

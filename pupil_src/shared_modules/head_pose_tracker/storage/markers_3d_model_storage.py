@@ -13,22 +13,63 @@ import logging
 import os
 import re
 
+import numpy as np
+
 import file_methods as fm
 from observable import Observable
 
 logger = logging.getLogger(__name__)
 
 
-class Markers3DModelStorage(Observable):
+class Markers3DModel:
     version = 1
+
+    def __init__(self):
+        self.set_to_default_values()
+
+    def set_to_default_values(self):
+        self.origin_marker_id = None
+        self.marker_id_to_extrinsics = {}
+        self.marker_id_to_points_3d = {}
+
+    @property
+    def calculated(self):
+        return bool(self.marker_id_to_extrinsics)
+
+    @property
+    def centroid(self):
+        try:
+            return np.mean(
+                list(self.marker_id_to_points_3d.values()), axis=(0, 1)
+            ).tolist()
+        except IndexError:
+            return [0.0, 0.0, 0.0]
+
+    def load_model(
+        self, origin_marker_id, marker_id_to_extrinsics, marker_id_to_points_3d
+    ):
+        self.origin_marker_id = origin_marker_id
+        self.marker_id_to_extrinsics = marker_id_to_extrinsics
+        self.marker_id_to_points_3d = marker_id_to_points_3d
+
+    @property
+    def as_tuple(self):
+        return (
+            self.origin_marker_id,
+            self.marker_id_to_extrinsics,
+            self.marker_id_to_points_3d,
+        )
+
+
+class Markers3DModelStorage(Observable, Markers3DModel):
     _plmodel_suffix = "plmodel"
 
     def __init__(self, rec_dir, current_recording_uuid, plugin):
+        super().__init__()
+
         self._rec_dir = rec_dir
         self._current_recording_uuid = current_recording_uuid
         self._saved_recording_uuid = current_recording_uuid
-
-        self.result = None
 
         file_name = self._find_file_name()
         if file_name:
@@ -41,10 +82,6 @@ class Markers3DModelStorage(Observable):
 
     def _on_cleanup(self):
         self.save_plmodel_to_disk()
-
-    @property
-    def calculated(self):
-        return bool(self.result and self.result["marker_id_to_extrinsics"])
 
     def _find_file_name(self):
         try:
@@ -71,19 +108,23 @@ class Markers3DModelStorage(Observable):
 
     def _save_to_file(self):
         file_path = self._plmodel_file_path
-        data = self.result
         dict_representation = {
             "version": self.version,
-            "data": data,
+            "data": self.as_tuple,
             "recording_uuid": self._current_recording_uuid,
         }
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         fm.save_object(dict_representation, file_path)
 
     def _load_plmodel_from_disk(self):
-        recording_uuid, self.result = self._load_from_file()
+        recording_uuid, model_tuple = self._load_from_file()
         if recording_uuid:
             self._saved_recording_uuid = recording_uuid
+        if model_tuple:
+            try:
+                self.load_model(*model_tuple)
+            except TypeError:
+                pass
 
     def _load_from_file(self):
         file_path = self._plmodel_file_path

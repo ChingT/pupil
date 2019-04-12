@@ -29,7 +29,7 @@ def create_task(
         general_settings.camera_localizer_frame_index_range,
         marker_location_storage.markers_bisector,
         marker_location_storage.frame_index_to_num_markers,
-        markers_3d_model_storage.result["marker_id_to_extrinsics"],
+        markers_3d_model_storage.marker_id_to_extrinsics,
         g_pool.capture.intrinsics,
     )
     name = "Create camera localizer"

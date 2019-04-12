@@ -42,9 +42,18 @@ class Markers3DModelController(Observable):
 
         self._task = None
 
+        if self._markers_3d_model_storage.calculated:
+            self.status = "calculated"
+        else:
+            self.status = self.default_status
+
         marker_location_controller.add_observer(
             "on_marker_detection_ended", self._on_marker_detection_ended
         )
+
+    @property
+    def default_status(self):
+        return "Not calculated yet"
 
     def _on_marker_detection_ended(self):
         if (
@@ -63,19 +72,17 @@ class Markers3DModelController(Observable):
         if self._task is not None and self._task.running:
             self._task.kill(None)
 
-        self._general_settings.markers_3d_model_status = "Not calculated yet"
-        self._markers_3d_model_storage.result = None
+        self.status = self.default_status
+        self._markers_3d_model_storage.set_to_default_values()
 
     def _create_optimize_markers_3d_model_task(self):
         def on_yield(result):
             self._update_result(result)
-            self._general_settings.markers_3d_model_status = "{:.0f}% completed".format(
-                self._task.progress * 100
-            )
+            self.status = "{:.0f}% completed".format(self._task.progress * 100)
 
         def on_completed(_):
             if self._markers_3d_model_storage.calculated:
-                self._general_settings.markers_3d_model_status = "successful"
+                self.status = "successful"
                 self._camera_intrinsics.save(self._rec_dir)
                 logger.info(
                     "markers 3d model '{}' optimization completed".format(
@@ -84,7 +91,7 @@ class Markers3DModelController(Observable):
                 )
                 self.on_markers_3d_model_optimization_completed()
             else:
-                self._general_settings.markers_3d_model_status = "failed"
+                self.status = "failed"
                 logger.info(
                     "markers 3d model '{}' optimization failed".format(
                         self._markers_3d_model_storage.name
@@ -108,13 +115,13 @@ class Markers3DModelController(Observable):
                 self._markers_3d_model_storage.name
             )
         )
-        self._general_settings.markers_3d_model_status = "0% completed"
+        self.status = "0% completed"
 
     def _update_result(self, result):
-        model_data, intrinsics = result
-        self._markers_3d_model_storage.result = model_data
-        self._camera_intrinsics.update_camera_matrix(intrinsics["camera_matrix"])
-        self._camera_intrinsics.update_dist_coefs(intrinsics["dist_coefs"])
+        model_tuple, intrinsics_tuple = result
+        self._markers_3d_model_storage.load_model(*model_tuple)
+        self._camera_intrinsics.update_camera_matrix(intrinsics_tuple.camera_matrix)
+        self._camera_intrinsics.update_dist_coefs(intrinsics_tuple.dist_coefs)
 
     def on_markers_3d_model_optimization_had_completed_before(self):
         pass

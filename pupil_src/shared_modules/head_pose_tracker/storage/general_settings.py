@@ -20,23 +20,33 @@ logger = logging.getLogger(__name__)
 class Settings:
     version = 1
 
-    def load_settings(
+    def __init__(self, get_recording_index_range):
+        self._get_recording_index_range = get_recording_index_range
+
+        self.set_to_default_values()
+
+    def set_to_default_values(self):
+        self.marker_location_frame_index_range = self._get_recording_index_range()
+        self.markers_3d_model_frame_index_range = self._get_recording_index_range()
+        self.camera_localizer_frame_index_range = self._get_recording_index_range()
+        self.user_defined_origin_marker_id = None
+        self.optimize_camera_intrinsics = False
+        self.show_marker_id = False
+        self.show_camera_trace = True
+
+    def _load_settings(
         self,
         marker_location_frame_index_range,
         markers_3d_model_frame_index_range,
         camera_localizer_frame_index_range,
-        markers_3d_model_status="Not calculated yet",
-        camera_localizer_status="Not calculated yet",
-        user_defined_origin_marker_id=None,
-        optimize_camera_intrinsics=False,
-        show_marker_id=False,
-        show_camera_trace=True,
+        user_defined_origin_marker_id,
+        optimize_camera_intrinsics,
+        show_marker_id,
+        show_camera_trace,
     ):
         self.marker_location_frame_index_range = marker_location_frame_index_range
         self.markers_3d_model_frame_index_range = markers_3d_model_frame_index_range
         self.camera_localizer_frame_index_range = camera_localizer_frame_index_range
-        self.markers_3d_model_status = markers_3d_model_status
-        self.camera_localizer_status = camera_localizer_status
         self.user_defined_origin_marker_id = user_defined_origin_marker_id
         self.optimize_camera_intrinsics = optimize_camera_intrinsics
         self.show_marker_id = show_marker_id
@@ -48,8 +58,6 @@ class Settings:
             self.marker_location_frame_index_range,
             self.markers_3d_model_frame_index_range,
             self.camera_localizer_frame_index_range,
-            self.markers_3d_model_status,
-            self.camera_localizer_status,
             self.user_defined_origin_marker_id,
             self.optimize_camera_intrinsics,
             self.show_marker_id,
@@ -59,8 +67,9 @@ class Settings:
 
 class GeneralSettings(Settings):
     def __init__(self, rec_dir, get_recording_index_range, plugin):
+        super().__init__(get_recording_index_range)
+
         self._rec_dir = rec_dir
-        self._get_recording_index_range = get_recording_index_range
 
         plugin.add_observer("cleanup", self._on_cleanup)
 
@@ -81,22 +90,9 @@ class GeneralSettings(Settings):
         settings_tuple = self._load_msgpack_from_file(self._msgpack_file_path)
         if settings_tuple:
             try:
-                self._load_default_settings(settings_tuple)
+                self._load_settings(*settings_tuple)
             except TypeError:
                 pass
-            else:
-                return
-        self._create_default_settings()
-
-    def _load_default_settings(self, settings_tuple):
-        self.load_settings(*settings_tuple)
-
-    def _create_default_settings(self):
-        self.load_settings(
-            marker_location_frame_index_range=self._get_recording_index_range(),
-            markers_3d_model_frame_index_range=self._get_recording_index_range(),
-            camera_localizer_frame_index_range=self._get_recording_index_range(),
-        )
 
     def _load_msgpack_from_file(self, file_path):
         try:

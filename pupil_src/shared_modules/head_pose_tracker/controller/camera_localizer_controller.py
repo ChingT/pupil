@@ -41,6 +41,11 @@ class CameraLocalizerController(Observable):
 
         self._task = None
 
+        if self._camera_localizer_storage.calculated:
+            self.status = "calculated"
+        else:
+            self.status = self.default_status
+
         markers_3d_model_controller.add_observer(
             "on_markers_3d_model_optimization_had_completed_before",
             self._on_markers_3d_model_optimization_had_completed_before,
@@ -53,6 +58,10 @@ class CameraLocalizerController(Observable):
             "on_markers_3d_model_optimization_completed",
             self._on_markers_3d_model_optimization_completed,
         )
+
+    @property
+    def default_status(self):
+        return "Not calculated yet"
 
     def _on_markers_3d_model_optimization_had_completed_before(self):
         if not self._camera_localizer_storage.calculated:
@@ -83,24 +92,22 @@ class CameraLocalizerController(Observable):
 
     def _abort_calculation(self, error_message):
         logger.error(error_message)
-        self._general_settings.camera_localizer_status = error_message
+        self.status = error_message
         self.on_calculation_could_not_be_started()
         # the pose from this localizer got cleared, so don't show it anymore
 
     def reset(self):
         self.cancel_task()
         self._camera_localizer_storage.pose_bisector = pm.Mutable_Bisector()
-        self._general_settings.camera_localizer_status = "Not calculated yet"
+        self.status = self.default_status
 
     def _create_localization_task(self):
         def on_yield(data_pairs):
             self._insert_pose_bisector(data_pairs)
-            self._general_settings.camera_localizer_status = "{:.0f}% completed".format(
-                self._task.progress * 100
-            )
+            self.status = "{:.0f}% completed".format(self._task.progress * 100)
 
         def on_completed(_):
-            self._general_settings.camera_localizer_status = "successful"
+            self.status = "successful"
             self._camera_localizer_storage.save_pldata_to_disk()
             logger.info("camera localization completed")
             self.on_camera_localization_ended()
@@ -123,7 +130,7 @@ class CameraLocalizerController(Observable):
         self._task.add_observer("on_started", self.on_camera_localization_started)
         self._task_manager.add_task(self._task)
         logger.info("Start camera localization")
-        self._general_settings.camera_localizer_status = "0% completed"
+        self.status = "0% completed"
 
     def _insert_pose_bisector(self, data_pairs):
         for timestamp, pose in data_pairs:

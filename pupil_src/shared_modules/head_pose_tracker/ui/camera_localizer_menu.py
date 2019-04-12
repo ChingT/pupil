@@ -73,8 +73,8 @@ class CameraLocalizerMenu:
 
     def _create_status_text(self):
         return ui.Text_Input(
-            "camera_localizer_status",
-            self._general_settings,
+            "status",
+            self._camera_localizer_controller,
             label="Status",
             setter=lambda _: _,
         )

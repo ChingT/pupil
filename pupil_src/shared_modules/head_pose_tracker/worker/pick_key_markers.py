@@ -21,7 +21,7 @@ KeyMarker = collections.namedtuple(
 class PickKeyMarkers:
     def __init__(
         self,
-        optimization_storage,
+        bg_task_storage,
         select_key_markers_interval=2,
         min_n_markers_per_frame=2,
         max_n_same_markers_per_bin=1,
@@ -32,7 +32,7 @@ class PickKeyMarkers:
         assert min_n_markers_per_frame >= 2
         assert max_n_same_markers_per_bin >= 1
 
-        self._optimization_storage = optimization_storage
+        self._bg_task_storage = bg_task_storage
         self._select_key_markers_interval = select_key_markers_interval
         self._min_n_markers_per_frame = min_n_markers_per_frame
         self._max_n_same_markers_per_bin = max_n_same_markers_per_bin
@@ -65,7 +65,7 @@ class PickKeyMarkers:
             n_same_markers_in_bin = len(
                 [
                     key_marker
-                    for key_marker in self._optimization_storage.all_key_markers
+                    for key_marker in self._bg_task_storage.all_key_markers
                     if key_marker.marker_id == marker["id"]
                     and key_marker.bin == self._get_bin(marker)
                 ]
@@ -85,7 +85,7 @@ class PickKeyMarkers:
             )
             for marker in markers_in_frame
         ]
-        self._optimization_storage.all_key_markers += key_markers
+        self._bg_task_storage.all_key_markers += key_markers
 
     def _get_bin(self, detection):
         centroid = detection["centroid"]

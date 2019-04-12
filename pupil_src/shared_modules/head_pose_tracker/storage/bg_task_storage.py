@@ -18,19 +18,26 @@ from head_pose_tracker import worker
 logger = logging.getLogger(__name__)
 
 
-class OptimizationStorage:
+class BgTaskStorage:
     def __init__(self, user_defined_origin_marker_id=None):
-        self.marker_id_to_extrinsics_opt = {}
-        self.marker_id_to_points_3d_opt = {}
-        # {frame id: optimized camera extrinsics (which is composed of Rodrigues
-        # rotation vector and translation vector, which brings points from the world
-        # coordinate system to the camera coordinate system)}
-        self.frame_id_to_extrinsics_opt = {}
-        self.all_key_markers = []
-        self._user_defined_origin_marker_id = user_defined_origin_marker_id
         self.origin_marker_id = None
+        self.marker_id_to_extrinsics = {}
+        self.marker_id_to_points_3d = {}
+
+        self.frame_id_to_extrinsics = {}
+        self.all_key_markers = []
+
+        self._user_defined_origin_marker_id = user_defined_origin_marker_id
         self.set_origin_marker_id()
-        self.centroid = [0.0, 0.0, 0.0]
+
+    @property
+    def centroid(self):
+        try:
+            return np.mean(
+                list(self.marker_id_to_points_3d.values()), axis=(0, 1)
+            ).tolist()
+        except IndexError:
+            return [0.0, 0.0, 0.0]
 
     def set_origin_marker_id(self):
         if self.origin_marker_id is not None or not self.all_key_markers:
@@ -50,11 +57,11 @@ class OptimizationStorage:
 
     def _set_coordinate_system(self, origin_marker_id):
         # {marker id: optimized marker extrinsics}
-        self.marker_id_to_extrinsics_opt = {
+        self.marker_id_to_extrinsics = {
             origin_marker_id: worker.utils.get_marker_extrinsics_origin().tolist()
         }
         # {marker id: optimized marker 3d points}
-        self.marker_id_to_points_3d_opt = {
+        self.marker_id_to_points_3d = {
             origin_marker_id: worker.utils.get_marker_points_3d_origin().tolist()
         }
 
@@ -63,11 +70,3 @@ class OptimizationStorage:
             "The marker with id {} is defined as the origin of the coordinate "
             "system".format(origin_marker_id)
         )
-
-    def calculate_centroid(self):
-        try:
-            self.centroid = np.mean(
-                list(self.marker_id_to_points_3d_opt.values()), axis=(0, 1)
-            ).tolist()
-        except IndexError:
-            pass

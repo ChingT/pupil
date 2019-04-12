@@ -3,7 +3,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class GeneralController:
+class OnlineGeneralController:
     def __init__(
         self,
         marker_location_controller,

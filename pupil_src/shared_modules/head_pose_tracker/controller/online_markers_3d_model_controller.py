@@ -19,7 +19,7 @@ from observable import Observable
 logger = logging.getLogger(__name__)
 
 
-class Markers3DModelController(Observable):
+class OnlineMarkers3DModelController(Observable):
     def __init__(
         self,
         general_settings,

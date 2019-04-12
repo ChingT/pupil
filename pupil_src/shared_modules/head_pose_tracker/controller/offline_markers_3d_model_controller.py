@@ -18,7 +18,7 @@ from observable import Observable
 logger = logging.getLogger(__name__)
 
 
-class Markers3DModelController(Observable):
+class OfflineMarkers3DModelController(Observable):
     def __init__(
         self,
         marker_location_controller,

@@ -8,7 +8,8 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
-from head_pose_tracker import online_ui as plugin_ui, online_controller, storage
+
+from head_pose_tracker import online_ui as plugin_ui, controller, storage
 
 from observable import Observable
 from plugin import Plugin
@@ -45,24 +46,24 @@ class Online_Head_Pose_Tracker(Plugin, Observable):
         self._camera_localizer_storage = storage.OnlineCameraLocalizerStorage()
 
     def _setup_controllers(self):
-        self._marker_location_controller = online_controller.MarkerLocationController(
+        self._marker_location_controller = controller.OnlineMarkerLocationController(
             self._marker_location_storage
         )
-        self._markers_3d_model_controller = online_controller.Markers3DModelController(
+        self._markers_3d_model_controller = controller.OnlineMarkers3DModelController(
             self._general_settings,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self.g_pool.capture.intrinsics,
             task_manager=self._task_manager,
         )
-        self._camera_localizer_controller = online_controller.CameraLocalizerController(
+        self._camera_localizer_controller = controller.OnlineCameraLocalizerController(
             self._general_settings,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self._camera_localizer_storage,
             self.g_pool.capture.intrinsics,
         )
-        self._general_controller = online_controller.GeneralController(
+        self._general_controller = controller.OnlineGeneralController(
             self._marker_location_controller,
             self._markers_3d_model_controller,
             self._camera_localizer_controller,

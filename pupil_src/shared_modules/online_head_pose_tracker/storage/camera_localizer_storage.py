@@ -9,8 +9,19 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import numpy as np
+
 
 class CameraLocalizerStorage:
     def __init__(self, user_dir):
         self._user_dir = user_dir
-        self.pose_bisector = [None]
+        self.current_pose = self.none_pose_data
+
+    @property
+    def none_pose_data(self):
+        return {
+            "camera_extrinsics": None,
+            "camera_poses": [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+            "camera_trace": [np.nan, np.nan, np.nan],
+            "camera_pose_matrix": None,
+        }

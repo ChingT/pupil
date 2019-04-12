@@ -17,6 +17,6 @@ class MarkerLocationController:
         self._marker_location_storage = marker_location_storage
 
     def calculate(self, frame):
-        self._marker_location_storage.markers_bisector.append(
-            worker.detect_square_markers.detect(frame)
+        self._marker_location_storage.current_markers = worker.detect_square_markers.detect(
+            frame
         )

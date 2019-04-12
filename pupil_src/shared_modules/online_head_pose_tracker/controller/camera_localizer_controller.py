@@ -36,16 +36,9 @@ class CameraLocalizerController(Observable):
         if not self._markers_3d_model_storage.calculated:
             return
 
-        current_pose = self._camera_localizer_storage.pose_bisector[-1]
-        if current_pose:
-            camera_extrinsics_prv = current_pose["camera_extrinsics"]
-        else:
-            camera_extrinsics_prv = None
-        self._camera_localizer_storage.pose_bisector.append(
-            worker.localize_pose.localize(
-                self._marker_location_storage.markers_bisector[-1],
-                self._markers_3d_model_storage.result["marker_id_to_extrinsics"],
-                camera_extrinsics_prv,
-                self._camera_intrinsics,
-            )
+        self._camera_localizer_storage.current_pose = worker.localize_pose.localize(
+            self._marker_location_storage.current_markers,
+            self._markers_3d_model_storage.model["marker_id_to_extrinsics"],
+            self._camera_localizer_storage,
+            self._camera_intrinsics,
         )

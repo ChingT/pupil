@@ -25,8 +25,7 @@ class Markers3DModelStorage(Observable):
 
     def __init__(self, user_dir, plugin):
         self._user_dir = user_dir
-
-        self.result = None
+        self.model = self.none_model_data
 
         file_name = self._find_file_name()
         if file_name:
@@ -37,12 +36,21 @@ class Markers3DModelStorage(Observable):
 
         plugin.add_observer("cleanup", self._on_cleanup)
 
+    @property
+    def none_model_data(self):
+        return {
+            "marker_id_to_extrinsics": {},
+            "marker_id_to_points_3d": {},
+            "origin_marker_id": None,
+            "centroid": [0.0, 0.0, 0.0],
+        }
+
     def _on_cleanup(self):
         self.save_plmodel_to_disk()
 
     @property
     def calculated(self):
-        return bool(self.result and self.result["marker_id_to_extrinsics"])
+        return bool(self.model["marker_id_to_extrinsics"])
 
     def _find_file_name(self):
         try:
@@ -68,13 +76,15 @@ class Markers3DModelStorage(Observable):
 
     def _save_to_file(self):
         file_path = self._plmodel_file_path
-        data = self.result
+        data = self.model
         dict_representation = {"version": self.version, "data": data}
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         fm.save_object(dict_representation, file_path)
 
     def _load_plmodel_from_disk(self):
-        self.result = self._load_from_file()
+        model = self._load_from_file()
+        if model:
+            self.model = model
 
     def _load_from_file(self):
         file_path = self._plmodel_file_path

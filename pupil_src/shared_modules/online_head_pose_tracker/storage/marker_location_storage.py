@@ -13,4 +13,4 @@ See COPYING and COPYING.LESSER for license details.
 class MarkerLocationStorage:
     def __init__(self, user_dir):
         self._user_dir = user_dir
-        self.markers_bisector = []
+        self.current_markers = []

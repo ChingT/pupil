@@ -66,9 +66,9 @@ class Markers3DModelMenu:
 
     def _create_origin_marker_id_display(self):
         return ui.Text_Input(
-            "result",
+            "model",
             self._markers_3d_model_storage,
-            label="Define the origin marker id",
+            label="the origin marker id",
             getter=self._on_get_origin_marker_id,
             setter=lambda _: _,
         )
@@ -87,8 +87,5 @@ class Markers3DModelMenu:
         self.render()
 
     def _on_get_origin_marker_id(self):
-        if self._markers_3d_model_storage.calculated:
-            origin_marker_id = self._markers_3d_model_storage.result["origin_marker_id"]
-        else:
-            origin_marker_id = None
+        origin_marker_id = self._markers_3d_model_storage.model["origin_marker_id"]
         return str(origin_marker_id)

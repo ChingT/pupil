@@ -43,7 +43,7 @@ class Markers3DModelController(Observable):
         self._task = None
 
     def pick_key_markers(self):
-        self._pick_key_markers.run(self._marker_location_storage.markers_bisector[-1])
+        self._pick_key_markers.run(self._marker_location_storage.current_markers)
 
     def calculate(self):
         if self._task is None or not self._task.running:
@@ -93,7 +93,7 @@ class Markers3DModelController(Observable):
             "origin_marker_id": self._optimization_storage.origin_marker_id,
             "centroid": self._optimization_storage.centroid,
         }
-        self._markers_3d_model_storage.result = model_data
+        self._markers_3d_model_storage.model = model_data
         self._camera_intrinsics.update_camera_matrix(intrinsics["camera_matrix"])
         self._camera_intrinsics.update_dist_coefs(intrinsics["dist_coefs"])
 

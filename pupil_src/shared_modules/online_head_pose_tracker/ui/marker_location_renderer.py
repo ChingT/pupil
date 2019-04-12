@@ -61,15 +61,11 @@ class MarkerLocationRenderer:
         self._render_markers(current_markers, marker_id_optimized)
 
     def _get_current_markers(self):
-        try:
-            current_markers = self._marker_location_storage.markers_bisector[-1]
-        except IndexError:
-            current_markers = []
-        return current_markers
+        return self._marker_location_storage.current_markers
 
     def _get_marker_id_optimized(self):
         try:
-            return self._markers_3d_model_storage.result[
+            return self._markers_3d_model_storage.model[
                 "marker_id_to_extrinsics"
             ].keys()
         except TypeError:

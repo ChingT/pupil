@@ -55,7 +55,7 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
     def _get_rotate_center_matrix(self):
         rotate_center_matrix = np.eye(4, dtype=np.float32)
         rotate_center_matrix[0:3, 3] = -np.array(
-            self._markers_3d_model_storage.result["centroid"]
+            self._markers_3d_model_storage.model["centroid"]
         )
         return rotate_center_matrix
 
@@ -66,14 +66,10 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
         utils.render_coordinate()
 
     def _get_marker_id_to_points_3d(self):
-        return self._markers_3d_model_storage.result["marker_id_to_points_3d"]
+        return self._markers_3d_model_storage.model["marker_id_to_points_3d"]
 
     def _get_current_markers(self):
-        try:
-            current_markers = self._marker_location_storage.markers_bisector[-1]
-        except IndexError:
-            current_markers = []
-        return current_markers
+        return self._marker_location_storage.current_markers
 
     def _render_markers(self, marker_id_to_points_3d, current_markers):
         current_marker_ids = [marker["id"] for marker in current_markers]
@@ -88,13 +84,9 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
                 utils.render_text_in_3d_window(str(marker_id), points_3d[0], color)
 
     def _get_camera_pose_matrix(self):
-        pose_data = self._camera_localizer_storage.pose_bisector[-1]
-        try:
-            camera_trace = pose_data["camera_trace"]
-            camera_pose_matrix = pose_data["camera_pose_matrix"]
-        except TypeError:
-            camera_trace = np.full((3,), np.nan)
-            camera_pose_matrix = None
+        pose_data = self._camera_localizer_storage.current_pose
+        camera_trace = pose_data["camera_trace"]
+        camera_pose_matrix = pose_data["camera_pose_matrix"]
 
         # recent_camera_trace is updated no matter show_camera_trace is on or not
         self.recent_camera_trace.append(camera_trace)

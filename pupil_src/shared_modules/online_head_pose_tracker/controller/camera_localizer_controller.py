@@ -38,7 +38,7 @@ class CameraLocalizerController(Observable):
 
         self._camera_localizer_storage.current_pose = worker.localize_pose.localize(
             self._marker_location_storage.current_markers,
-            self._markers_3d_model_storage.model["marker_id_to_extrinsics"],
+            self._markers_3d_model_storage.marker_id_to_extrinsics,
             self._camera_localizer_storage,
             self._camera_intrinsics,
         )

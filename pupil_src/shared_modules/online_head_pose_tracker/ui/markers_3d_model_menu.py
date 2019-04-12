@@ -66,7 +66,7 @@ class Markers3DModelMenu:
 
     def _create_origin_marker_id_display(self):
         return ui.Text_Input(
-            "model",
+            "origin_marker_id",
             self._markers_3d_model_storage,
             label="the origin marker id",
             getter=self._on_get_origin_marker_id,
@@ -87,5 +87,5 @@ class Markers3DModelMenu:
         self.render()
 
     def _on_get_origin_marker_id(self):
-        origin_marker_id = self._markers_3d_model_storage.model["origin_marker_id"]
+        origin_marker_id = self._markers_3d_model_storage.origin_marker_id
         return str(origin_marker_id)

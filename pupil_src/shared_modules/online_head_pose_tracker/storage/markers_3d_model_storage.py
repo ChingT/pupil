@@ -13,19 +13,88 @@ import logging
 import os
 import re
 
+import numpy as np
+
 import file_methods as fm
 from observable import Observable
+from online_head_pose_tracker import worker
 
 logger = logging.getLogger(__name__)
 
 
-class Markers3DModelStorage(Observable):
+class Markers3DModel:
     version = 1
+
+    def __init__(self):
+        self.set_to_default_values()
+
+    def set_to_default_values(self):
+        self.origin_marker_id = None
+        self.marker_id_to_extrinsics = {}
+        self.marker_id_to_points_3d = {}
+
+        self.frame_id_to_extrinsics = {}
+        self.all_key_markers = []
+
+    @property
+    def calculated(self):
+        return bool(self.marker_id_to_extrinsics)
+
+    @property
+    def centroid(self):
+        try:
+            return np.mean(
+                list(self.marker_id_to_points_3d.values()), axis=(0, 1)
+            ).tolist()
+        except IndexError:
+            return [0.0, 0.0, 0.0]
+
+    def load_model(
+        self, origin_marker_id, marker_id_to_extrinsics, marker_id_to_points_3d
+    ):
+        self.origin_marker_id = origin_marker_id
+        self.marker_id_to_extrinsics = marker_id_to_extrinsics
+        self.marker_id_to_points_3d = marker_id_to_points_3d
+
+    @property
+    def as_tuple(self):
+        return (
+            self.origin_marker_id,
+            self.marker_id_to_extrinsics,
+            self.marker_id_to_points_3d,
+        )
+
+    def set_origin_marker_id(self):
+        if self.origin_marker_id is not None or not self.all_key_markers:
+            return
+
+        all_markers_id = [marker.marker_id for marker in self.all_key_markers]
+        most_common_marker_id = max(all_markers_id, key=all_markers_id.count)
+        origin_marker_id = most_common_marker_id
+        self._set_coordinate_system(origin_marker_id)
+
+    def _set_coordinate_system(self, origin_marker_id):
+        self.marker_id_to_extrinsics = {
+            origin_marker_id: worker.utils.get_marker_extrinsics_origin().tolist()
+        }
+        self.marker_id_to_points_3d = {
+            origin_marker_id: worker.utils.get_marker_points_3d_origin().tolist()
+        }
+        self.origin_marker_id = origin_marker_id
+
+        logger.info(
+            "The marker with id {} is defined as the origin of the coordinate "
+            "system".format(origin_marker_id)
+        )
+
+
+class Markers3DModelStorage(Observable, Markers3DModel):
     _plmodel_suffix = "plmodel"
 
     def __init__(self, user_dir, plugin):
+        super().__init__()
+
         self._user_dir = user_dir
-        self.model = self.none_model_data
 
         file_name = self._find_file_name()
         if file_name:
@@ -36,21 +105,8 @@ class Markers3DModelStorage(Observable):
 
         plugin.add_observer("cleanup", self._on_cleanup)
 
-    @property
-    def none_model_data(self):
-        return {
-            "marker_id_to_extrinsics": {},
-            "marker_id_to_points_3d": {},
-            "origin_marker_id": None,
-            "centroid": [0.0, 0.0, 0.0],
-        }
-
     def _on_cleanup(self):
         self.save_plmodel_to_disk()
-
-    @property
-    def calculated(self):
-        return bool(self.model["marker_id_to_extrinsics"])
 
     def _find_file_name(self):
         try:
@@ -76,15 +132,17 @@ class Markers3DModelStorage(Observable):
 
     def _save_to_file(self):
         file_path = self._plmodel_file_path
-        data = self.model
-        dict_representation = {"version": self.version, "data": data}
+        dict_representation = {"version": self.version, "data": self.as_tuple}
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         fm.save_object(dict_representation, file_path)
 
     def _load_plmodel_from_disk(self):
-        model = self._load_from_file()
-        if model:
-            self.model = model
+        model_tuple = self._load_from_file()
+        if model_tuple:
+            try:
+                self.load_model(*model_tuple)
+            except TypeError:
+                pass
 
     def _load_from_file(self):
         file_path = self._plmodel_file_path

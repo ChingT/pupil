@@ -11,15 +11,14 @@ See COPYING and COPYING.LESSER for license details.
 
 import tasklib
 import tasklib.background.patches as bg_patches
-
 from online_head_pose_tracker import worker
 
 
-def create_task(optimization_storage, general_settings, camera_intrinsics):
+def create_task(markers_3d_model_storage, general_settings, camera_intrinsics):
     args = (
-        optimization_storage.marker_id_to_extrinsics_opt,
-        optimization_storage.frame_id_to_extrinsics_opt,
-        optimization_storage.all_key_markers,
+        markers_3d_model_storage.marker_id_to_extrinsics,
+        markers_3d_model_storage.frame_id_to_extrinsics,
+        markers_3d_model_storage.all_key_markers,
         general_settings.optimize_camera_intrinsics,
         camera_intrinsics,
     )

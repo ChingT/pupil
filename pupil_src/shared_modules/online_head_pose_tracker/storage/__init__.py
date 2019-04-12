@@ -19,4 +19,3 @@ from online_head_pose_tracker.storage.camera_localizer_storage import (
 from online_head_pose_tracker.storage.markers_3d_model_storage import (
     Markers3DModelStorage,
 )
-from online_head_pose_tracker.storage.optimization_storage import OptimizationStorage

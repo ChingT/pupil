@@ -13,7 +13,7 @@ import logging
 
 import tasklib
 from observable import Observable
-from online_head_pose_tracker import worker, storage
+from online_head_pose_tracker import worker
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +35,8 @@ class Markers3DModelController(Observable):
         self._task_manager = task_manager
         self._user_dir = user_dir
 
-        self._optimization_storage = storage.OptimizationStorage()
         self._pick_key_markers = worker.PickKeyMarkers(
-            self._optimization_storage, select_key_markers_interval=1
+            self._markers_3d_model_storage, select_key_markers_interval=1
         )
 
         self._task = None
@@ -52,25 +51,22 @@ class Markers3DModelController(Observable):
 
     def _check_ready(self):
         try:
-            self._optimization_storage.marker_id_to_extrinsics_opt[
-                self._optimization_storage.origin_marker_id
+            self._markers_3d_model_storage.marker_id_to_extrinsics[
+                self._markers_3d_model_storage.origin_marker_id
             ]
         except KeyError:
-            self._optimization_storage.set_origin_marker_id()
-        return len(self._optimization_storage.all_key_markers) > 50
-
-    def _reset(self):
-        if self._task is not None and self._task.running:
-            self._task.kill(None)
+            self._markers_3d_model_storage.set_origin_marker_id()
+        return len(self._markers_3d_model_storage.all_key_markers) > 50
 
     def _create_optimize_markers_3d_model_task(self):
         def on_completed(result):
             self._update_result(result)
-
             self._markers_3d_model_storage.save_plmodel_to_disk()
 
         self._task = worker.optimize_markers_3d_model.create_task(
-            self._optimization_storage, self._general_settings, self._camera_intrinsics
+            self._markers_3d_model_storage,
+            self._general_settings,
+            self._camera_intrinsics,
         )
         self._task.add_observer("on_completed", on_completed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
@@ -83,19 +79,16 @@ class Markers3DModelController(Observable):
         if not result:
             return
         bundle_adjustment_result, intrinsics = result
-        worker.update_optimization_storage.run(
-            self._optimization_storage, bundle_adjustment_result
+        worker.update_storage.run(
+            self._markers_3d_model_storage, bundle_adjustment_result
         )
 
-        model_data = {
-            "marker_id_to_extrinsics": self._optimization_storage.marker_id_to_extrinsics_opt,
-            "marker_id_to_points_3d": self._optimization_storage.marker_id_to_points_3d_opt,
-            "origin_marker_id": self._optimization_storage.origin_marker_id,
-            "centroid": self._optimization_storage.centroid,
-        }
-        self._markers_3d_model_storage.model = model_data
         self._camera_intrinsics.update_camera_matrix(intrinsics["camera_matrix"])
         self._camera_intrinsics.update_dist_coefs(intrinsics["dist_coefs"])
+
+    def _reset(self):
+        if self._task is not None and self._task.running:
+            self._task.kill(None)
 
     def on_markers_3d_model_optimization_started(self):
         pass

@@ -65,9 +65,7 @@ class MarkerLocationRenderer:
 
     def _get_marker_id_optimized(self):
         try:
-            return self._markers_3d_model_storage.model[
-                "marker_id_to_extrinsics"
-            ].keys()
+            return self._markers_3d_model_storage.marker_id_to_extrinsics.keys()
         except TypeError:
             return []
 

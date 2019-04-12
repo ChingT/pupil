@@ -11,6 +11,8 @@ See COPYING and COPYING.LESSER for license details.
 
 import collections
 
+import numpy as np
+
 from online_head_pose_tracker import worker
 
 InitialGuessResult = collections.namedtuple(
@@ -27,10 +29,14 @@ def calculate(
 ):
     """ get marker and camera initial guess for bundle adjustment """
 
-    # storage.set_origin_marker_id()
-
-    marker_id_to_extrinsics_init = marker_id_to_extrinsics_opt
-    frame_id_to_extrinsics_init = frame_id_to_extrinsics_opt
+    marker_id_to_extrinsics_init = {
+        marker_id: np.array(extrinsics)
+        for marker_id, extrinsics in marker_id_to_extrinsics_opt.items()
+    }
+    frame_id_to_extrinsics_init = {
+        frame_id: np.array(extrinsics)
+        for frame_id, extrinsics in frame_id_to_extrinsics_opt.items()
+    }
     frame_ids = list(set(marker.frame_id for marker in key_markers))
     marker_ids = list(set(marker.marker_id for marker in key_markers))
 

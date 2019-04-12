@@ -55,7 +55,7 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
     def _get_rotate_center_matrix(self):
         rotate_center_matrix = np.eye(4, dtype=np.float32)
         rotate_center_matrix[0:3, 3] = -np.array(
-            self._markers_3d_model_storage.model["centroid"]
+            self._markers_3d_model_storage.centroid
         )
         return rotate_center_matrix
 
@@ -66,7 +66,7 @@ class HeadPoseTrackerRenderer(plugin_ui.GLWindow):
         utils.render_coordinate()
 
     def _get_marker_id_to_points_3d(self):
-        return self._markers_3d_model_storage.model["marker_id_to_points_3d"]
+        return self._markers_3d_model_storage.marker_id_to_points_3d
 
     def _get_current_markers(self):
         return self._marker_location_storage.current_markers

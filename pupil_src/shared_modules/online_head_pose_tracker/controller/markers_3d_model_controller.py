@@ -49,17 +49,25 @@ class Markers3DModelController(Observable):
                 self._update_result(result)
                 self._markers_3d_model_storage.save_plmodel_to_disk()
 
-        self._task = worker.optimize_markers_3d_model.create_task(
-            self._markers_3d_model_storage,
-            self._general_settings,
-            self._camera_intrinsics,
-        )
+        self._task = self._create_task()
         self._task.add_observer("on_completed", on_completed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
-        self._task.add_observer(
-            "on_started", self.on_markers_3d_model_optimization_started
+
+    def _create_task(self):
+        args = (
+            self._markers_3d_model_storage.origin_marker_id,
+            self._markers_3d_model_storage.marker_id_to_extrinsics,
+            self._markers_3d_model_storage.frame_id_to_extrinsics,
+            self._markers_3d_model_storage.all_key_markers,
+            self._general_settings.optimize_camera_intrinsics,
+            self._camera_intrinsics,
         )
-        self._task_manager.add_task(self._task)
+        return self._task_manager.create_background_task(
+            name="markers 3d model optimization",
+            routine_or_generator_function=worker.online_optimization,
+            pass_shared_memory=False,
+            args=args,
+        )
 
     def _update_result(self, result):
         model_tuple, intrinsics_tuple, frame_ids_failed = result
@@ -75,6 +83,3 @@ class Markers3DModelController(Observable):
     def cancel_task(self):
         if self.is_running_task:
             self._task.kill(None)
-
-    def on_markers_3d_model_optimization_started(self):
-        pass

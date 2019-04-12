@@ -15,8 +15,8 @@ from online_head_pose_tracker.worker import (
     solvepnp,
     triangulate_marker,
     get_initial_guess,
-    optimize_markers_3d_model,
     localize_pose,
     pick_key_markers,
 )
 from online_head_pose_tracker.worker.bundle_adjustment import BundleAdjustment
+from online_head_pose_tracker.worker.optimization_task import online_optimization

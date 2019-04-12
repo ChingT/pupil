@@ -11,38 +11,15 @@ See COPYING and COPYING.LESSER for license details.
 
 import collections
 
-import tasklib
-import tasklib.background
-import tasklib.background.patches as bg_patches
 from head_pose_tracker import worker
 from online_head_pose_tracker import worker, storage
-
-
-def create_task(markers_3d_model_storage, general_settings, camera_intrinsics):
-    args = (
-        markers_3d_model_storage.origin_marker_id,
-        markers_3d_model_storage.marker_id_to_extrinsics,
-        markers_3d_model_storage.frame_id_to_extrinsics,
-        markers_3d_model_storage.all_key_markers,
-        general_settings.optimize_camera_intrinsics,
-        camera_intrinsics,
-    )
-    name = "optimize markers 3d model"
-    return tasklib.background.create(
-        name,
-        _optimize_markers_3d_model,
-        args=args,
-        patches=[bg_patches.IPCLoggingPatch()],
-    )
-
 
 IntrinsicsTuple = collections.namedtuple(
     "IntrinsicsTuple", ["camera_matrix", "dist_coefs"]
 )
 
 
-@worker.utils.timer
-def _optimize_markers_3d_model(
+def online_optimization(
     origin_marker_id,
     marker_id_to_extrinsics_opt,
     frame_id_to_extrinsics_opt,

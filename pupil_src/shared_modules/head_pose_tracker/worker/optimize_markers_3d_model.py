@@ -60,14 +60,6 @@ def _optimize_markers_3d_model(
         window = pm.enclosing_window(timestamps, index)
         return markers_bisector.by_ts_window(window)
 
-    bg_task_storage = storage.BgTaskStorage(user_defined_origin_marker_id)
-    pick_key_markers = worker.PickKeyMarkers(
-        bg_task_storage, select_key_markers_interval=1
-    )
-    bundle_adjustment = worker.BundleAdjustment(
-        camera_intrinsics, optimize_camera_intrinsics
-    )
-
     frame_start, frame_end = frame_index_range
     frame_indices_with_marker = [
         frame_index
@@ -79,31 +71,44 @@ def _optimize_markers_3d_model(
     )
     frame_count = len(frame_indices)
 
+    bg_task_storage = storage.BgTaskStorage(user_defined_origin_marker_id)
+    bundle_adjustment = worker.BundleAdjustment(
+        camera_intrinsics, optimize_camera_intrinsics
+    )
+
     for idx, frame_index in enumerate(frame_indices):
         markers_in_frame = find_markers_in_frame(frame_index)
-        pick_key_markers.run(markers_in_frame)
+        bg_task_storage.all_key_markers += worker.pick_key_markers.run(
+            markers_in_frame,
+            bg_task_storage.all_key_markers,
+            select_key_markers_interval=2,
+        )
 
-        if idx % 50 == 25 or idx == frame_count - 1:
-            shared_memory.progress = (idx + 1) / frame_count
+        if not (idx % 50 == 25 or idx == frame_count - 1):
+            continue
 
-            try:
-                bg_task_storage.marker_id_to_extrinsics[
-                    bg_task_storage.origin_marker_id
-                ]
-            except KeyError:
-                bg_task_storage.set_origin_marker_id()
+        shared_memory.progress = (idx + 1) / frame_count
 
-            initial_guess_result = worker.get_initial_guess.calculate(
-                bg_task_storage.marker_id_to_extrinsics,
-                bg_task_storage.frame_id_to_extrinsics,
-                bg_task_storage.all_key_markers,
-                camera_intrinsics,
+        try:
+            bg_task_storage.marker_id_to_extrinsics[bg_task_storage.origin_marker_id]
+        except KeyError:
+            bg_task_storage.set_origin_marker_id()
+
+        initial_guess_result = worker.get_initial_guess.calculate(
+            bg_task_storage.marker_id_to_extrinsics,
+            bg_task_storage.frame_id_to_extrinsics,
+            bg_task_storage.all_key_markers,
+            camera_intrinsics,
+        )
+        if initial_guess_result:
+            bundle_adjustment_result = bundle_adjustment.calculate(initial_guess_result)
+            bg_task_storage.update_extrinsics_opt(
+                bundle_adjustment_result.frame_id_to_extrinsics,
+                bundle_adjustment_result.marker_id_to_extrinsics,
             )
-            if initial_guess_result:
-                bundle_adjustment_result = bundle_adjustment.calculate(
-                    initial_guess_result
-                )
-                worker.update_storage.run(bg_task_storage, bundle_adjustment_result)
+            bg_task_storage.discard_failed_key_markers(
+                bundle_adjustment_result.frame_ids_failed
+            )
 
             model_tuple = (
                 bg_task_storage.origin_marker_id,

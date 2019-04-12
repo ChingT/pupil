@@ -177,6 +177,7 @@ class CameraLocalizerTimeline:
             return RangeElementFrameIdx()
 
     def _on_camera_localization_reset(self):
+        self.update_row()
         self.render_parent_timeline()
 
     def _on_camera_localization_started(self):

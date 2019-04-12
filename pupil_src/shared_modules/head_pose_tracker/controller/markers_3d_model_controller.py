@@ -69,7 +69,7 @@ class Markers3DModelController(Observable):
         self._create_optimize_markers_3d_model_task()
 
     def _reset(self):
-        if self._task is not None and self._task.running:
+        if self.is_running_task:
             self._task.kill(None)
 
         self.status = self.default_status
@@ -122,6 +122,10 @@ class Markers3DModelController(Observable):
         self._markers_3d_model_storage.load_model(*model_tuple)
         self._camera_intrinsics.update_camera_matrix(intrinsics_tuple.camera_matrix)
         self._camera_intrinsics.update_dist_coefs(intrinsics_tuple.dist_coefs)
+
+    @property
+    def is_running_task(self):
+        return self._task is not None and self._task.running
 
     def on_markers_3d_model_optimization_had_completed_before(self):
         pass

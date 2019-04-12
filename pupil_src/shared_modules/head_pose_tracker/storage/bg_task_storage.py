@@ -11,8 +11,6 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
-import numpy as np
-
 from head_pose_tracker import worker
 
 logger = logging.getLogger(__name__)
@@ -20,24 +18,13 @@ logger = logging.getLogger(__name__)
 
 class BgTaskStorage:
     def __init__(self, user_defined_origin_marker_id=None):
+        self._user_defined_origin_marker_id = user_defined_origin_marker_id
+
         self.origin_marker_id = None
         self.marker_id_to_extrinsics = {}
         self.marker_id_to_points_3d = {}
-
         self.frame_id_to_extrinsics = {}
         self.all_key_markers = []
-
-        self._user_defined_origin_marker_id = user_defined_origin_marker_id
-        self.set_origin_marker_id()
-
-    @property
-    def centroid(self):
-        try:
-            return np.mean(
-                list(self.marker_id_to_points_3d.values()), axis=(0, 1)
-            ).tolist()
-        except IndexError:
-            return [0.0, 0.0, 0.0]
 
     def set_origin_marker_id(self):
         if self.origin_marker_id is not None or not self.all_key_markers:
@@ -70,3 +57,21 @@ class BgTaskStorage:
             "The marker with id {} is defined as the origin of the coordinate "
             "system".format(origin_marker_id)
         )
+
+    def update_extrinsics_opt(
+        self, frame_id_to_extrinsics_opt, marker_id_to_extrinsics_opt
+    ):
+        self.frame_id_to_extrinsics.update(frame_id_to_extrinsics_opt)
+
+        for marker_id, extrinsics in marker_id_to_extrinsics_opt.items():
+            self.marker_id_to_extrinsics[marker_id] = extrinsics.tolist()
+            self.marker_id_to_points_3d[
+                marker_id
+            ] = worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics).tolist()
+
+    def discard_failed_key_markers(self, frame_ids_failed):
+        self.all_key_markers = [
+            marker
+            for marker in self.all_key_markers
+            if marker.frame_id not in frame_ids_failed
+        ]

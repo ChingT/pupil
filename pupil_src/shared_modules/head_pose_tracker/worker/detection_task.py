@@ -10,38 +10,16 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import file_methods as fm
-import tasklib.background
-import tasklib.background.patches as bg_patches
 import video_capture
 from apriltag.python import apriltag
 from methods import normalize
-
-g_pool = None  # set by the plugin
-
-
-def create_task(timestamps, general_settings, marker_location_storage):
-    assert g_pool, "You forgot to set g_pool by the plugin"
-    args = (
-        g_pool.capture.source_path,
-        timestamps,
-        general_settings.marker_location_frame_index_range,
-        marker_location_storage.frame_index_to_num_markers,
-    )
-    name = "Create Apriltag Detection"
-    return tasklib.background.create(
-        name,
-        _detect_apriltags,
-        args=args,
-        patches=[bg_patches.IPCLoggingPatch()],
-        pass_shared_memory=True,
-    )
 
 
 class Empty(object):
     pass
 
 
-def _detect_apriltags(
+def offline_detection(
     source_path,
     timestamps,
     frame_index_range,

@@ -12,41 +12,14 @@ See COPYING and COPYING.LESSER for license details.
 import collections
 
 import player_methods as pm
-import tasklib.background
-import tasklib.background.patches as bg_patches
 from head_pose_tracker import worker, storage
-
-g_pool = None  # set by the plugin
-
-
-def create_task(timestamps, marker_location_storage, general_settings):
-    assert g_pool, "You forgot to set g_pool by the plugin"
-
-    args = (
-        timestamps,
-        general_settings.markers_3d_model_frame_index_range,
-        general_settings.user_defined_origin_marker_id,
-        general_settings.optimize_camera_intrinsics,
-        marker_location_storage.markers_bisector,
-        marker_location_storage.frame_index_to_num_markers,
-        g_pool.capture.intrinsics,
-    )
-    name = "optimize markers 3d model"
-    return tasklib.background.create(
-        name,
-        _optimize_markers_3d_model,
-        args=args,
-        patches=[bg_patches.IPCLoggingPatch()],
-        pass_shared_memory=True,
-    )
-
 
 IntrinsicsTuple = collections.namedtuple(
     "IntrinsicsTuple", ["camera_matrix", "dist_coefs"]
 )
 
 
-def _optimize_markers_3d_model(
+def offline_optimization(
     timestamps,
     frame_index_range,
     user_defined_origin_marker_id,

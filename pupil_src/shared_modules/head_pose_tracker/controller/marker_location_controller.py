@@ -26,13 +26,14 @@ class MarkerLocationController(Observable):
         task_manager,
         get_current_trim_mark_range,
         all_timestamps,
+        source_path,
     ):
         self._general_settings = general_settings
         self._marker_location_storage = marker_location_storage
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
         self._all_timestamps = all_timestamps
-
+        self._source_path = source_path
         self._task = None
 
     def calculate(self):
@@ -56,16 +57,27 @@ class MarkerLocationController(Observable):
             logger.info("marker detection canceled")
             self.on_marker_detection_ended()
 
-        self._task = worker.detect_square_markers.create_task(
-            self._all_timestamps, self._general_settings, self._marker_location_storage
-        )
+        self._task = self._create_task()
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)
         self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
         self._task.add_observer("on_started", self.on_marker_detection_started)
-        self._task_manager.add_task(self._task)
         logger.info("Start marker detection")
+
+    def _create_task(self):
+        args = (
+            self._source_path,
+            self._all_timestamps,
+            self._general_settings.marker_location_frame_index_range,
+            self._marker_location_storage.frame_index_to_num_markers,
+        )
+        return self._task_manager.create_background_task(
+            name="marker detection",
+            routine_or_generator_function=worker.offline_detection,
+            pass_shared_memory=True,
+            args=args,
+        )
 
     def _insert_markers_bisector(self, data_pairs):
         for timestamp, markers, frame_index, num_markers in data_pairs:

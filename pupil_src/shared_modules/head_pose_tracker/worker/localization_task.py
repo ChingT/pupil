@@ -12,37 +12,10 @@ See COPYING and COPYING.LESSER for license details.
 
 import file_methods as fm
 import player_methods as pm
-import tasklib
-import tasklib.background.patches as bg_patches
 from head_pose_tracker import worker
 
-g_pool = None  # set by the plugin
 
-
-def create_task(
-    timestamps, marker_location_storage, markers_3d_model_storage, general_settings
-):
-    assert g_pool, "You forgot to set g_pool by the plugin"
-
-    args = (
-        timestamps,
-        general_settings.camera_localizer_frame_index_range,
-        marker_location_storage.markers_bisector,
-        marker_location_storage.frame_index_to_num_markers,
-        markers_3d_model_storage.marker_id_to_extrinsics,
-        g_pool.capture.intrinsics,
-    )
-    name = "Create camera localizer"
-    return tasklib.background.create(
-        name,
-        _localize_pose,
-        args=args,
-        patches=[bg_patches.IPCLoggingPatch()],
-        pass_shared_memory=True,
-    )
-
-
-def _localize_pose(
+def offline_localization(
     timestamps,
     frame_index_range,
     markers_bisector,

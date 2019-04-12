@@ -27,6 +27,7 @@ class CameraLocalizerController(Observable):
         marker_location_storage,
         markers_3d_model_storage,
         camera_localizer_storage,
+        camera_intrinsics,
         task_manager,
         get_current_trim_mark_range,
         all_timestamps,
@@ -35,6 +36,7 @@ class CameraLocalizerController(Observable):
         self._marker_location_storage = marker_location_storage
         self._markers_3d_model_storage = markers_3d_model_storage
         self._camera_localizer_storage = camera_localizer_storage
+        self._camera_intrinsics = camera_intrinsics
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
         self._all_timestamps = all_timestamps
@@ -117,20 +119,30 @@ class CameraLocalizerController(Observable):
             logger.info("camera localization canceled")
             self.on_camera_localization_ended()
 
-        self._task = worker.localize_pose.create_task(
-            self._all_timestamps,
-            self._marker_location_storage,
-            self._markers_3d_model_storage,
-            self._general_settings,
-        )
+        self._task = self._create_task()
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)
         self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
         self._task.add_observer("on_started", self.on_camera_localization_started)
-        self._task_manager.add_task(self._task)
         logger.info("Start camera localization")
         self.status = "0% completed"
+
+    def _create_task(self):
+        args = (
+            self._all_timestamps,
+            self._general_settings.camera_localizer_frame_index_range,
+            self._marker_location_storage.markers_bisector,
+            self._marker_location_storage.frame_index_to_num_markers,
+            self._markers_3d_model_storage.marker_id_to_extrinsics,
+            self._camera_intrinsics,
+        )
+        return self._task_manager.create_background_task(
+            name="camera localization",
+            routine_or_generator_function=worker.offline_localization,
+            pass_shared_memory=True,
+            args=args,
+        )
 
     def _insert_pose_bisector(self, data_pairs):
         for timestamp, pose in data_pairs:

@@ -32,7 +32,6 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
     def __init__(self, g_pool):
         super().__init__(g_pool)
 
-        self._inject_plugin_dependencies()
         self._task_manager = PluginTaskManager(plugin=self)
         self._current_recording_uuid = self._load_recording_uuid_from_info_csv()
 
@@ -67,6 +66,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             task_manager=self._task_manager,
             get_current_trim_mark_range=self._current_trim_mark_range,
             all_timestamps=self.g_pool.timestamps,
+            source_path=self.g_pool.capture.source_path,
         )
         self._markers_3d_model_controller = controller.Markers3DModelController(
             self._marker_location_controller,
@@ -85,6 +85,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self._camera_localizer_storage,
+            self.g_pool.capture.intrinsics,
             task_manager=self._task_manager,
             get_current_trim_mark_range=self._current_trim_mark_range,
             all_timestamps=self.g_pool.timestamps,
@@ -160,17 +161,6 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._camera_localizer_timeline,
             plugin=self,
         )
-
-    def _inject_plugin_dependencies(self):
-        from head_pose_tracker.worker import (
-            detect_square_markers,
-            optimize_markers_3d_model,
-            localize_pose,
-        )
-
-        detect_square_markers.g_pool = self.g_pool
-        optimize_markers_3d_model.g_pool = self.g_pool
-        localize_pose.g_pool = self.g_pool
 
     def _recording_index_range(self):
         left_index = 0

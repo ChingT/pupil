@@ -89,18 +89,32 @@ class Markers3DModelController(Observable):
 
             self._markers_3d_model_storage.save_plmodel_to_disk()
 
-        self._task = worker.optimize_markers_3d_model.create_task(
-            self._all_timestamps, self._marker_location_storage, self._general_settings
-        )
+        self._task = self._create_task()
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
         self._task.add_observer(
             "on_started", self.on_markers_3d_model_optimization_started
         )
-        self._task_manager.add_task(self._task)
         logger.info("Start markers 3d model optimization")
         self.status = "0% completed"
+
+    def _create_task(self):
+        args = (
+            self._all_timestamps,
+            self._general_settings.markers_3d_model_frame_index_range,
+            self._general_settings.user_defined_origin_marker_id,
+            self._general_settings.optimize_camera_intrinsics,
+            self._marker_location_storage.markers_bisector,
+            self._marker_location_storage.frame_index_to_num_markers,
+            self._camera_intrinsics,
+        )
+        return self._task_manager.create_background_task(
+            name="markers 3d model optimization",
+            routine_or_generator_function=worker.offline_optimization,
+            pass_shared_memory=True,
+            args=args,
+        )
 
     def _update_result(self, result):
         model_tuple, intrinsics_tuple = result

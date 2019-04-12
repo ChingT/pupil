@@ -85,7 +85,7 @@ class MarkerLocationController(Observable):
         return self._task is not None and self._task.running
 
     @property
-    def detection_progress(self):
+    def progress(self):
         return self._task.progress if self.is_running_task else 0.0
 
     def set_range_from_current_trim_marks(self):

@@ -66,37 +66,26 @@ class Markers3DModelController(Observable):
 
     def calculate(self):
         self._reset()
-        self._create_optimize_markers_3d_model_task()
+        self._create_optimization_task()
 
     def _reset(self):
-        if self.is_running_task:
-            self._task.kill(None)
-
-        self.status = self.default_status
+        self.cancel_task()
         self._markers_3d_model_storage.set_to_default_values()
+        self.status = self.default_status
 
-    def _create_optimize_markers_3d_model_task(self):
+    def _create_optimization_task(self):
         def on_yield(result):
             self._update_result(result)
             self.status = "{:.0f}% completed".format(self._task.progress * 100)
 
         def on_completed(_):
             if self._markers_3d_model_storage.calculated:
-                self.status = "successful"
                 self._camera_intrinsics.save(self._rec_dir)
-                logger.info(
-                    "markers 3d model '{}' optimization completed".format(
-                        self._markers_3d_model_storage.name
-                    )
-                )
+                self.status = "successfully completed"
                 self.on_markers_3d_model_optimization_completed()
             else:
                 self.status = "failed"
-                logger.info(
-                    "markers 3d model '{}' optimization failed".format(
-                        self._markers_3d_model_storage.name
-                    )
-                )
+            logger.info("markers 3d model optimization '{}' ".format(self.status))
 
             self._markers_3d_model_storage.save_plmodel_to_disk()
 
@@ -110,11 +99,7 @@ class Markers3DModelController(Observable):
             "on_started", self.on_markers_3d_model_optimization_started
         )
         self._task_manager.add_task(self._task)
-        logger.info(
-            "Start markers 3d model '{}' optimization".format(
-                self._markers_3d_model_storage.name
-            )
-        )
+        logger.info("Start markers 3d model optimization")
         self.status = "0% completed"
 
     def _update_result(self, result):
@@ -122,6 +107,10 @@ class Markers3DModelController(Observable):
         self._markers_3d_model_storage.load_model(*model_tuple)
         self._camera_intrinsics.update_camera_matrix(intrinsics_tuple.camera_matrix)
         self._camera_intrinsics.update_dist_coefs(intrinsics_tuple.dist_coefs)
+
+    def cancel_task(self):
+        if self.is_running_task:
+            self._task.kill(None)
 
     @property
     def is_running_task(self):

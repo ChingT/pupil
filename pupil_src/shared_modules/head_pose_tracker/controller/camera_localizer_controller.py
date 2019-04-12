@@ -107,7 +107,7 @@ class CameraLocalizerController(Observable):
             self.status = "{:.0f}% completed".format(self._task.progress * 100)
 
         def on_completed(_):
-            self.status = "successful"
+            self.status = "successfully completed"
             self._camera_localizer_storage.save_pldata_to_disk()
             logger.info("camera localization completed")
             self.on_camera_localization_ended()
@@ -146,7 +146,7 @@ class CameraLocalizerController(Observable):
         return self._task is not None and self._task.running
 
     @property
-    def localization_progress(self):
+    def progress(self):
         return self._task.progress if self.is_running_task else 0.0
 
     def set_range_from_current_trim_marks(self):

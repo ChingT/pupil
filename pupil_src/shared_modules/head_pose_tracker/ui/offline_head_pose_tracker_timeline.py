@@ -91,7 +91,7 @@ class MarkerLocationTimeline:
         )
 
     def _create_progress_indication(self):
-        progress = self._marker_location_controller.detection_progress
+        progress = self._marker_location_controller.progress
         if progress > 0:
             return RangeElementFrameIdx(
                 from_idx=self._frame_start,
@@ -165,7 +165,7 @@ class CameraLocalizerTimeline:
         )
 
     def _create_progress_indication(self):
-        progress = self._camera_localizer_controller.localization_progress
+        progress = self._camera_localizer_controller.progress
         if progress > 0:
             return RangeElementFrameIdx(
                 from_idx=self._frame_start,

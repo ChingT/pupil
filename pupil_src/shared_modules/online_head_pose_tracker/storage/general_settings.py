@@ -20,11 +20,16 @@ logger = logging.getLogger(__name__)
 class Settings:
     version = 1
 
-    def load_settings(
-        self,
-        optimize_camera_intrinsics=False,
-        show_marker_id=False,
-        show_camera_trace=True,
+    def __init__(self):
+        self.set_to_default_values()
+
+    def set_to_default_values(self):
+        self.optimize_camera_intrinsics = False
+        self.show_marker_id = False
+        self.show_camera_trace = True
+
+    def _load_settings(
+        self, optimize_camera_intrinsics, show_marker_id, show_camera_trace
     ):
         self.optimize_camera_intrinsics = optimize_camera_intrinsics
         self.show_marker_id = show_marker_id
@@ -41,6 +46,8 @@ class Settings:
 
 class GeneralSettings(Settings):
     def __init__(self, user_dir, plugin):
+        super().__init__()
+
         self._user_dir = user_dir
 
         plugin.add_observer("cleanup", self._on_cleanup)
@@ -62,18 +69,9 @@ class GeneralSettings(Settings):
         settings_tuple = self._load_msgpack_from_file(self._msgpack_file_path)
         if settings_tuple:
             try:
-                self._load_default_settings(settings_tuple)
+                self._load_settings(*settings_tuple)
             except TypeError:
                 pass
-            else:
-                return
-        self._create_default_settings()
-
-    def _load_default_settings(self, settings_tuple):
-        self.load_settings(*settings_tuple)
-
-    def _create_default_settings(self):
-        self.load_settings()
 
     def _load_msgpack_from_file(self, file_path):
         try:

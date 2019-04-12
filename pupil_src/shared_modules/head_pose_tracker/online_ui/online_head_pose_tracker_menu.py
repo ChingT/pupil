@@ -12,7 +12,7 @@ See COPYING and COPYING.LESSER for license details.
 from pyglui import ui
 
 
-class OfflineHeadPoseTrackerMenu:
+class OnlineHeadPoseTrackerMenu:
     def __init__(
         self,
         markers_3d_model_menu,

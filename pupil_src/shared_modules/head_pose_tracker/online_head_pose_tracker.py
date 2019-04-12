@@ -8,9 +8,9 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
+from head_pose_tracker import online_ui as plugin_ui, online_controller, storage
 
 from observable import Observable
-from online_head_pose_tracker import ui as plugin_ui, controller, storage
 from plugin import Plugin
 from tasklib.manager import PluginTaskManager
 
@@ -35,38 +35,34 @@ class Online_Head_Pose_Tracker(Plugin, Observable):
         self._setup_menus()
 
     def _setup_storages(self):
-        self._general_settings = storage.GeneralSettings(
+        self._general_settings = storage.OnlineGeneralSettings(
             self.g_pool.user_dir, plugin=self
         )
-        self._marker_location_storage = storage.MarkerLocationStorage(
-            self.g_pool.user_dir
-        )
-        self._markers_3d_model_storage = storage.Markers3DModelStorage(
+        self._marker_location_storage = storage.OnlineMarkerLocationStorage()
+        self._markers_3d_model_storage = storage.OnlineMarkers3DModelStorage(
             self.g_pool.user_dir, plugin=self
         )
-        self._camera_localizer_storage = storage.CameraLocalizerStorage(
-            self.g_pool.user_dir
-        )
+        self._camera_localizer_storage = storage.OnlineCameraLocalizerStorage()
 
     def _setup_controllers(self):
-        self._marker_location_controller = controller.MarkerLocationController(
+        self._marker_location_controller = online_controller.MarkerLocationController(
             self._marker_location_storage
         )
-        self._markers_3d_model_controller = controller.Markers3DModelController(
+        self._markers_3d_model_controller = online_controller.Markers3DModelController(
             self._general_settings,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self.g_pool.capture.intrinsics,
             task_manager=self._task_manager,
         )
-        self._camera_localizer_controller = controller.CameraLocalizerController(
+        self._camera_localizer_controller = online_controller.CameraLocalizerController(
             self._general_settings,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self._camera_localizer_storage,
             self.g_pool.capture.intrinsics,
         )
-        self._general_controller = controller.GeneralController(
+        self._general_controller = online_controller.GeneralController(
             self._marker_location_controller,
             self._markers_3d_model_controller,
             self._camera_localizer_controller,
@@ -102,7 +98,7 @@ class Online_Head_Pose_Tracker(Plugin, Observable):
             self._general_settings,
             self._camera_localizer_storage,
         )
-        self._offline_head_pose_tracker_menu = plugin_ui.OfflineHeadPoseTrackerMenu(
+        self._online_head_pose_tracker_menu = plugin_ui.OnlineHeadPoseTrackerMenu(
             self._markers_3d_model_menu,
             self._camera_localizer_menu,
             self._head_pose_tracker_renderer,

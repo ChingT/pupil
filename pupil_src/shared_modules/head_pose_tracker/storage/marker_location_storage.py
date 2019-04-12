@@ -16,7 +16,7 @@ import player_methods as pm
 from observable import Observable
 
 
-class MarkerLocationStorage(Observable):
+class OfflineMarkerLocationStorage(Observable):
     def __init__(self, rec_dir, all_timestamps, plugin):
         self._rec_dir = rec_dir
         self._all_timestamps = all_timestamps.tolist()
@@ -77,3 +77,8 @@ class MarkerLocationStorage(Observable):
     @property
     def _offline_data_folder_path(self):
         return os.path.join(self._rec_dir, "offline_data")
+
+
+class OnlineMarkerLocationStorage:
+    def __init__(self):
+        self.current_markers = []

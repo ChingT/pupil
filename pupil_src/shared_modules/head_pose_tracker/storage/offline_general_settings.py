@@ -65,7 +65,7 @@ class Settings:
         )
 
 
-class GeneralSettings(Settings):
+class OfflineGeneralSettings(Settings):
     def __init__(self, rec_dir, get_recording_index_range, plugin):
         super().__init__(get_recording_index_range)
 

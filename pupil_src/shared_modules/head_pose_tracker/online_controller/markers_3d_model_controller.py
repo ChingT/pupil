@@ -12,8 +12,9 @@ See COPYING and COPYING.LESSER for license details.
 import logging
 
 import tasklib
+from head_pose_tracker import worker
+from head_pose_tracker.function import pick_key_markers
 from observable import Observable
-from online_head_pose_tracker import worker
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class Markers3DModelController(Observable):
         self._task = None
 
     def calculate(self):
-        self._markers_3d_model_storage.all_key_markers += worker.pick_key_markers.run(
+        self._markers_3d_model_storage.all_key_markers += pick_key_markers.run(
             self._marker_location_storage.current_markers,
             self._markers_3d_model_storage.all_key_markers,
         )

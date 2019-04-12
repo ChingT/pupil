@@ -88,3 +88,31 @@ def offline_localization(
             camera_extrinsics_prv = None
 
     yield queue
+
+
+def online_localization(
+    markers_in_frame,
+    marker_id_to_extrinsics,
+    camera_localizer_storage,
+    camera_intrinsics,
+):
+    camera_extrinsics = solvepnp.calculate(
+        camera_intrinsics,
+        markers_in_frame,
+        marker_id_to_extrinsics,
+        camera_localizer_storage.current_pose["camera_extrinsics"],
+        min_n_markers_per_frame=1,
+    )
+
+    if camera_extrinsics is not None:
+        camera_poses = utils.get_camera_pose(camera_extrinsics)
+        camera_pose_matrix = utils.convert_extrinsic_to_matrix(camera_poses)
+        pose_data = {
+            "camera_extrinsics": camera_extrinsics.tolist(),
+            "camera_poses": camera_poses.tolist(),
+            "camera_trace": camera_poses[3:6].tolist(),
+            "camera_pose_matrix": camera_pose_matrix.tolist(),
+        }
+    else:
+        pose_data = camera_localizer_storage.none_pose_data
+    return pose_data

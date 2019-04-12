@@ -14,6 +14,8 @@ import video_capture
 from apriltag.python import apriltag
 from methods import normalize
 
+apriltag_detector = apriltag.Detector()
+
 
 class Empty(object):
     pass
@@ -57,7 +59,6 @@ def offline_detection(
         else:
             return 0, [fm.Serialized_Dict(python_dict={})]
 
-    apriltag_detector = apriltag.Detector()
     src = video_capture.File_Source(Empty(), source_path, timing=None)
 
     queue = []
@@ -75,3 +76,18 @@ def offline_detection(
             yield data
 
     yield queue
+
+
+def online_detection(frame):
+    image = frame.gray
+    apriltag_detections = apriltag_detector.detect(image)
+    img_size = image.shape[::-1]
+    return [
+        {
+            "id": detection.tag_id,
+            "verts": detection.corners[::-1].tolist(),
+            "centroid": normalize(detection.center, img_size, flip_y=True),
+            "timestamp": frame.timestamp,
+        }
+        for detection in apriltag_detections
+    ]

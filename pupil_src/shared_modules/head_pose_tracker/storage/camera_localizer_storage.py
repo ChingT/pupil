@@ -11,12 +11,14 @@ See COPYING and COPYING.LESSER for license details.
 
 import os
 
+import numpy as np
+
 import file_methods as fm
 import player_methods as pm
 from observable import Observable
 
 
-class CameraLocalizerStorage(Observable):
+class OfflineCameraLocalizerStorage(Observable):
     def __init__(self, rec_dir, plugin):
         self._rec_dir = rec_dir
 
@@ -64,3 +66,17 @@ class CameraLocalizerStorage(Observable):
     @property
     def _pldata_file_name(self):
         return "camera_poses"
+
+
+class OnlineCameraLocalizerStorage:
+    def __init__(self):
+        self.current_pose = self.none_pose_data
+
+    @property
+    def none_pose_data(self):
+        return {
+            "camera_extrinsics": None,
+            "camera_poses": [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+            "camera_trace": [np.nan, np.nan, np.nan],
+            "camera_pose_matrix": None,
+        }

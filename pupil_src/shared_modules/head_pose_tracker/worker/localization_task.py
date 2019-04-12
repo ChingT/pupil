@@ -12,7 +12,7 @@ See COPYING and COPYING.LESSER for license details.
 
 import file_methods as fm
 import player_methods as pm
-from head_pose_tracker import worker
+from head_pose_tracker.function import solvepnp, utils
 
 
 def offline_localization(
@@ -27,8 +27,8 @@ def offline_localization(
     batch_size = 300
 
     def get_camera_pose_data(extrinsics, ts, markers):
-        camera_poses = worker.utils.get_camera_pose(extrinsics)
-        camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(camera_poses)
+        camera_poses = utils.get_camera_pose(extrinsics)
+        camera_pose_matrix = utils.convert_extrinsic_to_matrix(camera_poses)
 
         return fm.Serialized_Dict(
             python_dict={
@@ -59,7 +59,7 @@ def offline_localization(
         shared_memory.progress = (frame_index - frame_start + 1) / frame_count
         if frame_index_to_num_markers[frame_index]:
             markers_in_frame = find_markers_in_frame(frame_index)
-            camera_extrinsics = worker.solvepnp.calculate(
+            camera_extrinsics = solvepnp.calculate(
                 camera_intrinsics,
                 markers_in_frame,
                 marker_id_to_extrinsics,

@@ -11,7 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
-from head_pose_tracker import worker
+from head_pose_tracker.function import utils
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +45,11 @@ class BgTaskStorage:
     def _set_coordinate_system(self, origin_marker_id):
         # {marker id: optimized marker extrinsics}
         self.marker_id_to_extrinsics = {
-            origin_marker_id: worker.utils.get_marker_extrinsics_origin().tolist()
+            origin_marker_id: utils.get_marker_extrinsics_origin().tolist()
         }
         # {marker id: optimized marker 3d points}
         self.marker_id_to_points_3d = {
-            origin_marker_id: worker.utils.get_marker_points_3d_origin().tolist()
+            origin_marker_id: utils.get_marker_points_3d_origin().tolist()
         }
 
         self.origin_marker_id = origin_marker_id
@@ -67,7 +67,7 @@ class BgTaskStorage:
             self.marker_id_to_extrinsics[marker_id] = extrinsics.tolist()
             self.marker_id_to_points_3d[
                 marker_id
-            ] = worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics).tolist()
+            ] = utils.convert_marker_extrinsics_to_points_3d(extrinsics).tolist()
 
     def discard_failed_key_markers(self, frame_ids_failed):
         self.all_key_markers = [

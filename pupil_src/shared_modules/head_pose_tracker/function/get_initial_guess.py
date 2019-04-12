@@ -13,7 +13,7 @@ import collections
 
 import numpy as np
 
-from head_pose_tracker import worker
+from head_pose_tracker.function import triangulate_marker, solvepnp
 
 InitialGuessResult = collections.namedtuple(
     "InitialGuessResult",
@@ -94,7 +94,7 @@ def _get_frame_id_to_extrinsics_init(
             and marker.marker_id in marker_id_to_extrinsics_init.keys()
         ]
 
-        camera_extrinsics = worker.solvepnp.calculate(
+        camera_extrinsics = solvepnp.calculate(
             camera_intrinsics, markers_in_frame, marker_id_to_extrinsics_init
         )
         if camera_extrinsics is not None:
@@ -121,7 +121,7 @@ def _get_marker_id_to_extrinsics_init(
             and marker.frame_id in frame_id_to_extrinsics_init
         }
 
-        marker_extrinsics = worker.triangulate_marker.calculate(
+        marker_extrinsics = triangulate_marker.calculate(
             camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics_init
         )
         if marker_extrinsics is not None:

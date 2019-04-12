@@ -14,7 +14,7 @@ import itertools
 import cv2
 import numpy as np
 
-from head_pose_tracker import worker
+from head_pose_tracker.function import utils
 
 
 def calculate(camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics):
@@ -41,8 +41,8 @@ def calculate(camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics)
 def _prepare_data_for_triangulation(
     camera_intrinsics, detection_1, detection_2, extrinsics_1, extrinsics_2
 ):
-    proj_mat1 = worker.utils.convert_extrinsic_to_matrix(extrinsics_1)[:3, :4]
-    proj_mat2 = worker.utils.convert_extrinsic_to_matrix(extrinsics_2)[:3, :4]
+    proj_mat1 = utils.convert_extrinsic_to_matrix(extrinsics_1)[:3, :4]
+    proj_mat2 = utils.convert_extrinsic_to_matrix(extrinsics_2)[:3, :4]
 
     points1 = np.array(detection_1["verts"], dtype=np.float32).reshape((4, 1, 2))
     points2 = np.array(detection_2["verts"], dtype=np.float32).reshape((4, 1, 2))
@@ -56,13 +56,13 @@ def _prepare_data_for_triangulation(
 def _calculate(data_for_triangulation):
     marker_points_3d = _run_triangulation(data_for_triangulation)
 
-    rotation_matrix, translation, error = worker.utils.svdt(
-        A=worker.utils.get_marker_points_3d_origin(), B=marker_points_3d
+    rotation_matrix, translation, error = utils.svdt(
+        A=utils.get_marker_points_3d_origin(), B=marker_points_3d
     )
 
     if _check_result_reasonable(translation, error):
         rotation = cv2.Rodrigues(rotation_matrix)[0]
-        marker_extrinsics = worker.utils.merge_extrinsics(rotation, translation)
+        marker_extrinsics = utils.merge_extrinsics(rotation, translation)
         return marker_extrinsics
     else:
         return None

@@ -12,7 +12,12 @@ See COPYING and COPYING.LESSER for license details.
 import collections
 
 import player_methods as pm
-from head_pose_tracker import worker, storage
+from head_pose_tracker import storage
+from head_pose_tracker.function import (
+    BundleAdjustment,
+    pick_key_markers,
+    get_initial_guess,
+)
 
 IntrinsicsTuple = collections.namedtuple(
     "IntrinsicsTuple", ["camera_matrix", "dist_coefs"]
@@ -45,13 +50,11 @@ def offline_optimization(
     frame_count = len(frame_indices)
 
     bg_task_storage = storage.BgTaskStorage(user_defined_origin_marker_id)
-    bundle_adjustment = worker.BundleAdjustment(
-        camera_intrinsics, optimize_camera_intrinsics
-    )
+    bundle_adjustment = BundleAdjustment(camera_intrinsics, optimize_camera_intrinsics)
 
     for idx, frame_index in enumerate(frame_indices):
         markers_in_frame = find_markers_in_frame(frame_index)
-        bg_task_storage.all_key_markers += worker.pick_key_markers.run(
+        bg_task_storage.all_key_markers += pick_key_markers.run(
             markers_in_frame, bg_task_storage.all_key_markers
         )
 
@@ -65,7 +68,7 @@ def offline_optimization(
         except KeyError:
             bg_task_storage.set_origin_marker_id()
 
-        initial_guess_result = worker.get_initial_guess.calculate(
+        initial_guess_result = get_initial_guess.calculate(
             bg_task_storage.marker_id_to_extrinsics,
             bg_task_storage.frame_id_to_extrinsics,
             bg_task_storage.all_key_markers,

@@ -9,7 +9,9 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import os, sys, platform
+import os
+import platform
+import sys
 
 running_from_bundle = getattr(sys, "frozen", False)
 if not running_from_bundle:

@@ -1,0 +1,199 @@
+"""
+(*)~---------------------------------------------------------------------------
+Pupil - eye tracking platform
+Copyright (C) 2012-2019 Pupil Labs
+
+Distributed under the terms of the GNU
+Lesser General Public License (LGPL v3.0).
+See COPYING and COPYING.LESSER for license details.
+---------------------------------------------------------------------------~(*)
+"""
+
+from plugin_timeline import Row, RangeElementFrameIdx, BarsElementTs
+
+
+class OfflineHeadPoseTrackerTimeline:
+    def __init__(
+        self,
+        plugin_timeline,
+        marker_location_timeline,
+        camera_localizer_timeline,
+        plugin,
+    ):
+        self._plugin_timeline = plugin_timeline
+        self._marker_location_timeline = marker_location_timeline
+        self._camera_localizer_timeline = camera_localizer_timeline
+        self._plugin = plugin
+
+        plugin.add_observer("init_ui", self._on_init_ui)
+
+        marker_location_timeline.render_parent_timeline = self.render
+        camera_localizer_timeline.render_parent_timeline = self.render
+
+    def _on_init_ui(self):
+        self.render()
+
+    def render(self):
+        self._plugin_timeline.clear_rows()
+        self._plugin_timeline.add_row(self._marker_location_timeline.row)
+        self._plugin_timeline.add_row(self._camera_localizer_timeline.row)
+        self._plugin_timeline.refresh()
+
+
+class MarkerLocationTimeline:
+    timeline_label = "Marker detection"
+
+    def __init__(
+        self,
+        marker_location_controller,
+        general_settings,
+        marker_location_storage,
+        all_timestamps,
+    ):
+        self.render_parent_timeline = None
+
+        self._marker_location_controller = marker_location_controller
+        self._general_settings = general_settings
+        self._marker_location_storage = marker_location_storage
+        self._all_timestamps = all_timestamps
+
+        marker_location_storage.add_observer(
+            "load_pldata_from_disk", self._on_storage_changed
+        )
+        marker_location_controller.add_observer(
+            "on_marker_detection_started", self._on_marker_detection_started
+        )
+        marker_location_controller.add_observer(
+            "on_marker_detection_yield", self._on_marker_detection_yield
+        )
+        marker_location_controller.add_observer(
+            "on_marker_detection_ended", self._on_marker_detection_ended
+        )
+        self.row = None
+        self.update_row()
+
+    def update_row(self):
+        elements = [self._create_marker_location_bars()]
+        if self._marker_location_controller.is_running_task:
+            elements.append(self._create_progress_indication())
+
+        self.row = Row(label=self.timeline_label, elements=elements)
+
+    def _create_marker_location_bars(self):
+        frame_indices = [
+            frame_index
+            for frame_index in self._marker_location_storage.frame_index_to_num_markers
+            if self._marker_location_storage.frame_index_to_num_markers[frame_index] > 0
+        ]
+        bar_positions = self._all_timestamps[frame_indices]
+        return BarsElementTs(
+            bar_positions, color_rgba=(0.7, 0.3, 0.2, 0.33), width=1, height=12
+        )
+
+    def _create_progress_indication(self):
+        progress = self._marker_location_controller.progress
+        if progress > 0:
+            return RangeElementFrameIdx(
+                from_idx=self._frame_start,
+                to_idx=int(self._frame_start + self._frame_count * progress) - 1,
+                color_rgba=(1.0, 1.0, 1.0, 0.8),
+                height=4,
+            )
+        else:
+            return RangeElementFrameIdx()
+
+    def _on_marker_detection_started(self):
+        self._frame_start, frame_end = (
+            self._general_settings.marker_location_frame_index_range
+        )
+        self._frame_count = frame_end - self._frame_start + 1
+
+    def _on_storage_changed(self, *args, **kwargs):
+        self.update_row()
+        self.render_parent_timeline()
+
+    def _on_marker_detection_yield(self):
+        self.update_row()
+        self.render_parent_timeline()
+
+    def _on_marker_detection_ended(self):
+        self.update_row()
+        self.render_parent_timeline()
+
+
+class CameraLocalizerTimeline:
+    timeline_label = "Camera localization"
+
+    def __init__(
+        self, camera_localizer_controller, general_settings, camera_localizer_storage
+    ):
+        self.render_parent_timeline = None
+
+        self._camera_localizer_controller = camera_localizer_controller
+        self._general_settings = general_settings
+        self._camera_localizer_storage = camera_localizer_storage
+
+        camera_localizer_storage.add_observer(
+            "load_pldata_from_disk", self._on_storage_changed
+        )
+        camera_localizer_controller.add_observer(
+            "reset", self._on_camera_localization_reset
+        )
+        camera_localizer_controller.add_observer(
+            "on_camera_localization_started", self._on_camera_localization_started
+        )
+        camera_localizer_controller.add_observer(
+            "on_camera_localization_yield", self._on_camera_localization_yield
+        )
+        camera_localizer_controller.add_observer(
+            "on_camera_localization_ended", self._on_camera_localization_ended
+        )
+        self.row = None
+        self.update_row()
+
+    def update_row(self):
+        elements = [self._create_camera_localization_bars()]
+        if self._camera_localizer_controller.is_running_task:
+            elements.append(self._create_progress_indication())
+
+        self.row = Row(label=self.timeline_label, elements=elements)
+
+    def _create_camera_localization_bars(self):
+        bar_positions = self._camera_localizer_storage.pose_bisector.timestamps
+        return BarsElementTs(
+            bar_positions, color_rgba=(0.0, 0.5, 1.0, 0.8), width=1, height=12
+        )
+
+    def _create_progress_indication(self):
+        progress = self._camera_localizer_controller.progress
+        if progress > 0:
+            return RangeElementFrameIdx(
+                from_idx=self._frame_start,
+                to_idx=int(self._frame_start + self._frame_count * progress) - 1,
+                color_rgba=(1.0, 1.0, 1.0, 0.8),
+                height=4,
+            )
+        else:
+            return RangeElementFrameIdx()
+
+    def _on_camera_localization_reset(self):
+        self.update_row()
+        self.render_parent_timeline()
+
+    def _on_camera_localization_started(self):
+        self._frame_start, frame_end = (
+            self._general_settings.camera_localizer_frame_index_range
+        )
+        self._frame_count = frame_end - self._frame_start + 1
+
+    def _on_storage_changed(self, *args, **kwargs):
+        self.update_row()
+        self.render_parent_timeline()
+
+    def _on_camera_localization_yield(self):
+        self.update_row()
+        self.render_parent_timeline()
+
+    def _on_camera_localization_ended(self):
+        self.update_row()
+        self.render_parent_timeline()

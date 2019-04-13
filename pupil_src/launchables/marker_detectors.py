@@ -100,3 +100,4 @@ def circle_detector(ipc_push_url, pair_url, source_path, batch_size=20):
         logger.debug("Process raised Exception")
 
     sleep(1.0)
+

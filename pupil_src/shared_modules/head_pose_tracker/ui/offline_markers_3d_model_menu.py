@@ -16,7 +16,7 @@ from pyglui import ui
 logger = logging.getLogger(__name__)
 
 
-class Markers3DModelMenu:
+class OfflineMarkers3DModelMenu:
     menu_label = "Markers 3D Model"
 
     def __init__(

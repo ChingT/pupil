@@ -18,13 +18,13 @@ class OfflineHeadPoseTrackerMenu:
         marker_location_menu,
         markers_3d_model_menu,
         camera_localizer_menu,
-        head_pose_tracker_renderer,
+        head_pose_tracker_3d_renderer,
         plugin,
     ):
         self._marker_location_menu = marker_location_menu
         self._markers_3d_model_menu = markers_3d_model_menu
         self._camera_localizer_menu = camera_localizer_menu
-        self._head_pose_tracker_renderer = head_pose_tracker_renderer
+        self._head_pose_tracker_3d_renderer = head_pose_tracker_3d_renderer
         self._plugin = plugin
 
         plugin.add_observer("init_ui", self._on_init_ui)
@@ -67,10 +67,10 @@ class OfflineHeadPoseTrackerMenu:
     def _create_open_visualization_window_switch(self):
         return ui.Switch(
             "open_visualization_window",
-            self._head_pose_tracker_renderer,
+            self._head_pose_tracker_3d_renderer,
             label="Open Visualization Window",
             setter=self._on_open_visualization_window_switched,
         )
 
     def _on_open_visualization_window_switched(self, new_value):
-        self._head_pose_tracker_renderer.switch_visualization_window(new_value)
+        self._head_pose_tracker_3d_renderer.switch_visualization_window(new_value)

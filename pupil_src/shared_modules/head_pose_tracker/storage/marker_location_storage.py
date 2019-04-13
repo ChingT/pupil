@@ -17,9 +17,18 @@ from observable import Observable
 
 
 class OfflineMarkerLocationStorage(Observable):
-    def __init__(self, rec_dir, all_timestamps, plugin):
+    def __init__(
+        self,
+        rec_dir,
+        all_timestamps,
+        plugin,
+        get_current_frame_index,
+        get_current_frame_window,
+    ):
         self._rec_dir = rec_dir
         self._all_timestamps = all_timestamps.tolist()
+        self._get_current_frame_index = get_current_frame_index
+        self._get_current_frame_window = get_current_frame_window
 
         self.markers_bisector = pm.Mutable_Bisector()
         self.frame_index_to_num_markers = {}
@@ -34,6 +43,20 @@ class OfflineMarkerLocationStorage(Observable):
     @property
     def calculated(self):
         return bool(self.markers_bisector)
+
+    @property
+    def current_markers(self):
+        frame_index = self._get_current_frame_index()
+        try:
+            num_markers = self.frame_index_to_num_markers[frame_index]
+        except KeyError:
+            num_markers = 0
+
+        if num_markers:
+            frame_window = self._get_current_frame_window()
+            return self.markers_bisector.by_ts_window(frame_window)
+        else:
+            return []
 
     def save_pldata_to_disk(self):
         self._save_to_file()

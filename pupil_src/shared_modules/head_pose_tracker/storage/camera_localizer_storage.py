@@ -19,8 +19,12 @@ from observable import Observable
 
 
 class OfflineCameraLocalizerStorage(Observable):
-    def __init__(self, rec_dir, plugin):
+    def __init__(
+        self, rec_dir, plugin, get_current_frame_index, get_current_frame_window
+    ):
         self._rec_dir = rec_dir
+        self._get_current_frame_index = get_current_frame_index
+        self._get_current_frame_window = get_current_frame_window
 
         self.pose_bisector = pm.Mutable_Bisector()
 
@@ -34,6 +38,25 @@ class OfflineCameraLocalizerStorage(Observable):
     @property
     def calculated(self):
         return bool(self.pose_bisector)
+
+    @property
+    def current_pose(self):
+        frame_window = self._get_current_frame_window()
+        try:
+            pose_data = self.pose_bisector.by_ts_window(frame_window)[0]
+        except IndexError:
+            return self.none_pose_data
+        else:
+            return pose_data
+
+    @property
+    def none_pose_data(self):
+        return {
+            "camera_extrinsics": None,
+            "camera_poses": [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+            "camera_trace": [np.nan, np.nan, np.nan],
+            "camera_pose_matrix": None,
+        }
 
     def save_pldata_to_disk(self):
         self._save_to_file()

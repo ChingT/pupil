@@ -9,20 +9,13 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from head_pose_tracker.controller.marker_location_controller import (
-    OfflineMarkerLocationController,
-    OnlineMarkerLocationController,
-)
-from head_pose_tracker.controller.camera_localizer_controller import (
+from head_pose_tracker.controller.offline_camera_localizer_controller import (
     OfflineCameraLocalizerController,
-    OnlineCameraLocalizerController,
+)
+from head_pose_tracker.controller.offline_marker_location_controller import (
+    OfflineMarkerLocationController,
 )
 from head_pose_tracker.controller.offline_markers_3d_model_controller import (
     OfflineMarkers3DModelController,
 )
-from head_pose_tracker.controller.online_markers_3d_model_controller import (
-    OnlineMarkers3DModelController,
-)
-from head_pose_tracker.controller.online_general_controller import (
-    OnlineGeneralController,
-)
+from head_pose_tracker.controller.online_controller import OnlineController

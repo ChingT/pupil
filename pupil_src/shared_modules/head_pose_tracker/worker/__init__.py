@@ -10,11 +10,11 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 from head_pose_tracker.worker.detection_task import offline_detection, online_detection
-from head_pose_tracker.worker.optimization_task import (
-    offline_optimization,
-    online_optimization,
-)
 from head_pose_tracker.worker.localization_task import (
     offline_localization,
     online_localization,
+)
+from head_pose_tracker.worker.optimization_task import (
+    offline_optimization,
+    online_optimization,
 )

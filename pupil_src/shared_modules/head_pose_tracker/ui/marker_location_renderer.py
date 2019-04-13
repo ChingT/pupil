@@ -9,10 +9,10 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import OpenGL.GL as gl
 import cv2
 import numpy as np
-import pyglui.cygl.utils as cygl_utils
+from OpenGL import GL as gl
+from pyglui.cygl import utils as cygl_utils
 from pyglui.pyfontstash import fontstash
 from pyglui.ui import get_opensans_font_path
 
@@ -32,7 +32,6 @@ class MarkerLocationRenderer:
         self._general_settings = general_settings
         self._marker_location_storage = marker_location_storage
         self._markers_3d_model_storage = markers_3d_model_storage
-        self._plugin = plugin
 
         self._square_definition = np.array(
             [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32
@@ -55,13 +54,9 @@ class MarkerLocationRenderer:
         self._render()
 
     def _render(self):
-        current_markers = self._get_current_markers()
+        current_markers = self._marker_location_storage.current_markers
         marker_id_optimized = self._get_marker_id_optimized()
-
         self._render_markers(current_markers, marker_id_optimized)
-
-    def _get_current_markers(self):
-        return self._marker_location_storage.current_markers
 
     def _get_marker_id_optimized(self):
         try:

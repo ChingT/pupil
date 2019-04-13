@@ -12,7 +12,7 @@ See COPYING and COPYING.LESSER for license details.
 from pyglui import ui
 
 
-class MarkerLocationMenu:
+class OfflineMarkerLocationMenu:
     menu_label = "Marker Detection"
 
     def __init__(

@@ -113,11 +113,3 @@ class OfflineMarkerLocationController(Observable):
 
     def on_marker_detection_ended(self):
         pass
-
-
-class OnlineMarkerLocationController:
-    def __init__(self, marker_location_storage):
-        self._marker_location_storage = marker_location_storage
-
-    def calculate(self, frame):
-        self._marker_location_storage.current_markers = worker.online_detection(frame)

@@ -13,7 +13,7 @@ import os
 
 import csv_utils
 import player_methods as pm
-from head_pose_tracker import offline_ui as plugin_ui, controller, storage
+from head_pose_tracker import ui as plugin_ui, controller, storage
 from observable import Observable
 from plugin import Plugin
 from plugin_timeline import PluginTimeline
@@ -48,7 +48,11 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             plugin=self,
         )
         self._marker_location_storage = storage.OfflineMarkerLocationStorage(
-            self.g_pool.rec_dir, all_timestamps=self.g_pool.timestamps, plugin=self
+            self.g_pool.rec_dir,
+            all_timestamps=self.g_pool.timestamps,
+            plugin=self,
+            get_current_frame_index=self.get_current_frame_index,
+            get_current_frame_window=self.get_current_frame_window,
         )
         self._markers_3d_model_storage = storage.OfflineMarkers3DModelStorage(
             self.g_pool.rec_dir,
@@ -56,7 +60,10 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             plugin=self,
         )
         self._camera_localizer_storage = storage.OfflineCameraLocalizerStorage(
-            self.g_pool.rec_dir, plugin=self
+            self.g_pool.rec_dir,
+            plugin=self,
+            get_current_frame_index=self.get_current_frame_index,
+            get_current_frame_window=self.get_current_frame_window,
         )
 
     def _setup_controllers(self):
@@ -97,43 +104,39 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             self._marker_location_storage,
             self._markers_3d_model_storage,
             plugin=self,
-            get_current_frame_index=self.get_current_frame_index,
-            get_current_frame_window=self.get_current_frame_window,
         )
-        self._head_pose_tracker_renderer = plugin_ui.HeadPoseTrackerRenderer(
+        self._head_pose_tracker_3d_renderer = plugin_ui.HeadPoseTracker3DRenderer(
             self._general_settings,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self._camera_localizer_storage,
             self.g_pool.capture.intrinsics,
             plugin=self,
-            get_current_frame_index=self.get_current_frame_index,
-            get_current_frame_window=self.get_current_frame_window,
         )
 
     def _setup_menus(self):
-        self._marker_location_menu = plugin_ui.MarkerLocationMenu(
+        self._marker_location_menu = plugin_ui.OfflineMarkerLocationMenu(
             self._marker_location_controller,
             self._general_settings,
             index_range_as_str=self._index_range_as_str,
         )
-        self._markers_3d_model_menu = plugin_ui.Markers3DModelMenu(
+        self._markers_3d_model_menu = plugin_ui.OfflineMarkers3DModelMenu(
             self._markers_3d_model_controller,
             self._general_settings,
             self._markers_3d_model_storage,
             index_range_as_str=self._index_range_as_str,
         )
-        self._camera_localizer_menu = plugin_ui.CameraLocalizerMenu(
+        self._camera_localizer_menu = plugin_ui.OfflineCameraLocalizerMenu(
             self._camera_localizer_controller,
             self._general_settings,
             self._camera_localizer_storage,
             index_range_as_str=self._index_range_as_str,
         )
-        self._offline_head_pose_tracker_menu = plugin_ui.OfflineHeadPoseTrackerMenu(
+        self._head_pose_tracker_menu = plugin_ui.OfflineHeadPoseTrackerMenu(
             self._marker_location_menu,
             self._markers_3d_model_menu,
             self._camera_localizer_menu,
-            self._head_pose_tracker_renderer,
+            self._head_pose_tracker_3d_renderer,
             plugin=self,
         )
 

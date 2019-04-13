@@ -12,7 +12,7 @@ See COPYING and COPYING.LESSER for license details.
 from pyglui import ui
 
 
-class CameraLocalizerMenu:
+class OfflineCameraLocalizerMenu:
     menu_label = "Camera Localizer"
 
     def __init__(

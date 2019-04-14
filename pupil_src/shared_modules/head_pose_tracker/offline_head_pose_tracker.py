@@ -42,10 +42,10 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         self._setup_timelines()
 
     def _setup_storages(self):
-        self._general_settings = storage.OfflineGeneralSettings(
+        self._offline_settings_storage = storage.OfflineSettingsStorage(
             self.g_pool.rec_dir,
-            get_recording_index_range=self._recording_index_range,
             plugin=self,
+            get_recording_index_range=self._recording_index_range,
         )
         self._marker_location_storage = storage.OfflineMarkerLocationStorage(
             self.g_pool.rec_dir,
@@ -54,10 +54,10 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
             get_current_frame_index=self.get_current_frame_index,
             get_current_frame_window=self.get_current_frame_window,
         )
-        self._markers_3d_model_storage = storage.OfflineMarkers3DModelStorage(
+        self._markers_3d_model_storage = storage.Markers3DModelStorage(
             self.g_pool.rec_dir,
-            current_recording_uuid=self._current_recording_uuid,
             plugin=self,
+            current_recording_uuid=self._current_recording_uuid,
         )
         self._camera_localizer_storage = storage.OfflineCameraLocalizerStorage(
             self.g_pool.rec_dir,
@@ -68,7 +68,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
 
     def _setup_controllers(self):
         self._marker_location_controller = controller.OfflineMarkerLocationController(
-            self._general_settings,
+            self._offline_settings_storage,
             self._marker_location_storage,
             task_manager=self._task_manager,
             get_current_trim_mark_range=self._current_trim_mark_range,
@@ -77,7 +77,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
         self._markers_3d_model_controller = controller.OfflineMarkers3DModelController(
             self._marker_location_controller,
-            self._general_settings,
+            self._offline_settings_storage,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self.g_pool.capture.intrinsics,
@@ -88,7 +88,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         )
         self._camera_localizer_controller = controller.OfflineCameraLocalizerController(
             self._markers_3d_model_controller,
-            self._general_settings,
+            self._offline_settings_storage,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self._camera_localizer_storage,
@@ -100,13 +100,13 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
 
     def _setup_renderers(self):
         self._marker_location_renderer = plugin_ui.MarkerLocationRenderer(
-            self._general_settings,
+            self._offline_settings_storage,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             plugin=self,
         )
         self._head_pose_tracker_3d_renderer = plugin_ui.HeadPoseTracker3DRenderer(
-            self._general_settings,
+            self._offline_settings_storage,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self._camera_localizer_storage,
@@ -117,18 +117,18 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
     def _setup_menus(self):
         self._marker_location_menu = plugin_ui.OfflineMarkerLocationMenu(
             self._marker_location_controller,
-            self._general_settings,
+            self._offline_settings_storage,
             index_range_as_str=self._index_range_as_str,
         )
         self._markers_3d_model_menu = plugin_ui.OfflineMarkers3DModelMenu(
             self._markers_3d_model_controller,
-            self._general_settings,
+            self._offline_settings_storage,
             self._markers_3d_model_storage,
             index_range_as_str=self._index_range_as_str,
         )
         self._camera_localizer_menu = plugin_ui.OfflineCameraLocalizerMenu(
             self._camera_localizer_controller,
-            self._general_settings,
+            self._offline_settings_storage,
             self._camera_localizer_storage,
             index_range_as_str=self._index_range_as_str,
         )
@@ -143,13 +143,13 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
     def _setup_timelines(self):
         self._marker_location_timeline = plugin_ui.MarkerLocationTimeline(
             self._marker_location_controller,
-            self._general_settings,
+            self._offline_settings_storage,
             self._marker_location_storage,
             all_timestamps=self.g_pool.timestamps,
         )
         self._camera_localizer_timeline = plugin_ui.CameraLocalizerTimeline(
             self._camera_localizer_controller,
-            self._general_settings,
+            self._offline_settings_storage,
             self._camera_localizer_storage,
         )
         plugin_timeline = PluginTimeline(

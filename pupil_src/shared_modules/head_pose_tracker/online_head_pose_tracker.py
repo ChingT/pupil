@@ -36,18 +36,18 @@ class Online_Head_Pose_Tracker(Plugin, Observable):
         self._setup_menus()
 
     def _setup_storages(self):
-        self._general_settings = storage.OnlineGeneralSettings(
+        self._online_settings_storage = storage.OnlineSettingsStorage(
             self.g_pool.user_dir, plugin=self
         )
         self._marker_location_storage = storage.OnlineMarkerLocationStorage()
-        self._markers_3d_model_storage = storage.OnlineMarkers3DModelStorage(
+        self._markers_3d_model_storage = storage.Markers3DModelStorage(
             self.g_pool.user_dir, plugin=self
         )
         self._camera_localizer_storage = storage.OnlineCameraLocalizerStorage()
 
     def _setup_controllers(self):
         self._controller = controller.OnlineController(
-            self._general_settings,
+            self._online_settings_storage,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self._camera_localizer_storage,
@@ -59,13 +59,13 @@ class Online_Head_Pose_Tracker(Plugin, Observable):
 
     def _setup_renderers(self):
         self._marker_location_renderer = plugin_ui.MarkerLocationRenderer(
-            self._general_settings,
+            self._online_settings_storage,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             plugin=self,
         )
         self._head_pose_tracker_3d_renderer = plugin_ui.HeadPoseTracker3DRenderer(
-            self._general_settings,
+            self._online_settings_storage,
             self._marker_location_storage,
             self._markers_3d_model_storage,
             self._camera_localizer_storage,
@@ -75,10 +75,10 @@ class Online_Head_Pose_Tracker(Plugin, Observable):
 
     def _setup_menus(self):
         self._markers_3d_model_menu = plugin_ui.OnlineMarkers3DModelMenu(
-            self._general_settings, self._markers_3d_model_storage
+            self._online_settings_storage, self._markers_3d_model_storage
         )
         self._camera_localizer_menu = plugin_ui.OnlineCameraLocalizerMenu(
-            self._general_settings, self._camera_localizer_storage
+            self._online_settings_storage, self._camera_localizer_storage
         )
         self._head_pose_tracker_menu = plugin_ui.OnlineHeadPoseTrackerMenu(
             self._markers_3d_model_menu,

@@ -10,6 +10,7 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import os
+import abc
 
 import numpy as np
 
@@ -18,7 +19,23 @@ import player_methods as pm
 from observable import Observable
 
 
-class OfflineCameraLocalizerStorage(Observable):
+class CameraLocalizer(abc.ABC):
+    @property
+    @abc.abstractmethod
+    def current_pose(self):
+        pass
+
+    @property
+    def none_pose_data(self):
+        return {
+            "camera_extrinsics": None,
+            "camera_poses": [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+            "camera_trace": [np.nan, np.nan, np.nan],
+            "camera_pose_matrix": None,
+        }
+
+
+class OfflineCameraLocalizerStorage(Observable, CameraLocalizer):
     def __init__(
         self, rec_dir, plugin, get_current_frame_index, get_current_frame_window
     ):
@@ -34,29 +51,6 @@ class OfflineCameraLocalizerStorage(Observable):
 
     def _on_cleanup(self):
         self.save_pldata_to_disk()
-
-    @property
-    def calculated(self):
-        return bool(self.pose_bisector)
-
-    @property
-    def current_pose(self):
-        frame_window = self._get_current_frame_window()
-        try:
-            pose_data = self.pose_bisector.by_ts_window(frame_window)[0]
-        except IndexError:
-            return self.none_pose_data
-        else:
-            return pose_data
-
-    @property
-    def none_pose_data(self):
-        return {
-            "camera_extrinsics": None,
-            "camera_poses": [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
-            "camera_trace": [np.nan, np.nan, np.nan],
-            "camera_pose_matrix": None,
-        }
 
     def save_pldata_to_disk(self):
         self._save_to_file()
@@ -90,16 +84,29 @@ class OfflineCameraLocalizerStorage(Observable):
     def _pldata_file_name(self):
         return "camera_poses"
 
+    @property
+    def calculated(self):
+        return bool(self.pose_bisector)
 
-class OnlineCameraLocalizerStorage:
+    @property
+    def current_pose(self):
+        frame_window = self._get_current_frame_window()
+        try:
+            pose_data = self.pose_bisector.by_ts_window(frame_window)[0]
+        except IndexError:
+            return self.none_pose_data
+        else:
+            return pose_data
+
+
+class OnlineCameraLocalizerStorage(CameraLocalizer):
     def __init__(self):
         self.current_pose = self.none_pose_data
 
     @property
-    def none_pose_data(self):
-        return {
-            "camera_extrinsics": None,
-            "camera_poses": [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
-            "camera_trace": [np.nan, np.nan, np.nan],
-            "camera_pose_matrix": None,
-        }
+    def current_pose(self):
+        return self._current_pose
+
+    @current_pose.setter
+    def current_pose(self, pose):
+        self._current_pose = pose

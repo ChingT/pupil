@@ -10,13 +10,21 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import os
+import abc
 
 import file_methods as fm
 import player_methods as pm
 from observable import Observable
 
 
-class OfflineMarkerLocationStorage(Observable):
+class MarkerLocation(abc.ABC):
+    @property
+    @abc.abstractmethod
+    def current_markers(self):
+        pass
+
+
+class OfflineMarkerLocationStorage(Observable, MarkerLocation):
     def __init__(
         self,
         rec_dir,
@@ -39,24 +47,6 @@ class OfflineMarkerLocationStorage(Observable):
 
     def _on_cleanup(self):
         self.save_pldata_to_disk()
-
-    @property
-    def calculated(self):
-        return bool(self.markers_bisector)
-
-    @property
-    def current_markers(self):
-        frame_index = self._get_current_frame_index()
-        try:
-            num_markers = self.frame_index_to_num_markers[frame_index]
-        except KeyError:
-            num_markers = 0
-
-        if num_markers:
-            frame_window = self._get_current_frame_window()
-            return self.markers_bisector.by_ts_window(frame_window)
-        else:
-            return []
 
     def save_pldata_to_disk(self):
         self._save_to_file()
@@ -101,7 +91,33 @@ class OfflineMarkerLocationStorage(Observable):
     def _offline_data_folder_path(self):
         return os.path.join(self._rec_dir, "offline_data")
 
+    @property
+    def calculated(self):
+        return bool(self.markers_bisector)
 
-class OnlineMarkerLocationStorage:
+    @property
+    def current_markers(self):
+        frame_index = self._get_current_frame_index()
+        try:
+            num_markers = self.frame_index_to_num_markers[frame_index]
+        except KeyError:
+            num_markers = 0
+
+        if num_markers:
+            frame_window = self._get_current_frame_window()
+            return self.markers_bisector.by_ts_window(frame_window)
+        else:
+            return []
+
+
+class OnlineMarkerLocationStorage(MarkerLocation):
     def __init__(self):
         self.current_markers = []
+
+    @property
+    def current_markers(self):
+        return self._current_markers
+
+    @current_markers.setter
+    def current_markers(self, markers):
+        self._current_markers = markers

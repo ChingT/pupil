@@ -19,8 +19,9 @@ from head_pose_tracker.storage.marker_location_storage import (
 )
 from head_pose_tracker.storage.markers_3d_model_storage import (
     Markers3DModel,
-    OfflineMarkers3DModelStorage,
-    OnlineMarkers3DModelStorage,
+    Markers3DModelStorage,
 )
-from head_pose_tracker.storage.offline_general_settings import OfflineGeneralSettings
-from head_pose_tracker.storage.online_general_settings import OnlineGeneralSettings
+from head_pose_tracker.storage.general_settings import (
+    OfflineSettingsStorage,
+    OnlineSettingsStorage,
+)

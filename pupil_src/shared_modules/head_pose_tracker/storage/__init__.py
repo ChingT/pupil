@@ -9,7 +9,6 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from head_pose_tracker.storage.bg_task_storage import BgTaskStorage
 from head_pose_tracker.storage.camera_localizer_storage import (
     OfflineCameraLocalizerStorage,
     OnlineCameraLocalizerStorage,
@@ -19,6 +18,7 @@ from head_pose_tracker.storage.marker_location_storage import (
     OnlineMarkerLocationStorage,
 )
 from head_pose_tracker.storage.markers_3d_model_storage import (
+    Markers3DModel,
     OfflineMarkers3DModelStorage,
     OnlineMarkers3DModelStorage,
 )

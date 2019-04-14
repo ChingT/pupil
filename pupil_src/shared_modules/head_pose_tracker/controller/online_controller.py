@@ -104,9 +104,12 @@ class OnlineController:
         )
 
     def _update_result(self, result):
-        model_tuple, intrinsics_tuple, frame_ids_failed = result
+        model_tuple, frame_id_to_extrinsics, frame_ids_failed, intrinsics_tuple = result
+        self._markers_3d_model_storage.update_model(*model_tuple)
+
+        self._markers_3d_model_storage.frame_id_to_extrinsics = frame_id_to_extrinsics
         self._markers_3d_model_storage.discard_failed_key_markers(frame_ids_failed)
-        self._markers_3d_model_storage.load_model(*model_tuple)
+
         self._camera_intrinsics.update_camera_matrix(intrinsics_tuple.camera_matrix)
         self._camera_intrinsics.update_dist_coefs(intrinsics_tuple.dist_coefs)
 

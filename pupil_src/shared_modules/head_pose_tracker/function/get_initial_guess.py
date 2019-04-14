@@ -15,9 +15,8 @@ import numpy as np
 
 from head_pose_tracker.function import triangulate_marker, solvepnp
 
-InitialGuessResult = collections.namedtuple(
-    "InitialGuessResult",
-    ["key_markers", "frame_id_to_extrinsics", "marker_id_to_extrinsics"],
+InitialGuess = collections.namedtuple(
+    "InitialGuess", ["key_markers", "frame_id_to_extrinsics", "marker_id_to_extrinsics"]
 )
 
 
@@ -70,10 +69,10 @@ def calculate(
     if not key_markers_useful:
         return None
 
-    initial_guess_result = InitialGuessResult(
+    initial_guess = InitialGuess(
         key_markers_useful, frame_id_to_extrinsics_init, marker_id_to_extrinsics_init
     )
-    return initial_guess_result
+    return initial_guess
 
 
 def _get_frame_id_to_extrinsics_init(

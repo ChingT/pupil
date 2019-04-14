@@ -25,7 +25,9 @@ logger = logging.getLogger(__name__)
 class Markers3DModel:
     version = 1
 
-    def __init__(self):
+    def __init__(self, user_defined_origin_marker_id=None):
+        self._user_defined_origin_marker_id = user_defined_origin_marker_id
+
         self.set_to_default_values()
 
     def set_to_default_values(self):
@@ -36,49 +38,61 @@ class Markers3DModel:
         self.frame_id_to_extrinsics = {}
         self.all_key_markers = []
 
-    @property
-    def calculated(self):
-        return bool(self.marker_id_to_extrinsics)
+    def load_model(self, marker_id_to_extrinsics):
+        self.origin_marker_id = utils.find_origin_marker_id(marker_id_to_extrinsics)
+        if self.origin_marker_id is None:
+            return
 
-    @property
-    def centroid(self):
-        try:
-            return np.mean(
-                list(self.marker_id_to_points_3d.values()), axis=(0, 1)
-            ).tolist()
-        except IndexError:
-            return [0.0, 0.0, 0.0]
+        self.marker_id_to_extrinsics = {
+            marker_id: np.array(extrinsics)
+            for marker_id, extrinsics in marker_id_to_extrinsics.items()
+        }
+        self.marker_id_to_points_3d = {
+            marker_id: utils.convert_marker_extrinsics_to_points_3d(extrinsics)
+            for marker_id, extrinsics in marker_id_to_extrinsics.items()
+        }
 
-    def load_model(
+    def update_model(
         self, origin_marker_id, marker_id_to_extrinsics, marker_id_to_points_3d
     ):
         self.origin_marker_id = origin_marker_id
-        self.marker_id_to_extrinsics = marker_id_to_extrinsics
-        self.marker_id_to_points_3d = marker_id_to_points_3d
+        self.marker_id_to_extrinsics.update(marker_id_to_extrinsics)
+        self.marker_id_to_points_3d.update(marker_id_to_points_3d)
 
     @property
     def as_tuple(self):
-        return (
-            self.origin_marker_id,
-            self.marker_id_to_extrinsics,
-            self.marker_id_to_points_3d,
-        )
+        marker_id_to_extrinsics = {
+            marker_id: extrinsics.tolist()
+            for marker_id, extrinsics in self.marker_id_to_extrinsics.items()
+        }
+        marker_id_to_points_3d = {
+            marker_id: points_3d.tolist()
+            for marker_id, points_3d in self.marker_id_to_points_3d.items()
+        }
+        return self.origin_marker_id, marker_id_to_extrinsics, marker_id_to_points_3d
 
     def set_origin_marker_id(self):
         if self.origin_marker_id is not None or not self.all_key_markers:
             return
 
         all_markers_id = [marker.marker_id for marker in self.all_key_markers]
-        most_common_marker_id = max(all_markers_id, key=all_markers_id.count)
-        origin_marker_id = most_common_marker_id
-        self._set_coordinate_system(origin_marker_id)
+        if self._user_defined_origin_marker_id is None:
+            most_common_marker_id = max(all_markers_id, key=all_markers_id.count)
+            origin_marker_id = most_common_marker_id
+        elif self._user_defined_origin_marker_id in all_markers_id:
+            origin_marker_id = self._user_defined_origin_marker_id
+        else:
+            origin_marker_id = None
+
+        if origin_marker_id is not None:
+            self._set_coordinate_system(origin_marker_id)
 
     def _set_coordinate_system(self, origin_marker_id):
         self.marker_id_to_extrinsics = {
-            origin_marker_id: utils.get_marker_extrinsics_origin().tolist()
+            origin_marker_id: utils.get_marker_extrinsics_origin()
         }
         self.marker_id_to_points_3d = {
-            origin_marker_id: utils.get_marker_points_3d_origin().tolist()
+            origin_marker_id: utils.get_marker_points_3d_origin()
         }
         self.origin_marker_id = origin_marker_id
 
@@ -93,6 +107,17 @@ class Markers3DModel:
             for marker in self.all_key_markers
             if marker.frame_id not in frame_ids_failed
         ]
+
+    @property
+    def calculated(self):
+        return bool(self.marker_id_to_extrinsics)
+
+    @property
+    def centroid(self):
+        try:
+            return np.mean(list(self.marker_id_to_points_3d.values()), axis=(0, 1))
+        except IndexError:
+            return np.array([0.0, 0.0, 0.0])
 
 
 class OfflineMarkers3DModelStorage(Observable, Markers3DModel):
@@ -151,13 +176,13 @@ class OfflineMarkers3DModelStorage(Observable, Markers3DModel):
         fm.save_object(dict_representation, file_path)
 
     def _load_plmodel_from_disk(self):
-        recording_uuid, model_tuple = self._load_from_file()
+        recording_uuid, data = self._load_from_file()
         if recording_uuid:
             self._saved_recording_uuid = recording_uuid
-        if model_tuple:
+        if data:
             try:
-                self.load_model(*model_tuple)
-            except TypeError:
+                self.load_model(data)
+            except:
                 pass
 
     def _load_from_file(self):
@@ -271,11 +296,11 @@ class OnlineMarkers3DModelStorage(Observable, Markers3DModel):
         fm.save_object(dict_representation, file_path)
 
     def _load_plmodel_from_disk(self):
-        model_tuple = self._load_from_file()
-        if model_tuple:
+        data = self._load_from_file()
+        if data:
             try:
-                self.load_model(*model_tuple)
-            except TypeError:
+                self.load_model(data)
+            except:
                 pass
 
     def _load_from_file(self):

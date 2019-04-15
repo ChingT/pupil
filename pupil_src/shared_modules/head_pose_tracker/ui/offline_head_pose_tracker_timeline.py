@@ -53,13 +53,13 @@ class DetectionTimeline:
             "load_pldata_from_disk", self._on_storage_changed
         )
         detection_controller.add_observer(
-            "on_marker_detection_started", self._on_marker_detection_started
+            "on_detection_started", self._on_detection_started
         )
         detection_controller.add_observer(
-            "on_marker_detection_yield", self._on_marker_detection_yield
+            "on_detection_yield", self._on_detection_yield
         )
         detection_controller.add_observer(
-            "on_marker_detection_ended", self._on_marker_detection_ended
+            "on_detection_ended", self._on_detection_ended
         )
         self.row = None
         self.update_row()
@@ -94,7 +94,7 @@ class DetectionTimeline:
         else:
             return RangeElementFrameIdx()
 
-    def _on_marker_detection_started(self):
+    def _on_detection_started(self):
         self._frame_start, frame_end = (
             self._general_settings.detection_frame_index_range
         )
@@ -104,11 +104,11 @@ class DetectionTimeline:
         self.update_row()
         self.render_parent_timeline()
 
-    def _on_marker_detection_yield(self):
+    def _on_detection_yield(self):
         self.update_row()
         self.render_parent_timeline()
 
-    def _on_marker_detection_ended(self):
+    def _on_detection_ended(self):
         self.update_row()
         self.render_parent_timeline()
 
@@ -126,17 +126,15 @@ class LocalizationTimeline:
         localization_storage.add_observer(
             "load_pldata_from_disk", self._on_storage_changed
         )
+        localization_controller.add_observer("reset", self._on_localization_reset)
         localization_controller.add_observer(
-            "reset", self._on_camera_localization_reset
+            "on_localization_started", self._on_localization_started
         )
         localization_controller.add_observer(
-            "on_camera_localization_started", self._on_camera_localization_started
+            "on_localization_yield", self._on_localization_yield
         )
         localization_controller.add_observer(
-            "on_camera_localization_yield", self._on_camera_localization_yield
-        )
-        localization_controller.add_observer(
-            "on_camera_localization_ended", self._on_camera_localization_ended
+            "on_localization_ended", self._on_localization_ended
         )
         self.row = None
         self.update_row()
@@ -166,11 +164,11 @@ class LocalizationTimeline:
         else:
             return RangeElementFrameIdx()
 
-    def _on_camera_localization_reset(self):
+    def _on_localization_reset(self):
         self.update_row()
         self.render_parent_timeline()
 
-    def _on_camera_localization_started(self):
+    def _on_localization_started(self):
         self._frame_start, frame_end = (
             self._general_settings.localization_frame_index_range
         )
@@ -180,10 +178,10 @@ class LocalizationTimeline:
         self.update_row()
         self.render_parent_timeline()
 
-    def _on_camera_localization_yield(self):
+    def _on_localization_yield(self):
         self.update_row()
         self.render_parent_timeline()
 
-    def _on_camera_localization_ended(self):
+    def _on_localization_ended(self):
         self.update_row()
         self.render_parent_timeline()

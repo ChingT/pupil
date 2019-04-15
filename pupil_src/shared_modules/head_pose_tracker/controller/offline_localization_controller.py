@@ -48,8 +48,8 @@ class OfflineLocalizationController(Observable):
             self.status = self.default_status
 
         optimization_controller.add_observer(
-            "on_markers_3d_model_optimization_had_completed_before",
-            self._on_markers_3d_model_optimization_had_completed_before,
+            "on_optimization_had_completed_before",
+            self._on_optimization_had_completed_before,
         )
         optimization_controller.add_observer(
             "on_optimization_started", self._on_optimization_started
@@ -62,7 +62,7 @@ class OfflineLocalizationController(Observable):
     def default_status(self):
         return "Not calculated yet"
 
-    def _on_markers_3d_model_optimization_had_completed_before(self):
+    def _on_optimization_had_completed_before(self):
         if not self._localization_storage.calculated:
             self.calculate()
 
@@ -108,19 +108,19 @@ class OfflineLocalizationController(Observable):
             self.status = "successfully completed"
             self._localization_storage.save_pldata_to_disk()
             logger.info("camera localization completed")
-            self.on_camera_localization_ended()
+            self.on_localization_ended()
 
         def on_canceled_or_killed():
             self._localization_storage.save_pldata_to_disk()
             logger.info("camera localization canceled")
-            self.on_camera_localization_ended()
+            self.on_localization_ended()
 
         self._task = self._create_task()
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)
         self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
-        self._task.add_observer("on_started", self.on_camera_localization_started)
+        self._task.add_observer("on_started", self.on_localization_started)
         logger.info("Start camera localization")
         self.status = "0% completed"
 
@@ -143,7 +143,7 @@ class OfflineLocalizationController(Observable):
     def _insert_pose_bisector(self, data_pairs):
         for timestamp, pose in data_pairs:
             self._localization_storage.pose_bisector.insert(timestamp, pose)
-        self.on_camera_localization_yield()
+        self.on_localization_yield()
 
     def cancel_task(self):
         if self.is_running_task:
@@ -165,11 +165,11 @@ class OfflineLocalizationController(Observable):
     def on_calculation_could_not_be_started(self):
         pass
 
-    def on_camera_localization_started(self):
+    def on_localization_started(self):
         pass
 
-    def on_camera_localization_yield(self):
+    def on_localization_yield(self):
         pass
 
-    def on_camera_localization_ended(self):
+    def on_localization_ended(self):
         pass

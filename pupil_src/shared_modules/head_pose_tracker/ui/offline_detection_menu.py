@@ -24,10 +24,10 @@ class OfflineDetectionMenu:
         self.menu.collapsed = False
 
         detection_controller.add_observer(
-            "on_marker_detection_started", self._on_marker_detection_started
+            "on_detection_started", self._on_detection_started
         )
         detection_controller.add_observer(
-            "on_marker_detection_ended", self._on_marker_detection_ended
+            "on_detection_ended", self._on_detection_ended
         )
 
     def render(self):
@@ -36,10 +36,7 @@ class OfflineDetectionMenu:
 
     def _render_custom_ui(self):
         self.menu.elements.extend(
-            [
-                self._create_range_selector(),
-                self._create_toggle_marker_detection_button(),
-            ]
+            [self._create_range_selector(), self._create_toggle_detection_button()]
         )
 
     def _create_range_selector(self):
@@ -52,26 +49,26 @@ class OfflineDetectionMenu:
             function=self._on_set_index_range_from_trim_marks,
         )
 
-    def _create_toggle_marker_detection_button(self):
+    def _create_toggle_detection_button(self):
         if self._detection_controller.is_running_task:
-            return ui.Button("Cancel Detection", self._on_click_cancel_marker_detection)
+            return ui.Button("Cancel Detection", self._on_click_cancel_detection)
         else:
             return ui.Button(
-                "Detect Apriltags in Recording", self._on_click_start_marker_detection
+                "Detect Apriltags in Recording", self._on_click_start_detection
             )
 
     def _on_set_index_range_from_trim_marks(self):
         self._detection_controller.set_range_from_current_trim_marks()
         self.render()
 
-    def _on_click_start_marker_detection(self):
+    def _on_click_start_detection(self):
         self._detection_controller.calculate()
 
-    def _on_click_cancel_marker_detection(self):
+    def _on_click_cancel_detection(self):
         self._detection_controller.cancel_task()
 
-    def _on_marker_detection_started(self):
+    def _on_detection_started(self):
         self.render()
 
-    def _on_marker_detection_ended(self):
+    def _on_detection_ended(self):
         self.render()

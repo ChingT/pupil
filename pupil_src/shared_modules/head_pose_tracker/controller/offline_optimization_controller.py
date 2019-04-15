@@ -48,14 +48,14 @@ class OfflineOptimizationController(Observable):
             self.status = self.default_status
 
         detection_controller.add_observer(
-            "on_marker_detection_ended", self._on_marker_detection_ended
+            "on_detection_ended", self._on_detection_ended
         )
 
     @property
     def default_status(self):
         return "Not calculated yet"
 
-    def _on_marker_detection_ended(self):
+    def _on_detection_ended(self):
         if (
             self._optimization_storage.is_from_same_recording
             and not self._optimization_storage.calculated

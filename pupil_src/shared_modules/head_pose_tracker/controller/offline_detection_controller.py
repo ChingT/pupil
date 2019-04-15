@@ -43,26 +43,26 @@ class OfflineDetectionController(Observable):
         def on_yield(data_pairs):
             if data_pairs is None:
                 # first yield (None), for instant update on menu and timeline
-                self.on_marker_detection_yield()
+                self.on_detection_yield()
             else:
                 self._insert_markers_bisector(data_pairs)
 
         def on_completed(_):
             self._detection_storage.save_pldata_to_disk()
             logger.info("marker detection completed")
-            self.on_marker_detection_ended()
+            self.on_detection_ended()
 
         def on_canceled_or_killed():
             self._detection_storage.save_pldata_to_disk()
             logger.info("marker detection canceled")
-            self.on_marker_detection_ended()
+            self.on_detection_ended()
 
         self._task = self._create_task()
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)
         self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
-        self._task.add_observer("on_started", self.on_marker_detection_started)
+        self._task.add_observer("on_started", self.on_detection_started)
         logger.info("Start marker detection")
 
     def _create_task(self):
@@ -86,7 +86,7 @@ class OfflineDetectionController(Observable):
             self._detection_storage.frame_index_to_num_markers[
                 frame_index
             ] = num_markers
-        self.on_marker_detection_yield()
+        self.on_detection_yield()
 
     def cancel_task(self):
         if self.is_running_task:
@@ -105,11 +105,11 @@ class OfflineDetectionController(Observable):
             self._get_current_trim_mark_range()
         )
 
-    def on_marker_detection_started(self):
+    def on_detection_started(self):
         pass
 
-    def on_marker_detection_yield(self):
+    def on_detection_yield(self):
         pass
 
-    def on_marker_detection_ended(self):
+    def on_detection_ended(self):
         pass

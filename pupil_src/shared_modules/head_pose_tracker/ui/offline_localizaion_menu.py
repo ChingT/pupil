@@ -36,7 +36,7 @@ class OfflineLocalizationMenu:
             self._on_calculation_could_not_be_started,
         )
         localization_controller.add_observer(
-            "on_camera_localization_ended", self._on_camera_localization_ended
+            "on_localization_ended", self._on_localization_ended
         )
 
     def render(self):
@@ -91,5 +91,5 @@ class OfflineLocalizationMenu:
     def _on_calculation_could_not_be_started(self):
         self.render()
 
-    def _on_camera_localization_ended(self):
+    def _on_localization_ended(self):
         self.render()

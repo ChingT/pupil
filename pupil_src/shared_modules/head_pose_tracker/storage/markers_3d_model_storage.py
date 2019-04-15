@@ -156,7 +156,8 @@ class Markers3DModelStorage(Markers3DModel):
         return os.path.splitext(markers_3d_model_files[0])[0]
 
     def save_plmodel_to_disk(self):
-        if self.is_from_same_recording:
+        #  for offline version          / for online version
+        if self.is_from_same_recording or self._recording_uuid_current is None:
             self._save_to_file()
 
     def _save_to_file(self):
@@ -235,6 +236,5 @@ class Markers3DModelStorage(Markers3DModel):
     def is_from_same_recording(self):
         return (
             self._recording_uuid_loaded_from_plmodel is None
-            or self._recording_uuid_current is None
             or self._recording_uuid_loaded_from_plmodel == self._recording_uuid_current
         )

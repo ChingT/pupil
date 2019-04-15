@@ -11,7 +11,6 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
-import player_methods as pm
 import tasklib
 from head_pose_tracker import worker
 from observable import Observable
@@ -100,7 +99,7 @@ class OfflineCameraLocalizerController(Observable):
 
     def reset(self):
         self.cancel_task()
-        self._camera_localizer_storage.pose_bisector = pm.Mutable_Bisector()
+        self._camera_localizer_storage.set_to_default_values()
         self.status = self.default_status
 
     def _create_localization_task(self):

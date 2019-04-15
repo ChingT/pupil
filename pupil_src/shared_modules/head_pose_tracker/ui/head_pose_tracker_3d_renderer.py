@@ -9,8 +9,6 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import collections
-
 import numpy as np
 
 from head_pose_tracker import ui as plugin_ui
@@ -35,8 +33,6 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
         self._camera_localizer_storage = camera_localizer_storage
         self._camera_intrinsics = camera_intrinsics
         self._plugin = plugin
-
-        self.recent_camera_trace = collections.deque(maxlen=300)
 
     def _render(self):
         if not self._markers_3d_model_storage.calculated:
@@ -79,11 +75,13 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
         camera_pose_matrix = pose_data["camera_pose_matrix"]
 
         # recent_camera_trace is updated no matter show_camera_trace is on or not
-        self.recent_camera_trace.append(camera_trace)
+        self._camera_localizer_storage.add_recent_camera_trace(camera_trace)
 
         color = (0.2, 0.2, 0.2, 0.1)
         if self._general_settings.show_camera_trace:
-            utils.render_camera_trace(self.recent_camera_trace, color)
+            utils.render_camera_trace(
+                self._camera_localizer_storage.recent_camera_trace, color
+            )
 
         if camera_pose_matrix is not None:
             utils.render_camera_frustum(

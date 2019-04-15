@@ -53,15 +53,17 @@ class OnlineController:
         self._marker_location_storage.current_markers = worker.online_detection(frame)
 
     def _calculate_current_pose(self):
-        if not self._markers_3d_model_storage.calculated:
-            return
-
-        self._camera_localizer_storage.current_pose = worker.online_localization(
-            self._marker_location_storage.current_markers,
-            self._markers_3d_model_storage.marker_id_to_extrinsics,
-            self._camera_localizer_storage,
-            self._camera_intrinsics,
-        )
+        if self._markers_3d_model_storage.calculated:
+            self._camera_localizer_storage.current_pose = worker.online_localization(
+                self._marker_location_storage.current_markers,
+                self._markers_3d_model_storage.marker_id_to_extrinsics,
+                self._camera_localizer_storage,
+                self._camera_intrinsics,
+            )
+        else:
+            self._camera_localizer_storage.current_pose = (
+                self._camera_localizer_storage.none_pose_data
+            )
 
     def _save_key_markers(self):
         if not self._general_settings.optimize_markers_3d_model:
@@ -125,6 +127,7 @@ class OnlineController:
     def reset(self):
         self.cancel_task()
         self._markers_3d_model_storage.set_to_default_values()
+        self._camera_localizer_storage.set_to_default_values()
         if self._general_settings.optimize_markers_3d_model:
             self._calculate_markers_3d_model()
 

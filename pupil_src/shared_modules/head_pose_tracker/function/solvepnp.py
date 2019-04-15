@@ -11,7 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 
 import numpy as np
 
-from head_pose_tracker import worker
+from head_pose_tracker.function import utils
 
 
 def calculate(
@@ -45,7 +45,7 @@ def _prepare_data_for_solvepnp(
         return None
 
     markers_points_3d = [
-        worker.utils.convert_marker_extrinsics_to_points_3d(
+        utils.convert_marker_extrinsics_to_points_3d(
             marker_id_to_extrinsics[marker["id"]]
         )
         for marker in markers_available
@@ -68,7 +68,7 @@ def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
         camera_intrinsics, markers_points_3d, markers_points_2d, camera_extrinsics_prv
     )
     if _check_result_reasonable(retval, rotation, translation, markers_points_3d):
-        camera_extrinsics = worker.utils.merge_extrinsics(rotation, translation)
+        camera_extrinsics = utils.merge_extrinsics(rotation, translation)
         return camera_extrinsics
 
     # if _run_solvepnp with camera_extrinsics_prv could not output reasonable result,
@@ -77,7 +77,7 @@ def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
         camera_intrinsics, markers_points_3d, markers_points_2d
     )
     if _check_result_reasonable(retval, rotation, translation, markers_points_3d):
-        camera_extrinsics = worker.utils.merge_extrinsics(rotation, translation)
+        camera_extrinsics = utils.merge_extrinsics(rotation, translation)
         return camera_extrinsics
     else:
         return None
@@ -95,9 +95,7 @@ def _run_solvepnp(
             markers_points_3d, markers_points_2d
         )
     else:
-        rotation_prv, translation_prv = worker.utils.split_extrinsics(
-            camera_extrinsics_prv
-        )
+        rotation_prv, translation_prv = utils.split_extrinsics(camera_extrinsics_prv)
         retval, rotation, translation = camera_intrinsics.solvePnP(
             markers_points_3d,
             markers_points_2d,
@@ -128,9 +126,7 @@ def _check_result_reasonable(retval, rotation, translation, pts_3d_world):
     # the depth of the markers in the camera coordinate system should be positive,
     # i.e. all seen markers in the frame should be in front of the camera;
     # if not, that implies the output of solvePnP is wrong.
-    pts_3d_camera = worker.utils.to_camera_coordinate(
-        pts_3d_world, rotation, translation
-    )
+    pts_3d_camera = utils.to_camera_coordinate(pts_3d_world, rotation, translation)
     if (pts_3d_camera[:, 2] < 1).any():
         return False
 

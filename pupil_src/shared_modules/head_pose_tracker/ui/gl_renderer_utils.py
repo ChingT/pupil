@@ -93,5 +93,5 @@ def _render_frustum(img_size, camera_matrix, color, scale=1500):
     render_polygon_in_3d_window(vertices, color)
 
 
-def render_camera_trace(recent_camera_traces, color):
-    render_strip_in_3d_window(recent_camera_traces, color)
+def render_camera_trace(recent_camera_trace, color):
+    render_strip_in_3d_window(recent_camera_trace, color)

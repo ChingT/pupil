@@ -9,40 +9,35 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import numpy as np
 
 import file_methods as fm
 import player_methods as pm
-import tasklib
-import tasklib.background.patches as bg_patches
-from head_pose_tracker import worker
-
-g_pool = None  # set by the plugin
+from head_pose_tracker.function import solvepnp, utils
 
 
-def create_task(
-    timestamps, marker_location_storage, markers_3d_model_storage, general_settings
-):
-    assert g_pool, "You forgot to set g_pool by the plugin"
-
-    args = (
-        timestamps,
-        general_settings.camera_localizer_frame_index_range,
-        marker_location_storage.markers_bisector,
-        marker_location_storage.frame_index_to_num_markers,
-        markers_3d_model_storage.result["marker_id_to_extrinsics"],
-        g_pool.capture.intrinsics,
-    )
-    name = "Create camera localizer"
-    return tasklib.background.create(
-        name,
-        _localize_pose,
-        args=args,
-        patches=[bg_patches.IPCLoggingPatch()],
-        pass_shared_memory=True,
-    )
+def get_pose_data(extrinsics, timestamp):
+    if extrinsics is not None:
+        camera_poses = utils.get_camera_pose(extrinsics)
+        camera_pose_matrix = utils.convert_extrinsic_to_matrix(camera_poses)
+        return {
+            "camera_extrinsics": extrinsics.tolist(),
+            "camera_poses": camera_poses.tolist(),
+            "camera_trace": camera_poses[3:6].tolist(),
+            "camera_pose_matrix": camera_pose_matrix.tolist(),
+            "timestamp": timestamp,
+        }
+    else:
+        return {
+            "camera_extrinsics": None,
+            "camera_poses": [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+            "camera_trace": [np.nan, np.nan, np.nan],
+            "camera_pose_matrix": None,
+            "timestamp": timestamp,
+        }
 
 
-def _localize_pose(
+def offline_localization(
     timestamps,
     frame_index_range,
     markers_bisector,
@@ -52,21 +47,6 @@ def _localize_pose(
     shared_memory,
 ):
     batch_size = 300
-
-    def get_camera_pose_data(extrinsics, ts, markers):
-        camera_poses = worker.utils.get_camera_pose(extrinsics)
-        camera_pose_matrix = worker.utils.convert_extrinsic_to_matrix(camera_poses)
-
-        return fm.Serialized_Dict(
-            python_dict={
-                "camera_extrinsics": extrinsics.tolist(),
-                "camera_poses": camera_poses.tolist(),
-                "camera_trace": camera_poses[3:6].tolist(),
-                "camera_pose_matrix": camera_pose_matrix.tolist(),
-                "timestamp": ts,
-                "marker_ids": [marker["id"] for marker in markers],
-            }
-        )
 
     def find_markers_in_frame(index):
         window = pm.enclosing_window(timestamps, index)
@@ -86,7 +66,7 @@ def _localize_pose(
         shared_memory.progress = (frame_index - frame_start + 1) / frame_count
         if frame_index_to_num_markers[frame_index]:
             markers_in_frame = find_markers_in_frame(frame_index)
-            camera_extrinsics = worker.solvepnp.calculate(
+            camera_extrinsics = solvepnp.calculate(
                 camera_intrinsics,
                 markers_in_frame,
                 marker_id_to_extrinsics,
@@ -98,10 +78,9 @@ def _localize_pose(
                 not_localized_count = 0
 
                 timestamp = timestamps[frame_index]
-                camera_pose_data = get_camera_pose_data(
-                    camera_extrinsics, timestamp, markers_in_frame
-                )
-                queue.append((timestamp, camera_pose_data))
+                pose_data = get_pose_data(camera_extrinsics, timestamp)
+                serialized_dict = fm.Serialized_Dict(pose_data)
+                queue.append((timestamp, serialized_dict))
 
                 if len(queue) >= batch_size:
                     data = queue[:batch_size]
@@ -115,3 +94,20 @@ def _localize_pose(
             camera_extrinsics_prv = None
 
     yield queue
+
+
+def online_localization(
+    timestamp,
+    detection_storage,
+    optimization_storage,
+    localization_storage,
+    camera_intrinsics,
+):
+    camera_extrinsics = solvepnp.calculate(
+        camera_intrinsics,
+        detection_storage.current_markers,
+        optimization_storage.marker_id_to_extrinsics,
+        localization_storage.current_pose["camera_extrinsics"],
+        min_n_markers_per_frame=1,
+    )
+    return get_pose_data(camera_extrinsics, timestamp)

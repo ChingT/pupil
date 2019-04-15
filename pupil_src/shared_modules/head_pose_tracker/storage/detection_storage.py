@@ -16,13 +16,46 @@ import player_methods as pm
 from observable import Observable
 
 
-class MarkerLocationStorage(Observable):
-    def __init__(self, rec_dir, all_timestamps, plugin):
-        self._rec_dir = rec_dir
-        self._all_timestamps = all_timestamps.tolist()
+class OfflineMarkerLocation:
+    def __init__(self, get_current_frame_index, get_current_frame_window):
+        self._get_current_frame_index = get_current_frame_index
+        self._get_current_frame_window = get_current_frame_window
 
         self.markers_bisector = pm.Mutable_Bisector()
         self.frame_index_to_num_markers = {}
+
+    @property
+    def calculated(self):
+        return bool(self.markers_bisector)
+
+    @property
+    def current_markers(self):
+        frame_index = self._get_current_frame_index()
+        try:
+            num_markers = self.frame_index_to_num_markers[frame_index]
+        except KeyError:
+            num_markers = 0
+
+        if num_markers:
+            frame_window = self._get_current_frame_window()
+            return self.markers_bisector.by_ts_window(frame_window)
+        else:
+            return []
+
+
+class OfflineDetectionStorage(Observable, OfflineMarkerLocation):
+    def __init__(
+        self,
+        rec_dir,
+        all_timestamps,
+        plugin,
+        get_current_frame_index,
+        get_current_frame_window,
+    ):
+        super().__init__(get_current_frame_index, get_current_frame_window)
+
+        self._rec_dir = rec_dir
+        self._all_timestamps = all_timestamps.tolist()
 
         self.load_pldata_from_disk()
 
@@ -30,10 +63,6 @@ class MarkerLocationStorage(Observable):
 
     def _on_cleanup(self):
         self.save_pldata_to_disk()
-
-    @property
-    def calculated(self):
-        return bool(self.markers_bisector)
 
     def save_pldata_to_disk(self):
         self._save_to_file()
@@ -72,8 +101,13 @@ class MarkerLocationStorage(Observable):
 
     @property
     def _pldata_file_name(self):
-        return "marker_locations"
+        return "marker_detection"
 
     @property
     def _offline_data_folder_path(self):
         return os.path.join(self._rec_dir, "offline_data")
+
+
+class OnlineDetectionStorage:
+    def __init__(self):
+        self.current_markers = []

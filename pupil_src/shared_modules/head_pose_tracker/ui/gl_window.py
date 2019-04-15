@@ -41,7 +41,7 @@ class GLWindow(abc.ABC):
             self._close()
 
     def _on_init_ui(self):
-        self._open()
+        self.switch_visualization_window(True)
 
     def _open(self):
         if self._window:

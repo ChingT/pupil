@@ -9,6 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import abc
 import logging
 import os
 
@@ -17,60 +18,18 @@ import file_methods as fm
 logger = logging.getLogger(__name__)
 
 
-class Settings:
+class SettingsStorage(abc.ABC):
     version = 1
 
-    def load_settings(
-        self,
-        marker_location_frame_index_range,
-        markers_3d_model_frame_index_range,
-        camera_localizer_frame_index_range,
-        markers_3d_model_status="Not calculated yet",
-        camera_localizer_status="Not calculated yet",
-        user_defined_origin_marker_id=None,
-        optimize_camera_intrinsics=False,
-        show_marker_id=False,
-        show_camera_trace=True,
-    ):
-        self.marker_location_frame_index_range = marker_location_frame_index_range
-        self.markers_3d_model_frame_index_range = markers_3d_model_frame_index_range
-        self.camera_localizer_frame_index_range = camera_localizer_frame_index_range
-        self.markers_3d_model_status = markers_3d_model_status
-        self.camera_localizer_status = camera_localizer_status
-        self.user_defined_origin_marker_id = user_defined_origin_marker_id
-        self.optimize_camera_intrinsics = optimize_camera_intrinsics
-        self.show_marker_id = show_marker_id
-        self.show_camera_trace = show_camera_trace
-
-    @property
-    def as_tuple(self):
-        return (
-            self.marker_location_frame_index_range,
-            self.markers_3d_model_frame_index_range,
-            self.camera_localizer_frame_index_range,
-            self.markers_3d_model_status,
-            self.camera_localizer_status,
-            self.user_defined_origin_marker_id,
-            self.optimize_camera_intrinsics,
-            self.show_marker_id,
-            self.show_camera_trace,
-        )
-
-
-class GeneralSettings(Settings):
-    def __init__(self, rec_dir, get_recording_index_range, plugin):
-        self._rec_dir = rec_dir
-        self._get_recording_index_range = get_recording_index_range
-
+    def __init__(self, save_dir, plugin):
+        self._save_dir = save_dir
         plugin.add_observer("cleanup", self._on_cleanup)
-
-        self.load_from_disk()
 
     def _on_cleanup(self):
         self.save_to_disk()
 
     def save_to_disk(self):
-        self._save_msgpack_to_file(self._msgpack_file_path, self.as_tuple)
+        self._save_msgpack_to_file(self._msgpack_file_path, self._data_as_tuple)
 
     def _save_msgpack_to_file(self, file_path, data):
         dict_representation = {"version": self.version, "data": data}
@@ -81,22 +40,9 @@ class GeneralSettings(Settings):
         settings_tuple = self._load_msgpack_from_file(self._msgpack_file_path)
         if settings_tuple:
             try:
-                self._load_default_settings(settings_tuple)
-            except TypeError:
+                self._data_from_tuple(settings_tuple)
+            except:
                 pass
-            else:
-                return
-        self._create_default_settings()
-
-    def _load_default_settings(self, settings_tuple):
-        self.load_settings(*settings_tuple)
-
-    def _create_default_settings(self):
-        self.load_settings(
-            marker_location_frame_index_range=self._get_recording_index_range(),
-            markers_3d_model_frame_index_range=self._get_recording_index_range(),
-            camera_localizer_frame_index_range=self._get_recording_index_range(),
-        )
 
     def _load_msgpack_from_file(self, file_path):
         try:
@@ -113,13 +59,88 @@ class GeneralSettings(Settings):
         return dict_representation.get("data", None)
 
     @property
-    def _offline_data_folder_path(self):
-        return os.path.join(self._rec_dir, "offline_data")
-
-    @property
     def _msgpack_file_name(self):
         return "head_pose_tracker_general_settings.msgpack"
 
     @property
     def _msgpack_file_path(self):
-        return os.path.join(self._offline_data_folder_path, self._msgpack_file_name)
+        return os.path.join(self._save_dir, self._msgpack_file_name)
+
+    @abc.abstractmethod
+    def _data_from_tuple(self, settings_tuple):
+        pass
+
+    @property
+    @abc.abstractmethod
+    def _data_as_tuple(self):
+        pass
+
+
+class OfflineSettingsStorage(SettingsStorage):
+    def __init__(self, save_dir, plugin, get_recording_index_range):
+        save_dir = os.path.join(save_dir, "offline_data")
+        super().__init__(save_dir, plugin)
+
+        self._get_recording_index_range = get_recording_index_range
+
+        self.detection_frame_index_range = self._get_recording_index_range()
+        self.optimization_frame_index_range = self._get_recording_index_range()
+        self.localization_frame_index_range = self._get_recording_index_range()
+        self.user_defined_origin_marker_id = None
+        self.optimize_camera_intrinsics = False
+        self.show_marker_id = False
+        self.show_camera_trace = True
+
+        self.load_from_disk()
+
+    def _data_from_tuple(self, settings_tuple):
+        (
+            self.detection_frame_index_range,
+            self.optimization_frame_index_range,
+            self.localization_frame_index_range,
+            self.user_defined_origin_marker_id,
+            self.optimize_camera_intrinsics,
+            self.show_marker_id,
+            self.show_camera_trace,
+        ) = settings_tuple
+
+    @property
+    def _data_as_tuple(self):
+        return (
+            self.detection_frame_index_range,
+            self.optimization_frame_index_range,
+            self.localization_frame_index_range,
+            self.user_defined_origin_marker_id,
+            self.optimize_camera_intrinsics,
+            self.show_marker_id,
+            self.show_camera_trace,
+        )
+
+
+class OnlineSettingsStorage(SettingsStorage):
+    def __init__(self, save_dir, plugin):
+        super().__init__(save_dir, plugin)
+
+        self.optimize_markers_3d_model = True
+        self.optimize_camera_intrinsics = False
+        self.show_marker_id = False
+        self.show_camera_trace = True
+
+        self.load_from_disk()
+
+    def _data_from_tuple(self, settings_tuple):
+        (
+            self.optimize_markers_3d_model,
+            self.optimize_camera_intrinsics,
+            self.show_marker_id,
+            self.show_camera_trace,
+        ) = settings_tuple
+
+    @property
+    def _data_as_tuple(self):
+        return (
+            self.optimize_markers_3d_model,
+            self.optimize_camera_intrinsics,
+            self.show_marker_id,
+            self.show_camera_trace,
+        )

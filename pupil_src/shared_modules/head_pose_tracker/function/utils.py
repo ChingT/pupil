@@ -90,7 +90,7 @@ def get_marker_points_4d_origin():
 
 
 def get_marker_extrinsics_origin():
-    return np.array([0, 0, 0, 0, 0, 0.0], dtype=np.float32)
+    return np.array([0, 0, 0, 0, 0, 0], dtype=np.float32)
 
 
 def get_none_camera_extrinsics():

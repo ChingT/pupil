@@ -14,17 +14,11 @@ import collections
 import numpy as np
 from scipy import misc as scipy_misc, optimize as scipy_optimize, sparse as scipy_sparse
 
-from head_pose_tracker import worker
+from head_pose_tracker.function import utils
 
 BundleAdjustmentResult = collections.namedtuple(
     "BundleAdjustmentResult",
-    [
-        "frame_id_to_extrinsics",
-        "marker_id_to_extrinsics",
-        "frame_ids_failed",
-        "camera_matrix",
-        "dist_coefs",
-    ],
+    ["frame_id_to_extrinsics", "marker_id_to_extrinsics", "frame_ids_failed"],
 )
 
 
@@ -48,9 +42,6 @@ class BundleAdjustment:
         """ run bundle adjustment given the initial guess and then check the result of
         markers_3d_model
         """
-
-        if not initial_guess_result:
-            return None
 
         self._enough_samples = bool(len(initial_guess_result.key_markers) >= 100)
 
@@ -76,7 +67,7 @@ class BundleAdjustment:
 
     @staticmethod
     def _set_ids(frame_id_to_extrinsics, marker_id_to_extrinsics):
-        origin_marker_id = worker.utils.find_origin_marker_id(marker_id_to_extrinsics)
+        origin_marker_id = utils.find_origin_marker_id(marker_id_to_extrinsics)
         marker_ids = [origin_marker_id]
         marker_ids += list(set(marker_id_to_extrinsics.keys()) - {origin_marker_id})
         frame_ids = list(frame_id_to_extrinsics.keys())
@@ -132,7 +123,7 @@ class BundleAdjustment:
 
         marker_extrinsics_lower_bound = np.full(self._marker_extrinsics_shape, -scale)
         marker_extrinsics_upper_bound = np.full(self._marker_extrinsics_shape, scale)
-        marker_extrinsics_origin = worker.utils.get_marker_extrinsics_origin()
+        marker_extrinsics_origin = utils.get_marker_extrinsics_origin()
         marker_extrinsics_lower_bound[0] = marker_extrinsics_origin - eps
         marker_extrinsics_upper_bound[0] = marker_extrinsics_origin + eps
 
@@ -245,11 +236,7 @@ class BundleAdjustment:
         frame_ids_failed = [self._frame_ids[i] for i in frame_indices_failed]
 
         bundle_adjustment_result = BundleAdjustmentResult(
-            frame_id_to_extrinsics_opt,
-            marker_id_to_extrinsics_opt,
-            frame_ids_failed,
-            self._camera_intrinsics.K,
-            self._camera_intrinsics.D,
+            frame_id_to_extrinsics_opt, marker_id_to_extrinsics_opt, frame_ids_failed
         )
         return bundle_adjustment_result
 
@@ -292,7 +279,7 @@ class BundleAdjustment:
     def _project_markers(self, camera_extrinsics_array, marker_extrinsics_array):
         markers_points_3d = np.array(
             [
-                worker.utils.convert_marker_extrinsics_to_points_3d(extrinsics)
+                utils.convert_marker_extrinsics_to_points_3d(extrinsics)
                 for extrinsics in marker_extrinsics_array
             ]
         )

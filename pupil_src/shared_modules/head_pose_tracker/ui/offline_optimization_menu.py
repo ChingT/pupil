@@ -16,27 +16,26 @@ from pyglui import ui
 logger = logging.getLogger(__name__)
 
 
-class Markers3DModelMenu:
+class OfflineOptimizationMenu:
     menu_label = "Markers 3D Model"
 
     def __init__(
         self,
-        markers_3d_model_controller,
+        optimization_controller,
         general_settings,
-        markers_3d_model_storage,
+        optimization_storage,
         index_range_as_str,
     ):
-        self._markers_3d_model_controller = markers_3d_model_controller
+        self._optimization_controller = optimization_controller
         self._general_settings = general_settings
-        self._markers_3d_model_storage = markers_3d_model_storage
+        self._optimization_storage = optimization_storage
         self._index_range_as_str = index_range_as_str
 
         self.menu = ui.Growing_Menu(self.menu_label)
         self.menu.collapsed = False
 
-        markers_3d_model_controller.add_observer(
-            "on_markers_3d_model_optimization_completed",
-            self._on_markers_3d_model_optimization_completed,
+        optimization_controller.add_observer(
+            "on_optimization_completed", self._on_optimization_completed
         )
 
     def render(self):
@@ -44,7 +43,7 @@ class Markers3DModelMenu:
         self._render_custom_ui()
 
     def _render_custom_ui(self):
-        if self._markers_3d_model_storage.is_from_same_recording:
+        if self._optimization_storage.is_from_same_recording:
             self.menu.elements.extend(
                 self._render_ui_markers_3d_model_from_same_recording()
             )
@@ -73,11 +72,11 @@ class Markers3DModelMenu:
         return menu
 
     def _create_info_text_for_markers_3d_model_from_another_recording(self):
-        if self._markers_3d_model_storage.calculated:
+        if self._optimization_storage.calculated:
             text = (
                 "This Markers 3D Model '{}' was copied from another recording. "
                 "It is ready to be used for camera localization.".format(
-                    self._markers_3d_model_storage.name
+                    self._optimization_storage.name
                 )
             )
         else:
@@ -85,7 +84,7 @@ class Markers3DModelMenu:
                 "This Markers 3D Model '{}' was copied from another recording, "
                 "but it cannot be used here, since it was not successfully calculated. "
                 "Please go back to the original recording, calculate and copy it here "
-                "again.".format(self._markers_3d_model_storage.name)
+                "again.".format(self._optimization_storage.name)
             )
         return ui.Info_Text(text)
 
@@ -96,14 +95,14 @@ class Markers3DModelMenu:
     def _create_name_input(self):
         return ui.Text_Input(
             "name",
-            self._markers_3d_model_storage,
+            self._optimization_storage,
             label="Name",
             setter=self._on_name_change,
         )
 
     def _create_range_selector(self):
         range_string = "Collect Markers in: " + self._index_range_as_str(
-            self._general_settings.markers_3d_model_frame_index_range
+            self._general_settings.optimization_frame_index_range
         )
         return ui.Button(
             outer_label=range_string,
@@ -121,17 +120,14 @@ class Markers3DModelMenu:
     def _create_calculate_button(self):
         return ui.Button(
             label="Recalculate"
-            if self._markers_3d_model_storage.calculated
+            if self._optimization_storage.calculated
             else "Calculate",
             function=self._on_calculate_button_clicked,
         )
 
     def _create_status_display(self):
         return ui.Text_Input(
-            "markers_3d_model_status",
-            self._general_settings,
-            label="Status",
-            setter=lambda _: _,
+            "status", self._optimization_controller, label="Status", setter=lambda _: _
         )
 
     def _create_origin_marker_id_display_from_same_recording(self):
@@ -147,7 +143,7 @@ class Markers3DModelMenu:
         return ui.Text_Input(
             "user_defined_origin_marker_id",
             self._general_settings,
-            label="the origin marker id",
+            label="origin marker id",
             getter=self._on_get_origin_marker_id,
             setter=lambda _: _,
         )
@@ -158,25 +154,25 @@ class Markers3DModelMenu:
         )
 
     def _on_name_change(self, new_name):
-        self._markers_3d_model_storage.rename(new_name)
+        self._optimization_storage.rename(new_name)
         self.render()
 
     def _on_set_index_range_from_trim_marks(self):
-        self._markers_3d_model_controller.set_range_from_current_trim_marks()
+        self._optimization_controller.set_range_from_current_trim_marks()
         self.render()
 
     def _on_calculate_button_clicked(self):
-        self._markers_3d_model_controller.calculate()
+        self._optimization_controller.calculate()
         self.render()
 
     def _on_get_origin_marker_id(self):
         if (
-            self._markers_3d_model_storage.is_from_same_recording
+            self._optimization_storage.is_from_same_recording
             and self._general_settings.user_defined_origin_marker_id is not None
         ):
             origin_marker_id = self._general_settings.user_defined_origin_marker_id
-        elif self._markers_3d_model_storage.calculated:
-            origin_marker_id = self._markers_3d_model_storage.result["origin_marker_id"]
+        elif self._optimization_storage.calculated:
+            origin_marker_id = self._optimization_storage.origin_marker_id
         else:
             origin_marker_id = None
         return str(origin_marker_id)
@@ -193,9 +189,9 @@ class Markers3DModelMenu:
             logger.info(
                 "The marker with id {} will be defined as the origin of the"
                 "coordinate system during the next calculation of the markers 3d "
-                "model '{}'.".format(new_id, self._markers_3d_model_storage.name)
+                "model '{}'.".format(new_id, self._optimization_storage.name)
             )
-            self._markers_3d_model_controller.calculate()
+            self._optimization_controller.calculate()
 
-    def _on_markers_3d_model_optimization_completed(self):
+    def _on_optimization_completed(self):
         self.render()

@@ -9,5 +9,11 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from head_pose_tracker.offline_head_pose_tracker import Offline_Head_Pose_Tracker
-from head_pose_tracker.online_head_pose_tracker import Online_Head_Pose_Tracker
+from head_pose_tracker.function import (
+    utils,
+    solvepnp,
+    triangulate_marker,
+    get_initial_guess,
+    pick_key_markers,
+)
+from head_pose_tracker.function.bundle_adjustment import BundleAdjustment

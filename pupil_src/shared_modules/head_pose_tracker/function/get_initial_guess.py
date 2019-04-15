@@ -11,25 +11,31 @@ See COPYING and COPYING.LESSER for license details.
 
 import collections
 
-from head_pose_tracker import worker
+import numpy as np
 
-InitialGuessResult = collections.namedtuple(
-    "InitialGuessResult",
-    ["key_markers", "frame_id_to_extrinsics", "marker_id_to_extrinsics"],
+from head_pose_tracker.function import triangulate_marker, solvepnp
+
+InitialGuess = collections.namedtuple(
+    "InitialGuess", ["key_markers", "frame_id_to_extrinsics", "marker_id_to_extrinsics"]
 )
 
 
-def calculate(storage, camera_intrinsics):
+def calculate(
+    marker_id_to_extrinsics_opt,
+    frame_id_to_extrinsics_opt,
+    key_markers,
+    camera_intrinsics,
+):
     """ get marker and camera initial guess for bundle adjustment """
 
-    try:
-        storage.marker_id_to_extrinsics_opt[storage.origin_marker_id]
-    except KeyError:
-        storage.set_origin_marker_id()
-
-    marker_id_to_extrinsics_init = storage.marker_id_to_extrinsics_opt
-    frame_id_to_extrinsics_init = storage.frame_id_to_extrinsics_opt
-    key_markers = storage.all_key_markers
+    marker_id_to_extrinsics_init = {
+        marker_id: np.array(extrinsics)
+        for marker_id, extrinsics in marker_id_to_extrinsics_opt.items()
+    }
+    frame_id_to_extrinsics_init = {
+        frame_id: np.array(extrinsics)
+        for frame_id, extrinsics in frame_id_to_extrinsics_opt.items()
+    }
     frame_ids = list(set(marker.frame_id for marker in key_markers))
     marker_ids = list(set(marker.marker_id for marker in key_markers))
 
@@ -63,10 +69,10 @@ def calculate(storage, camera_intrinsics):
     if not key_markers_useful:
         return None
 
-    initial_guess_result = InitialGuessResult(
+    initial_guess = InitialGuess(
         key_markers_useful, frame_id_to_extrinsics_init, marker_id_to_extrinsics_init
     )
-    return initial_guess_result
+    return initial_guess
 
 
 def _get_frame_id_to_extrinsics_init(
@@ -87,7 +93,7 @@ def _get_frame_id_to_extrinsics_init(
             and marker.marker_id in marker_id_to_extrinsics_init.keys()
         ]
 
-        camera_extrinsics = worker.solvepnp.calculate(
+        camera_extrinsics = solvepnp.calculate(
             camera_intrinsics, markers_in_frame, marker_id_to_extrinsics_init
         )
         if camera_extrinsics is not None:
@@ -114,7 +120,7 @@ def _get_marker_id_to_extrinsics_init(
             and marker.frame_id in frame_id_to_extrinsics_init
         }
 
-        marker_extrinsics = worker.triangulate_marker.calculate(
+        marker_extrinsics = triangulate_marker.calculate(
             camera_intrinsics, frame_id_to_detections, frame_id_to_extrinsics_init
         )
         if marker_extrinsics is not None:

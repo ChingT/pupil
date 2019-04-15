@@ -9,15 +9,15 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-from head_pose_tracker.worker import (
-    utils,
-    detect_square_markers,
-    solvepnp,
-    triangulate_marker,
-    get_initial_guess,
-    optimize_markers_3d_model,
-    localize_pose,
-    update_optimization_storage,
+from head_pose_tracker.worker.detection_worker import (
+    offline_detection,
+    online_detection,
 )
-from head_pose_tracker.worker.pick_key_markers import PickKeyMarkers
-from head_pose_tracker.worker.bundle_adjustment import BundleAdjustment
+from head_pose_tracker.worker.localization_worker import (
+    offline_localization,
+    online_localization,
+)
+from head_pose_tracker.worker.optimization_worker import (
+    offline_optimization,
+    online_optimization,
+)

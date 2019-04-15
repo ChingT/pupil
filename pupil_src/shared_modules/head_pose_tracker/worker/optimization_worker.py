@@ -42,16 +42,17 @@ def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment):
 
     result = bundle_adjustment.calculate(initial_guess)
 
-    bg_storage.marker_id_to_extrinsics = result.marker_id_to_extrinsics
-    bg_storage.marker_id_to_points_3d = {
+    marker_id_to_extrinsics = result.marker_id_to_extrinsics
+    marker_id_to_points_3d = {
         marker_id: utils.convert_marker_extrinsics_to_points_3d(extrinsics)
         for marker_id, extrinsics in result.marker_id_to_extrinsics.items()
     }
     model_tuple = (
         bg_storage.origin_marker_id,
-        bg_storage.marker_id_to_extrinsics,
-        bg_storage.marker_id_to_points_3d,
+        marker_id_to_extrinsics,
+        marker_id_to_points_3d,
     )
+    bg_storage.update_model(*model_tuple)
     intrinsics_tuple = IntrinsicsTuple(camera_intrinsics.K, camera_intrinsics.D)
     return (
         model_tuple,

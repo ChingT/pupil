@@ -25,6 +25,42 @@ IntrinsicsTuple = collections.namedtuple(
 )
 
 
+def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment):
+    try:
+        bg_storage.marker_id_to_extrinsics[bg_storage.origin_marker_id]
+    except KeyError:
+        bg_storage.set_origin_marker_id()
+
+    initial_guess = get_initial_guess.calculate(
+        bg_storage.marker_id_to_extrinsics,
+        bg_storage.frame_id_to_extrinsics,
+        bg_storage.all_key_markers,
+        camera_intrinsics,
+    )
+    if not initial_guess:
+        return
+
+    result = bundle_adjustment.calculate(initial_guess)
+
+    bg_storage.marker_id_to_extrinsics = result.marker_id_to_extrinsics
+    bg_storage.marker_id_to_points_3d = {
+        marker_id: utils.convert_marker_extrinsics_to_points_3d(extrinsics)
+        for marker_id, extrinsics in result.marker_id_to_extrinsics.items()
+    }
+    model_tuple = (
+        bg_storage.origin_marker_id,
+        bg_storage.marker_id_to_extrinsics,
+        bg_storage.marker_id_to_points_3d,
+    )
+    intrinsics_tuple = IntrinsicsTuple(camera_intrinsics.K, camera_intrinsics.D)
+    return (
+        model_tuple,
+        result.frame_id_to_extrinsics,
+        result.frame_ids_failed,
+        intrinsics_tuple,
+    )
+
+
 def offline_optimization(
     timestamps,
     frame_index_range,
@@ -63,38 +99,20 @@ def offline_optimization(
             continue
 
         shared_memory.progress = (idx + 1) / frame_count
-
         try:
-            bg_storage.marker_id_to_extrinsics[bg_storage.origin_marker_id]
-        except KeyError:
-            bg_storage.set_origin_marker_id()
+            (
+                model_tuple,
+                frame_id_to_extrinsics,
+                frame_ids_failed,
+                intrinsics_tuple,
+            ) = optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment)
+        except TypeError:
+            pass
+        else:
+            bg_storage.frame_id_to_extrinsics = frame_id_to_extrinsics
+            bg_storage.discard_failed_key_markers(frame_ids_failed)
 
-        initial_guess = get_initial_guess.calculate(
-            bg_storage.marker_id_to_extrinsics,
-            bg_storage.frame_id_to_extrinsics,
-            bg_storage.all_key_markers,
-            camera_intrinsics,
-        )
-        if not initial_guess:
-            continue
-
-        result = bundle_adjustment.calculate(initial_guess)
-
-        bg_storage.marker_id_to_extrinsics = result.marker_id_to_extrinsics
-        bg_storage.marker_id_to_points_3d = {
-            marker_id: utils.convert_marker_extrinsics_to_points_3d(extrinsics)
-            for marker_id, extrinsics in result.marker_id_to_extrinsics.items()
-        }
-        bg_storage.frame_id_to_extrinsics = result.frame_id_to_extrinsics
-        bg_storage.discard_failed_key_markers(result.frame_ids_failed)
-
-        model_tuple = (
-            bg_storage.origin_marker_id,
-            bg_storage.marker_id_to_extrinsics,
-            bg_storage.marker_id_to_points_3d,
-        )
-        intrinsics_tuple = IntrinsicsTuple(camera_intrinsics.K, camera_intrinsics.D)
-        yield model_tuple, intrinsics_tuple
+            yield model_tuple, intrinsics_tuple
 
 
 def online_optimization(
@@ -113,37 +131,4 @@ def online_optimization(
 
     bundle_adjustment = BundleAdjustment(camera_intrinsics, optimize_camera_intrinsics)
 
-    try:
-        bg_storage.marker_id_to_extrinsics[bg_storage.origin_marker_id]
-    except KeyError:
-        bg_storage.set_origin_marker_id()
-
-    initial_guess = get_initial_guess.calculate(
-        bg_storage.marker_id_to_extrinsics,
-        bg_storage.frame_id_to_extrinsics,
-        bg_storage.all_key_markers,
-        camera_intrinsics,
-    )
-    if not initial_guess:
-        return
-
-    result = bundle_adjustment.calculate(initial_guess)
-
-    bg_storage.marker_id_to_extrinsics = result.marker_id_to_extrinsics
-    bg_storage.marker_id_to_points_3d = {
-        marker_id: utils.convert_marker_extrinsics_to_points_3d(extrinsics)
-        for marker_id, extrinsics in result.marker_id_to_extrinsics.items()
-    }
-
-    model_tuple = (
-        bg_storage.origin_marker_id,
-        bg_storage.marker_id_to_extrinsics,
-        bg_storage.marker_id_to_points_3d,
-    )
-    intrinsics_tuple = IntrinsicsTuple(camera_intrinsics.K, camera_intrinsics.D)
-    return (
-        model_tuple,
-        result.frame_id_to_extrinsics,
-        result.frame_ids_failed,
-        intrinsics_tuple,
-    )
+    return optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment)

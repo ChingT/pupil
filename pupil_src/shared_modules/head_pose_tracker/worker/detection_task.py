@@ -21,6 +21,25 @@ class Empty(object):
     pass
 
 
+def get_markers_data(detection, img_size, timestamp):
+    return {
+        "id": detection.tag_id,
+        "verts": detection.corners[::-1].tolist(),
+        "centroid": normalize(detection.center, img_size, flip_y=True),
+        "timestamp": timestamp,
+    }
+
+
+def _detect(frame):
+    image = frame.gray
+    apriltag_detections = apriltag_detector.detect(image)
+    img_size = image.shape[::-1]
+    return [
+        get_markers_data(detection, img_size, frame.timestamp)
+        for detection in apriltag_detections
+    ]
+
+
 def offline_detection(
     source_path,
     timestamps,
@@ -40,25 +59,6 @@ def offline_detection(
     shared_memory.progress = (frame_indices[0] - frame_start + 1) / frame_count
     yield None
 
-    def _detect(image):
-        apriltag_detections = apriltag_detector.detect(image)
-        if apriltag_detections:
-            img_size = image.shape[::-1]
-            serialized_dicts = [
-                fm.Serialized_Dict(
-                    python_dict={
-                        "id": detection.tag_id,
-                        "verts": detection.corners[::-1].tolist(),
-                        "centroid": normalize(detection.center, img_size, flip_y=True),
-                        "timestamp": timestamp,
-                    }
-                )
-                for detection in apriltag_detections
-            ]
-            return len(apriltag_detections), serialized_dicts
-        else:
-            return 0, [fm.Serialized_Dict(python_dict={})]
-
     src = video_capture.File_Source(Empty(), source_path, timing=None)
 
     queue = []
@@ -67,8 +67,15 @@ def offline_detection(
         timestamp = timestamps[frame_index]
         src.seek_to_frame(frame_index)
         frame = src.get_frame()
-        num_markers, markers = _detect(frame.gray)
-        queue.append((timestamp, markers, frame_index, num_markers))
+
+        detections = _detect(frame)
+        if detections:
+            serialized_dicts = [
+                fm.Serialized_Dict(detection) for detection in detections
+            ]
+            queue.append((timestamp, serialized_dicts, frame_index, len(detections)))
+        else:
+            queue.append((timestamp, [fm.Serialized_Dict({})], frame_index, 0))
 
         if len(queue) >= batch_size:
             data = queue[:batch_size]
@@ -79,15 +86,4 @@ def offline_detection(
 
 
 def online_detection(frame):
-    image = frame.gray
-    apriltag_detections = apriltag_detector.detect(image)
-    img_size = image.shape[::-1]
-    return [
-        {
-            "id": detection.tag_id,
-            "verts": detection.corners[::-1].tolist(),
-            "centroid": normalize(detection.center, img_size, flip_y=True),
-            "timestamp": frame.timestamp,
-        }
-        for detection in apriltag_detections
-    ]
+    return _detect(frame)

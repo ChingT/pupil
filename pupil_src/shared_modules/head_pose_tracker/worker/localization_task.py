@@ -9,9 +9,32 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import numpy as np
+
 import file_methods as fm
 import player_methods as pm
 from head_pose_tracker.function import solvepnp, utils
+
+
+def get_pose_data(extrinsics, timestamp):
+    if extrinsics is not None:
+        camera_poses = utils.get_camera_pose(extrinsics)
+        camera_pose_matrix = utils.convert_extrinsic_to_matrix(camera_poses)
+        return {
+            "camera_extrinsics": extrinsics.tolist(),
+            "camera_poses": camera_poses.tolist(),
+            "camera_trace": camera_poses[3:6].tolist(),
+            "camera_pose_matrix": camera_pose_matrix.tolist(),
+            "timestamp": timestamp,
+        }
+    else:
+        return {
+            "camera_extrinsics": None,
+            "camera_poses": [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
+            "camera_trace": [np.nan, np.nan, np.nan],
+            "camera_pose_matrix": None,
+            "timestamp": timestamp,
+        }
 
 
 def offline_localization(
@@ -24,21 +47,6 @@ def offline_localization(
     shared_memory,
 ):
     batch_size = 300
-
-    def get_camera_pose_data(extrinsics, ts, markers):
-        camera_poses = utils.get_camera_pose(extrinsics)
-        camera_pose_matrix = utils.convert_extrinsic_to_matrix(camera_poses)
-
-        return fm.Serialized_Dict(
-            python_dict={
-                "camera_extrinsics": extrinsics.tolist(),
-                "camera_poses": camera_poses.tolist(),
-                "camera_trace": camera_poses[3:6].tolist(),
-                "camera_pose_matrix": camera_pose_matrix.tolist(),
-                "timestamp": ts,
-                "marker_ids": [marker["id"] for marker in markers],
-            }
-        )
 
     def find_markers_in_frame(index):
         window = pm.enclosing_window(timestamps, index)
@@ -70,10 +78,9 @@ def offline_localization(
                 not_localized_count = 0
 
                 timestamp = timestamps[frame_index]
-                camera_pose_data = get_camera_pose_data(
-                    camera_extrinsics, timestamp, markers_in_frame
-                )
-                queue.append((timestamp, camera_pose_data))
+                pose_data = get_pose_data(camera_extrinsics, timestamp)
+                serialized_dict = fm.Serialized_Dict(pose_data)
+                queue.append((timestamp, serialized_dict))
 
                 if len(queue) >= batch_size:
                     data = queue[:batch_size]
@@ -90,28 +97,17 @@ def offline_localization(
 
 
 def online_localization(
-    markers_in_frame,
-    marker_id_to_extrinsics,
+    timestamp,
+    marker_location_storage,
+    markers_3d_model_storage,
     camera_localizer_storage,
     camera_intrinsics,
 ):
     camera_extrinsics = solvepnp.calculate(
         camera_intrinsics,
-        markers_in_frame,
-        marker_id_to_extrinsics,
+        marker_location_storage.current_markers,
+        markers_3d_model_storage.marker_id_to_extrinsics,
         camera_localizer_storage.current_pose["camera_extrinsics"],
         min_n_markers_per_frame=1,
     )
-
-    if camera_extrinsics is not None:
-        camera_poses = utils.get_camera_pose(camera_extrinsics)
-        camera_pose_matrix = utils.convert_extrinsic_to_matrix(camera_poses)
-        pose_data = {
-            "camera_extrinsics": camera_extrinsics.tolist(),
-            "camera_poses": camera_poses.tolist(),
-            "camera_trace": camera_poses[3:6].tolist(),
-            "camera_pose_matrix": camera_pose_matrix.tolist(),
-        }
-    else:
-        pose_data = camera_localizer_storage.none_pose_data
-    return pose_data
+    return get_pose_data(camera_extrinsics, timestamp)

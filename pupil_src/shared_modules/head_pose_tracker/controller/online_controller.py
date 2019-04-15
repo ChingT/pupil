@@ -46,38 +46,32 @@ class OnlineController:
     def _on_recent_events(self, events):
         if "frame" in events:
             self._calculate_current_markers(events["frame"])
-            self._calculate_current_pose()
+            self._calculate_current_pose(events["frame"])
             self._save_key_markers()
 
     def _calculate_current_markers(self, frame):
         self._marker_location_storage.current_markers = worker.online_detection(frame)
 
-    def _calculate_current_pose(self):
-        if self._markers_3d_model_storage.calculated:
-            self._camera_localizer_storage.current_pose = worker.online_localization(
-                self._marker_location_storage.current_markers,
-                self._markers_3d_model_storage.marker_id_to_extrinsics,
-                self._camera_localizer_storage,
-                self._camera_intrinsics,
-            )
-        else:
-            self._camera_localizer_storage.current_pose = (
-                self._camera_localizer_storage.none_pose_data
-            )
+    def _calculate_current_pose(self, frame):
+        self._camera_localizer_storage.current_pose = worker.online_localization(
+            frame.timestamp,
+            self._marker_location_storage,
+            self._markers_3d_model_storage,
+            self._camera_localizer_storage,
+            self._camera_intrinsics,
+        )
 
     def _save_key_markers(self):
-        if not self._general_settings.optimize_markers_3d_model:
-            return
-        self._markers_3d_model_storage.all_key_markers += pick_key_markers.run(
-            self._marker_location_storage.current_markers,
-            self._markers_3d_model_storage.all_key_markers,
-        )
+        if self._general_settings.optimize_markers_3d_model:
+            self._markers_3d_model_storage.all_key_markers += pick_key_markers.run(
+                self._marker_location_storage.current_markers,
+                self._markers_3d_model_storage.all_key_markers,
+            )
 
     def _calculate_markers_3d_model(self):
         def on_completed(result):
-            if result:
-                self._update_result(result)
-                self._markers_3d_model_storage.save_plmodel_to_disk()
+            self._update_result(result)
+
             # Start again when the task is done
             self._calculate_markers_3d_model()
 
@@ -104,11 +98,14 @@ class OnlineController:
         )
 
     def _update_result(self, result):
+        if not result:
+            return
+
         model_tuple, frame_id_to_extrinsics, frame_ids_failed, intrinsics_tuple = result
         self._markers_3d_model_storage.update_model(*model_tuple)
-
         self._markers_3d_model_storage.frame_id_to_extrinsics = frame_id_to_extrinsics
         self._markers_3d_model_storage.discard_failed_key_markers(frame_ids_failed)
+        self._markers_3d_model_storage.save_plmodel_to_disk()
 
         self._camera_intrinsics.update_camera_matrix(intrinsics_tuple.camera_matrix)
         self._camera_intrinsics.update_dist_coefs(intrinsics_tuple.dist_coefs)

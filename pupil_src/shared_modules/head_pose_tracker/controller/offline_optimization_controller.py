@@ -18,13 +18,13 @@ from observable import Observable
 logger = logging.getLogger(__name__)
 
 
-class OfflineMarkers3DModelController(Observable):
+class OfflineOptimizationController(Observable):
     def __init__(
         self,
-        marker_location_controller,
+        detection_controller,
         general_settings,
-        marker_location_storage,
-        markers_3d_model_storage,
+        detection_storage,
+        optimization_storage,
         camera_intrinsics,
         task_manager,
         get_current_trim_mark_range,
@@ -32,8 +32,8 @@ class OfflineMarkers3DModelController(Observable):
         rec_dir,
     ):
         self._general_settings = general_settings
-        self._marker_location_storage = marker_location_storage
-        self._markers_3d_model_storage = markers_3d_model_storage
+        self._detection_storage = detection_storage
+        self._optimization_storage = optimization_storage
         self._camera_intrinsics = camera_intrinsics
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
@@ -42,12 +42,12 @@ class OfflineMarkers3DModelController(Observable):
 
         self._task = None
 
-        if self._markers_3d_model_storage.calculated:
+        if self._optimization_storage.calculated:
             self.status = "calculated"
         else:
             self.status = self.default_status
 
-        marker_location_controller.add_observer(
+        detection_controller.add_observer(
             "on_marker_detection_ended", self._on_marker_detection_ended
         )
 
@@ -57,12 +57,12 @@ class OfflineMarkers3DModelController(Observable):
 
     def _on_marker_detection_ended(self):
         if (
-            self._markers_3d_model_storage.is_from_same_recording
-            and not self._markers_3d_model_storage.calculated
+            self._optimization_storage.is_from_same_recording
+            and not self._optimization_storage.calculated
         ):
             self.calculate()
         else:
-            self.on_markers_3d_model_optimization_had_completed_before()
+            self.on_optimization_had_completed_before()
 
     def calculate(self):
         self._reset()
@@ -70,7 +70,7 @@ class OfflineMarkers3DModelController(Observable):
 
     def _reset(self):
         self.cancel_task()
-        self._markers_3d_model_storage.set_to_default_values()
+        self._optimization_storage.set_to_default_values()
         self.status = self.default_status
 
     def _create_optimization_task(self):
@@ -79,34 +79,32 @@ class OfflineMarkers3DModelController(Observable):
             self.status = "{:.0f}% completed".format(self._task.progress * 100)
 
         def on_completed(_):
-            if self._markers_3d_model_storage.calculated:
+            if self._optimization_storage.calculated:
                 self._camera_intrinsics.save(self._rec_dir)
                 self.status = "successfully completed"
-                self.on_markers_3d_model_optimization_completed()
+                self.on_optimization_completed()
             else:
                 self.status = "failed"
             logger.info("markers 3d model optimization '{}' ".format(self.status))
 
-            self._markers_3d_model_storage.save_plmodel_to_disk()
+            self._optimization_storage.save_plmodel_to_disk()
 
         self._task = self._create_task()
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
-        self._task.add_observer(
-            "on_started", self.on_markers_3d_model_optimization_started
-        )
+        self._task.add_observer("on_started", self.on_optimization_started)
         logger.info("Start markers 3d model optimization")
         self.status = "0% completed"
 
     def _create_task(self):
         args = (
             self._all_timestamps,
-            self._general_settings.markers_3d_model_frame_index_range,
+            self._general_settings.optimization_frame_index_range,
             self._general_settings.user_defined_origin_marker_id,
             self._general_settings.optimize_camera_intrinsics,
-            self._marker_location_storage.markers_bisector,
-            self._marker_location_storage.frame_index_to_num_markers,
+            self._detection_storage.markers_bisector,
+            self._detection_storage.frame_index_to_num_markers,
             self._camera_intrinsics,
         )
         return self._task_manager.create_background_task(
@@ -118,7 +116,7 @@ class OfflineMarkers3DModelController(Observable):
 
     def _update_result(self, result):
         model_tuple, intrinsics_tuple = result
-        self._markers_3d_model_storage.update_model(*model_tuple)
+        self._optimization_storage.update_model(*model_tuple)
         self._camera_intrinsics.update_camera_matrix(intrinsics_tuple.camera_matrix)
         self._camera_intrinsics.update_dist_coefs(intrinsics_tuple.dist_coefs)
 
@@ -130,16 +128,16 @@ class OfflineMarkers3DModelController(Observable):
     def is_running_task(self):
         return self._task is not None and self._task.running
 
-    def on_markers_3d_model_optimization_had_completed_before(self):
+    def on_optimization_had_completed_before(self):
         pass
 
-    def on_markers_3d_model_optimization_started(self):
+    def on_optimization_started(self):
         pass
 
-    def on_markers_3d_model_optimization_completed(self):
+    def on_optimization_completed(self):
         pass
 
     def set_range_from_current_trim_marks(self):
-        self._general_settings.markers_3d_model_frame_index_range = (
+        self._general_settings.optimization_frame_index_range = (
             self._get_current_trim_mark_range()
         )

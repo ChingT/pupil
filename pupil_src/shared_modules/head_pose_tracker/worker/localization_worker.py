@@ -98,16 +98,16 @@ def offline_localization(
 
 def online_localization(
     timestamp,
-    marker_location_storage,
-    markers_3d_model_storage,
-    camera_localizer_storage,
+    detection_storage,
+    optimization_storage,
+    localization_storage,
     camera_intrinsics,
 ):
     camera_extrinsics = solvepnp.calculate(
         camera_intrinsics,
-        marker_location_storage.current_markers,
-        markers_3d_model_storage.marker_id_to_extrinsics,
-        camera_localizer_storage.current_pose["camera_extrinsics"],
+        detection_storage.current_markers,
+        optimization_storage.marker_id_to_extrinsics,
+        localization_storage.current_pose["camera_extrinsics"],
         min_n_markers_per_frame=1,
     )
     return get_pose_data(camera_extrinsics, timestamp)

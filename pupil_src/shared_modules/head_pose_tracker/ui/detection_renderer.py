@@ -17,21 +17,17 @@ from pyglui.pyfontstash import fontstash
 from pyglui.ui import get_opensans_font_path
 
 
-class MarkerLocationRenderer:
+class DetectionRenderer:
     """
     Renders 2d marker locations in the world video.
     """
 
     def __init__(
-        self,
-        general_settings,
-        marker_location_storage,
-        markers_3d_model_storage,
-        plugin,
+        self, general_settings, detection_storage, optimization_storage, plugin
     ):
         self._general_settings = general_settings
-        self._marker_location_storage = marker_location_storage
-        self._markers_3d_model_storage = markers_3d_model_storage
+        self._detection_storage = detection_storage
+        self._optimization_storage = optimization_storage
 
         self._square_definition = np.array(
             [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32
@@ -54,13 +50,13 @@ class MarkerLocationRenderer:
         self._render()
 
     def _render(self):
-        current_markers = self._marker_location_storage.current_markers
+        current_markers = self._detection_storage.current_markers
         marker_id_optimized = self._get_marker_id_optimized()
         self._render_markers(current_markers, marker_id_optimized)
 
     def _get_marker_id_optimized(self):
         try:
-            return self._markers_3d_model_storage.marker_id_to_extrinsics.keys()
+            return self._optimization_storage.marker_id_to_extrinsics.keys()
         except TypeError:
             return []
 

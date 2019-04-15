@@ -15,13 +15,13 @@ from pyglui import ui
 class OnlineHeadPoseTrackerMenu:
     def __init__(
         self,
-        markers_3d_model_menu,
-        camera_localizer_menu,
+        optimization_menu,
+        localization_menu,
         head_pose_tracker_3d_renderer,
         plugin,
     ):
-        self._markers_3d_model_menu = markers_3d_model_menu
-        self._camera_localizer_menu = camera_localizer_menu
+        self._optimization_menu = optimization_menu
+        self._localization_menu = localization_menu
         self._head_pose_tracker_3d_renderer = head_pose_tracker_3d_renderer
         self._plugin = plugin
 
@@ -34,11 +34,11 @@ class OnlineHeadPoseTrackerMenu:
 
         self._plugin.menu.extend(self._render_on_top_menu())
 
-        self._markers_3d_model_menu.render()
-        self._plugin.menu.append(self._markers_3d_model_menu.menu)
+        self._optimization_menu.render()
+        self._plugin.menu.append(self._optimization_menu.menu)
 
-        self._camera_localizer_menu.render()
-        self._plugin.menu.append(self._camera_localizer_menu.menu)
+        self._localization_menu.render()
+        self._plugin.menu.append(self._localization_menu.menu)
 
     def _on_deinit_ui(self):
         self._plugin.remove_menu()
@@ -54,7 +54,7 @@ class OnlineHeadPoseTrackerMenu:
         return ui.Info_Text(
             "This plugin allows you to track camera poses in relation to the "
             "printed markers in the scene. \n "
-            "First, marker locations are detected. "
+            "First, marker are detected. "
             "Second, based on the detections, markers 3d model is built. "
             "Third, camera localizations is calculated."
         )
@@ -71,13 +71,13 @@ class OnlineHeadPoseTrackerMenu:
         self._head_pose_tracker_3d_renderer.switch_visualization_window(new_value)
 
 
-class OnlineMarkers3DModelMenu:
+class OnlineOptimizationMenu:
     menu_label = "Markers 3D Model"
 
-    def __init__(self, controller, general_settings, markers_3d_model_storage):
+    def __init__(self, controller, general_settings, optimization_storage):
         self._controller = controller
         self._general_settings = general_settings
-        self._markers_3d_model_storage = markers_3d_model_storage
+        self._optimization_storage = optimization_storage
 
         self.menu = ui.Growing_Menu(self.menu_label)
         self.menu.collapsed = False
@@ -87,9 +87,9 @@ class OnlineMarkers3DModelMenu:
         self._render_custom_ui()
 
     def _render_custom_ui(self):
-        self.menu.elements.extend(self._render_ui_markers_3d_model())
+        self.menu.elements.extend(self._render_ui())
 
-    def _render_ui_markers_3d_model(self):
+    def _render_ui(self):
         menu = [
             self._create_name_input(),
             self._create_optimize_markers_3d_model_switch(),
@@ -103,7 +103,7 @@ class OnlineMarkers3DModelMenu:
     def _create_name_input(self):
         return ui.Text_Input(
             "name",
-            self._markers_3d_model_storage,
+            self._optimization_storage,
             label="Name",
             setter=self._on_name_change,
         )
@@ -129,7 +129,7 @@ class OnlineMarkers3DModelMenu:
     def _create_origin_marker_id_display(self):
         return ui.Text_Input(
             "origin_marker_id",
-            self._markers_3d_model_storage,
+            self._optimization_storage,
             label="origin marker id",
             getter=self._on_get_origin_marker_id,
             setter=lambda _: _,
@@ -144,11 +144,11 @@ class OnlineMarkers3DModelMenu:
         return ui.Button("reset", function=self._controller.reset)
 
     def _on_name_change(self, new_name):
-        self._markers_3d_model_storage.rename(new_name)
+        self._optimization_storage.rename(new_name)
         self.render()
 
     def _on_get_origin_marker_id(self):
-        origin_marker_id = self._markers_3d_model_storage.origin_marker_id
+        origin_marker_id = self._optimization_storage.origin_marker_id
         return str(origin_marker_id)
 
     def _on_optimize_markers_3d_model_switched(self, new_value):
@@ -156,12 +156,12 @@ class OnlineMarkers3DModelMenu:
         self.render()
 
 
-class OnlineCameraLocalizerMenu:
+class OnlineLocalizationMenu:
     menu_label = "Camera Localizer"
 
-    def __init__(self, general_settings, camera_localizer_storage):
+    def __init__(self, general_settings, localization_storage):
         self._general_settings = general_settings
-        self._camera_localizer_storage = camera_localizer_storage
+        self._localization_storage = localization_storage
 
         self.menu = ui.Growing_Menu(self.menu_label)
         self.menu.collapsed = False

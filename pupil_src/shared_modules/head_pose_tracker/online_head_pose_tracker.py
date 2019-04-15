@@ -39,52 +39,50 @@ class Online_Head_Pose_Tracker(Plugin, Observable):
         self._online_settings_storage = storage.OnlineSettingsStorage(
             self.g_pool.user_dir, plugin=self
         )
-        self._marker_location_storage = storage.OnlineMarkerLocationStorage()
-        self._markers_3d_model_storage = storage.Markers3DModelStorage(
+        self._detection_storage = storage.OnlineDetectionStorage()
+        self._optimization_storage = storage.OptimizationStorage(
             self.g_pool.user_dir, plugin=self
         )
-        self._camera_localizer_storage = storage.OnlineCameraLocalizerStorage()
+        self._localization_storage = storage.OnlineLocalizationStorage()
 
     def _setup_controllers(self):
         self._controller = controller.OnlineController(
             self._online_settings_storage,
-            self._marker_location_storage,
-            self._markers_3d_model_storage,
-            self._camera_localizer_storage,
+            self._detection_storage,
+            self._optimization_storage,
+            self._localization_storage,
             self.g_pool.capture.intrinsics,
             self._task_manager,
-            user_dir=self.g_pool.user_dir,
+            self.g_pool.user_dir,
             plugin=self,
         )
 
     def _setup_renderers(self):
-        self._marker_location_renderer = plugin_ui.MarkerLocationRenderer(
+        self._detection_renderer = plugin_ui.DetectionRenderer(
             self._online_settings_storage,
-            self._marker_location_storage,
-            self._markers_3d_model_storage,
+            self._detection_storage,
+            self._optimization_storage,
             plugin=self,
         )
         self._head_pose_tracker_3d_renderer = plugin_ui.HeadPoseTracker3DRenderer(
             self._online_settings_storage,
-            self._marker_location_storage,
-            self._markers_3d_model_storage,
-            self._camera_localizer_storage,
+            self._detection_storage,
+            self._optimization_storage,
+            self._localization_storage,
             self.g_pool.capture.intrinsics,
             plugin=self,
         )
 
     def _setup_menus(self):
-        self._markers_3d_model_menu = plugin_ui.OnlineMarkers3DModelMenu(
-            self._controller,
-            self._online_settings_storage,
-            self._markers_3d_model_storage,
+        self._optimization_menu = plugin_ui.OnlineOptimizationMenu(
+            self._controller, self._online_settings_storage, self._optimization_storage
         )
-        self._camera_localizer_menu = plugin_ui.OnlineCameraLocalizerMenu(
-            self._online_settings_storage, self._camera_localizer_storage
+        self._localization_menu = plugin_ui.OnlineLocalizationMenu(
+            self._online_settings_storage, self._localization_storage
         )
         self._head_pose_tracker_menu = plugin_ui.OnlineHeadPoseTrackerMenu(
-            self._markers_3d_model_menu,
-            self._camera_localizer_menu,
+            self._optimization_menu,
+            self._localization_menu,
             self._head_pose_tracker_3d_renderer,
             plugin=self,
         )

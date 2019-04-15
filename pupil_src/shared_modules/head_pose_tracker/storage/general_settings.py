@@ -83,9 +83,9 @@ class OfflineSettingsStorage(SettingsStorage):
 
         self._get_recording_index_range = get_recording_index_range
 
-        self.marker_location_frame_index_range = self._get_recording_index_range()
-        self.markers_3d_model_frame_index_range = self._get_recording_index_range()
-        self.camera_localizer_frame_index_range = self._get_recording_index_range()
+        self.detection_frame_index_range = self._get_recording_index_range()
+        self.optimization_frame_index_range = self._get_recording_index_range()
+        self.localization_frame_index_range = self._get_recording_index_range()
         self.user_defined_origin_marker_id = None
         self.optimize_camera_intrinsics = False
         self.show_marker_id = False
@@ -95,9 +95,9 @@ class OfflineSettingsStorage(SettingsStorage):
 
     def _data_from_tuple(self, settings_tuple):
         (
-            self.marker_location_frame_index_range,
-            self.markers_3d_model_frame_index_range,
-            self.camera_localizer_frame_index_range,
+            self.detection_frame_index_range,
+            self.optimization_frame_index_range,
+            self.localization_frame_index_range,
             self.user_defined_origin_marker_id,
             self.optimize_camera_intrinsics,
             self.show_marker_id,
@@ -107,9 +107,9 @@ class OfflineSettingsStorage(SettingsStorage):
     @property
     def _data_as_tuple(self):
         return (
-            self.marker_location_frame_index_range,
-            self.markers_3d_model_frame_index_range,
-            self.camera_localizer_frame_index_range,
+            self.detection_frame_index_range,
+            self.optimization_frame_index_range,
+            self.localization_frame_index_range,
             self.user_defined_origin_marker_id,
             self.optimize_camera_intrinsics,
             self.show_marker_id,

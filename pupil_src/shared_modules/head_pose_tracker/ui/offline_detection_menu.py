@@ -12,23 +12,21 @@ See COPYING and COPYING.LESSER for license details.
 from pyglui import ui
 
 
-class OfflineMarkerLocationMenu:
+class OfflineDetectionMenu:
     menu_label = "Marker Detection"
 
-    def __init__(
-        self, marker_location_controller, general_settings, index_range_as_str
-    ):
-        self._marker_location_controller = marker_location_controller
+    def __init__(self, detection_controller, general_settings, index_range_as_str):
+        self._detection_controller = detection_controller
         self._general_settings = general_settings
         self._index_range_as_str = index_range_as_str
 
         self.menu = ui.Growing_Menu(self.menu_label)
         self.menu.collapsed = False
 
-        marker_location_controller.add_observer(
+        detection_controller.add_observer(
             "on_marker_detection_started", self._on_marker_detection_started
         )
-        marker_location_controller.add_observer(
+        detection_controller.add_observer(
             "on_marker_detection_ended", self._on_marker_detection_ended
         )
 
@@ -46,7 +44,7 @@ class OfflineMarkerLocationMenu:
 
     def _create_range_selector(self):
         range_string = "Detect Markers in: " + self._index_range_as_str(
-            self._general_settings.marker_location_frame_index_range
+            self._general_settings.detection_frame_index_range
         )
         return ui.Button(
             outer_label=range_string,
@@ -55,7 +53,7 @@ class OfflineMarkerLocationMenu:
         )
 
     def _create_toggle_marker_detection_button(self):
-        if self._marker_location_controller.is_running_task:
+        if self._detection_controller.is_running_task:
             return ui.Button("Cancel Detection", self._on_click_cancel_marker_detection)
         else:
             return ui.Button(
@@ -63,14 +61,14 @@ class OfflineMarkerLocationMenu:
             )
 
     def _on_set_index_range_from_trim_marks(self):
-        self._marker_location_controller.set_range_from_current_trim_marks()
+        self._detection_controller.set_range_from_current_trim_marks()
         self.render()
 
     def _on_click_start_marker_detection(self):
-        self._marker_location_controller.calculate()
+        self._detection_controller.calculate()
 
     def _on_click_cancel_marker_detection(self):
-        self._marker_location_controller.cancel_task()
+        self._detection_controller.cancel_task()
 
     def _on_marker_detection_started(self):
         self.render()

@@ -18,18 +18,18 @@ from observable import Observable
 logger = logging.getLogger(__name__)
 
 
-class OfflineMarkerLocationController(Observable):
+class OfflineDetectionController(Observable):
     def __init__(
         self,
         general_settings,
-        marker_location_storage,
+        detection_storage,
         task_manager,
         get_current_trim_mark_range,
         all_timestamps,
         source_path,
     ):
         self._general_settings = general_settings
-        self._marker_location_storage = marker_location_storage
+        self._detection_storage = detection_storage
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
         self._all_timestamps = all_timestamps
@@ -48,12 +48,12 @@ class OfflineMarkerLocationController(Observable):
                 self._insert_markers_bisector(data_pairs)
 
         def on_completed(_):
-            self._marker_location_storage.save_pldata_to_disk()
+            self._detection_storage.save_pldata_to_disk()
             logger.info("marker detection completed")
             self.on_marker_detection_ended()
 
         def on_canceled_or_killed():
-            self._marker_location_storage.save_pldata_to_disk()
+            self._detection_storage.save_pldata_to_disk()
             logger.info("marker detection canceled")
             self.on_marker_detection_ended()
 
@@ -69,8 +69,8 @@ class OfflineMarkerLocationController(Observable):
         args = (
             self._source_path,
             self._all_timestamps,
-            self._general_settings.marker_location_frame_index_range,
-            self._marker_location_storage.frame_index_to_num_markers,
+            self._general_settings.detection_frame_index_range,
+            self._detection_storage.frame_index_to_num_markers,
         )
         return self._task_manager.create_background_task(
             name="marker detection",
@@ -82,8 +82,8 @@ class OfflineMarkerLocationController(Observable):
     def _insert_markers_bisector(self, data_pairs):
         for timestamp, markers, frame_index, num_markers in data_pairs:
             for marker in markers:
-                self._marker_location_storage.markers_bisector.insert(timestamp, marker)
-            self._marker_location_storage.frame_index_to_num_markers[
+                self._detection_storage.markers_bisector.insert(timestamp, marker)
+            self._detection_storage.frame_index_to_num_markers[
                 frame_index
             ] = num_markers
         self.on_marker_detection_yield()
@@ -101,7 +101,7 @@ class OfflineMarkerLocationController(Observable):
         return self._task.progress if self.is_running_task else 0.0
 
     def set_range_from_current_trim_marks(self):
-        self._general_settings.marker_location_frame_index_range = (
+        self._general_settings.detection_frame_index_range = (
             self._get_current_trim_mark_range()
         )
 

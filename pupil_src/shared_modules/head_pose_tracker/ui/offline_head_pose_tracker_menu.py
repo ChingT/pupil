@@ -15,15 +15,15 @@ from pyglui import ui
 class OfflineHeadPoseTrackerMenu:
     def __init__(
         self,
-        marker_location_menu,
-        markers_3d_model_menu,
-        camera_localizer_menu,
+        detection_menu,
+        optimization_menu,
+        localization_menu,
         head_pose_tracker_3d_renderer,
         plugin,
     ):
-        self._marker_location_menu = marker_location_menu
-        self._markers_3d_model_menu = markers_3d_model_menu
-        self._camera_localizer_menu = camera_localizer_menu
+        self._detection_menu = detection_menu
+        self._optimization_menu = optimization_menu
+        self._localization_menu = localization_menu
         self._head_pose_tracker_3d_renderer = head_pose_tracker_3d_renderer
         self._plugin = plugin
 
@@ -36,14 +36,14 @@ class OfflineHeadPoseTrackerMenu:
 
         self._plugin.menu.extend(self._render_on_top_menu())
 
-        self._marker_location_menu.render()
-        self._plugin.menu.append(self._marker_location_menu.menu)
+        self._detection_menu.render()
+        self._plugin.menu.append(self._detection_menu.menu)
 
-        self._markers_3d_model_menu.render()
-        self._plugin.menu.append(self._markers_3d_model_menu.menu)
+        self._optimization_menu.render()
+        self._plugin.menu.append(self._optimization_menu.menu)
 
-        self._camera_localizer_menu.render()
-        self._plugin.menu.append(self._camera_localizer_menu.menu)
+        self._localization_menu.render()
+        self._plugin.menu.append(self._localization_menu.menu)
 
     def _on_deinit_ui(self):
         self._plugin.remove_menu()
@@ -59,7 +59,7 @@ class OfflineHeadPoseTrackerMenu:
         return ui.Info_Text(
             "This plugin allows you to track camera poses in relation to the "
             "printed markers in the scene. \n "
-            "First, marker locations are detected. "
+            "First, marker are detected. "
             "Second, based on the detections, markers 3d model is built. "
             "Third, camera localizations is calculated."
         )

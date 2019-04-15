@@ -65,7 +65,7 @@ class OfflineCameraLocalizer(CameraLocalizer):
             return pose_data
 
 
-class OfflineCameraLocalizerStorage(Observable, OfflineCameraLocalizer):
+class OfflineLocalizationStorage(Observable, OfflineCameraLocalizer):
     def __init__(
         self, rec_dir, plugin, get_current_frame_index, get_current_frame_window
     ):
@@ -110,10 +110,10 @@ class OfflineCameraLocalizerStorage(Observable, OfflineCameraLocalizer):
 
     @property
     def _pldata_file_name(self):
-        return "camera_poses"
+        return "camera_pose"
 
 
-class OnlineCameraLocalizerStorage(CameraLocalizer):
+class OnlineLocalizationStorage(CameraLocalizer):
     def __init__(self):
         super().__init__()
 

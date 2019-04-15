@@ -43,7 +43,7 @@ class OfflineMarkerLocation:
             return []
 
 
-class OfflineMarkerLocationStorage(Observable, OfflineMarkerLocation):
+class OfflineDetectionStorage(Observable, OfflineMarkerLocation):
     def __init__(
         self,
         rec_dir,
@@ -101,13 +101,13 @@ class OfflineMarkerLocationStorage(Observable, OfflineMarkerLocation):
 
     @property
     def _pldata_file_name(self):
-        return "marker_locations"
+        return "marker_detection"
 
     @property
     def _offline_data_folder_path(self):
         return os.path.join(self._rec_dir, "offline_data")
 
 
-class OnlineMarkerLocationStorage:
+class OnlineDetectionStorage:
     def __init__(self):
         self.current_markers = []

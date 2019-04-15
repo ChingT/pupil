@@ -19,23 +19,23 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
     def __init__(
         self,
         general_settings,
-        marker_location_storage,
-        markers_3d_model_storage,
-        camera_localizer_storage,
+        detection_storage,
+        optimization_storage,
+        localization_storage,
         camera_intrinsics,
         plugin,
     ):
         super().__init__(plugin)
 
         self._general_settings = general_settings
-        self._marker_location_storage = marker_location_storage
-        self._markers_3d_model_storage = markers_3d_model_storage
-        self._camera_localizer_storage = camera_localizer_storage
+        self._detection_storage = detection_storage
+        self._optimization_storage = optimization_storage
+        self._localization_storage = localization_storage
         self._camera_intrinsics = camera_intrinsics
         self._plugin = plugin
 
     def _render(self):
-        if not self._markers_3d_model_storage.calculated:
+        if not self._optimization_storage.calculated:
             return
 
         self._render_origin()
@@ -51,12 +51,12 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
 
     def _get_rotate_center_matrix(self):
         rotate_center_matrix = np.eye(4, dtype=np.float32)
-        rotate_center_matrix[0:3, 3] = -self._markers_3d_model_storage.centroid
+        rotate_center_matrix[0:3, 3] = -self._optimization_storage.centroid
         return rotate_center_matrix
 
     def _render_markers(self):
-        marker_id_to_points_3d = self._markers_3d_model_storage.marker_id_to_points_3d
-        current_markers = self._marker_location_storage.current_markers
+        marker_id_to_points_3d = self._optimization_storage.marker_id_to_points_3d
+        current_markers = self._detection_storage.current_markers
         current_marker_ids = [marker["id"] for marker in current_markers]
 
         for marker_id, points_3d in marker_id_to_points_3d.items():
@@ -70,17 +70,17 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
                 utils.render_text_in_3d_window(str(marker_id), points_3d[0], color)
 
     def _render_camera(self):
-        pose_data = self._camera_localizer_storage.current_pose
+        pose_data = self._localization_storage.current_pose
         camera_trace = pose_data["camera_trace"]
         camera_pose_matrix = pose_data["camera_pose_matrix"]
 
         # recent_camera_trace is updated no matter show_camera_trace is on or not
-        self._camera_localizer_storage.add_recent_camera_trace(camera_trace)
+        self._localization_storage.add_recent_camera_trace(camera_trace)
 
         color = (0.2, 0.2, 0.2, 0.1)
         if self._general_settings.show_camera_trace:
             utils.render_camera_trace(
-                self._camera_localizer_storage.recent_camera_trace, color
+                self._localization_storage.recent_camera_trace, color
             )
 
         if camera_pose_matrix is not None:

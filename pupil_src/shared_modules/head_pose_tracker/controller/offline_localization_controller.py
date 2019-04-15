@@ -18,23 +18,23 @@ from observable import Observable
 logger = logging.getLogger(__name__)
 
 
-class OfflineCameraLocalizerController(Observable):
+class OfflineLocalizationController(Observable):
     def __init__(
         self,
-        markers_3d_model_controller,
+        optimization_controller,
         general_settings,
-        marker_location_storage,
-        markers_3d_model_storage,
-        camera_localizer_storage,
+        detection_storage,
+        optimization_storage,
+        localization_storage,
         camera_intrinsics,
         task_manager,
         get_current_trim_mark_range,
         all_timestamps,
     ):
         self._general_settings = general_settings
-        self._marker_location_storage = marker_location_storage
-        self._markers_3d_model_storage = markers_3d_model_storage
-        self._camera_localizer_storage = camera_localizer_storage
+        self._detection_storage = detection_storage
+        self._optimization_storage = optimization_storage
+        self._localization_storage = localization_storage
         self._camera_intrinsics = camera_intrinsics
         self._task_manager = task_manager
         self._get_current_trim_mark_range = get_current_trim_mark_range
@@ -42,22 +42,20 @@ class OfflineCameraLocalizerController(Observable):
 
         self._task = None
 
-        if self._camera_localizer_storage.calculated:
+        if self._localization_storage.calculated:
             self.status = "calculated"
         else:
             self.status = self.default_status
 
-        markers_3d_model_controller.add_observer(
+        optimization_controller.add_observer(
             "on_markers_3d_model_optimization_had_completed_before",
             self._on_markers_3d_model_optimization_had_completed_before,
         )
-        markers_3d_model_controller.add_observer(
-            "on_markers_3d_model_optimization_started",
-            self._on_markers_3d_model_optimization_started,
+        optimization_controller.add_observer(
+            "on_optimization_started", self._on_optimization_started
         )
-        markers_3d_model_controller.add_observer(
-            "on_markers_3d_model_optimization_completed",
-            self._on_markers_3d_model_optimization_completed,
+        optimization_controller.add_observer(
+            "on_optimization_completed", self._on_optimization_completed
         )
 
     @property
@@ -65,13 +63,13 @@ class OfflineCameraLocalizerController(Observable):
         return "Not calculated yet"
 
     def _on_markers_3d_model_optimization_had_completed_before(self):
-        if not self._camera_localizer_storage.calculated:
+        if not self._localization_storage.calculated:
             self.calculate()
 
-    def _on_markers_3d_model_optimization_started(self):
+    def _on_optimization_started(self):
         self.reset()
 
-    def _on_markers_3d_model_optimization_completed(self):
+    def _on_optimization_completed(self):
         self.calculate()
 
     def calculate(self):
@@ -82,10 +80,10 @@ class OfflineCameraLocalizerController(Observable):
         self._create_localization_task()
 
     def _check_valid_markers_3d_model(self):
-        if not self._markers_3d_model_storage.calculated:
+        if not self._optimization_storage.calculated:
             error_message = (
                 "You first need to calculate markers 3d model '{}' before calculating "
-                "the camera localizer".format(self._markers_3d_model_storage.name)
+                "camera localization".format(self._optimization_storage.name)
             )
             self._abort_calculation(error_message)
             return False
@@ -95,11 +93,10 @@ class OfflineCameraLocalizerController(Observable):
         logger.error(error_message)
         self.status = error_message
         self.on_calculation_could_not_be_started()
-        # the pose from this localizer got cleared, so don't show it anymore
 
     def reset(self):
         self.cancel_task()
-        self._camera_localizer_storage.set_to_default_values()
+        self._localization_storage.set_to_default_values()
         self.status = self.default_status
 
     def _create_localization_task(self):
@@ -109,12 +106,12 @@ class OfflineCameraLocalizerController(Observable):
 
         def on_completed(_):
             self.status = "successfully completed"
-            self._camera_localizer_storage.save_pldata_to_disk()
+            self._localization_storage.save_pldata_to_disk()
             logger.info("camera localization completed")
             self.on_camera_localization_ended()
 
         def on_canceled_or_killed():
-            self._camera_localizer_storage.save_pldata_to_disk()
+            self._localization_storage.save_pldata_to_disk()
             logger.info("camera localization canceled")
             self.on_camera_localization_ended()
 
@@ -130,10 +127,10 @@ class OfflineCameraLocalizerController(Observable):
     def _create_task(self):
         args = (
             self._all_timestamps,
-            self._general_settings.camera_localizer_frame_index_range,
-            self._marker_location_storage.markers_bisector,
-            self._marker_location_storage.frame_index_to_num_markers,
-            self._markers_3d_model_storage.marker_id_to_extrinsics,
+            self._general_settings.localization_frame_index_range,
+            self._detection_storage.markers_bisector,
+            self._detection_storage.frame_index_to_num_markers,
+            self._optimization_storage.marker_id_to_extrinsics,
             self._camera_intrinsics,
         )
         return self._task_manager.create_background_task(
@@ -145,7 +142,7 @@ class OfflineCameraLocalizerController(Observable):
 
     def _insert_pose_bisector(self, data_pairs):
         for timestamp, pose in data_pairs:
-            self._camera_localizer_storage.pose_bisector.insert(timestamp, pose)
+            self._localization_storage.pose_bisector.insert(timestamp, pose)
         self.on_camera_localization_yield()
 
     def cancel_task(self):
@@ -161,7 +158,7 @@ class OfflineCameraLocalizerController(Observable):
         return self._task.progress if self.is_running_task else 0.0
 
     def set_range_from_current_trim_marks(self):
-        self._general_settings.camera_localizer_frame_index_range = (
+        self._general_settings.localization_frame_index_range = (
             self._get_current_trim_mark_range()
         )
 

@@ -114,7 +114,7 @@ class Markers3DModel:
             return np.array([0.0, 0.0, 0.0])
 
 
-class Markers3DModelStorage(Markers3DModel):
+class OptimizationStorage(Markers3DModel):
     _plmodel_suffix = "plmodel"
 
     def __init__(self, plmodel_dir, plugin, recording_uuid_current=None):
@@ -138,7 +138,7 @@ class Markers3DModelStorage(Markers3DModel):
 
     def _find_file_name(self):
         try:
-            markers_3d_model_files = [
+            plmodel_files = [
                 file_name
                 for file_name in os.listdir(self._plmodel_dir)
                 if file_name.endswith(self._plmodel_suffix)
@@ -146,14 +146,14 @@ class Markers3DModelStorage(Markers3DModel):
         except FileNotFoundError:
             return None
 
-        if len(markers_3d_model_files) == 0:
+        if len(plmodel_files) == 0:
             return None
-        elif len(markers_3d_model_files) > 1:
+        elif len(plmodel_files) > 1:
             logger.warning(
                 "There should be only one markers 3d model file in "
                 "{}".format(self._plmodel_dir)
             )
-        return os.path.splitext(markers_3d_model_files[0])[0]
+        return os.path.splitext(plmodel_files[0])[0]
 
     def save_plmodel_to_disk(self):
         #  for offline version          / for online version

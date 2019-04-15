@@ -10,21 +10,40 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import os
-import abc
 
 import file_methods as fm
 import player_methods as pm
 from observable import Observable
 
 
-class MarkerLocation(abc.ABC):
+class OfflineMarkerLocation:
+    def __init__(self, get_current_frame_index, get_current_frame_window):
+        self._get_current_frame_index = get_current_frame_index
+        self._get_current_frame_window = get_current_frame_window
+
+        self.markers_bisector = pm.Mutable_Bisector()
+        self.frame_index_to_num_markers = {}
+
     @property
-    @abc.abstractmethod
+    def calculated(self):
+        return bool(self.markers_bisector)
+
+    @property
     def current_markers(self):
-        pass
+        frame_index = self._get_current_frame_index()
+        try:
+            num_markers = self.frame_index_to_num_markers[frame_index]
+        except KeyError:
+            num_markers = 0
+
+        if num_markers:
+            frame_window = self._get_current_frame_window()
+            return self.markers_bisector.by_ts_window(frame_window)
+        else:
+            return []
 
 
-class OfflineMarkerLocationStorage(Observable, MarkerLocation):
+class OfflineMarkerLocationStorage(Observable, OfflineMarkerLocation):
     def __init__(
         self,
         rec_dir,
@@ -33,13 +52,10 @@ class OfflineMarkerLocationStorage(Observable, MarkerLocation):
         get_current_frame_index,
         get_current_frame_window,
     ):
+        super().__init__(get_current_frame_index, get_current_frame_window)
+
         self._rec_dir = rec_dir
         self._all_timestamps = all_timestamps.tolist()
-        self._get_current_frame_index = get_current_frame_index
-        self._get_current_frame_window = get_current_frame_window
-
-        self.markers_bisector = pm.Mutable_Bisector()
-        self.frame_index_to_num_markers = {}
 
         self.load_pldata_from_disk()
 
@@ -91,33 +107,7 @@ class OfflineMarkerLocationStorage(Observable, MarkerLocation):
     def _offline_data_folder_path(self):
         return os.path.join(self._rec_dir, "offline_data")
 
-    @property
-    def calculated(self):
-        return bool(self.markers_bisector)
 
-    @property
-    def current_markers(self):
-        frame_index = self._get_current_frame_index()
-        try:
-            num_markers = self.frame_index_to_num_markers[frame_index]
-        except KeyError:
-            num_markers = 0
-
-        if num_markers:
-            frame_window = self._get_current_frame_window()
-            return self.markers_bisector.by_ts_window(frame_window)
-        else:
-            return []
-
-
-class OnlineMarkerLocationStorage(MarkerLocation):
+class OnlineMarkerLocationStorage:
     def __init__(self):
         self.current_markers = []
-
-    @property
-    def current_markers(self):
-        return self._current_markers
-
-    @current_markers.setter
-    def current_markers(self, markers):
-        self._current_markers = markers

@@ -75,7 +75,9 @@ class Online_Head_Pose_Tracker(Plugin, Observable):
 
     def _setup_menus(self):
         self._markers_3d_model_menu = plugin_ui.OnlineMarkers3DModelMenu(
-            self._online_settings_storage, self._markers_3d_model_storage
+            self._controller,
+            self._online_settings_storage,
+            self._markers_3d_model_storage,
         )
         self._camera_localizer_menu = plugin_ui.OnlineCameraLocalizerMenu(
             self._online_settings_storage, self._camera_localizer_storage

@@ -9,9 +9,9 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import abc
 import logging
 import os
-import abc
 
 import file_methods as fm
 
@@ -24,8 +24,6 @@ class SettingsStorage(abc.ABC):
     def __init__(self, save_dir, plugin):
         self._save_dir = save_dir
         plugin.add_observer("cleanup", self._on_cleanup)
-
-        self.load_from_disk()
 
     def _on_cleanup(self):
         self.save_to_disk()
@@ -68,8 +66,8 @@ class SettingsStorage(abc.ABC):
     def _msgpack_file_path(self):
         return os.path.join(self._save_dir, self._msgpack_file_name)
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def as_tuple(self):
         pass
 
@@ -93,6 +91,8 @@ class OfflineSettingsStorage(SettingsStorage):
         self.show_marker_id = False
         self.show_camera_trace = True
 
+        self.load_from_disk()
+
     def _load_settings(
         self,
         marker_location_frame_index_range,
@@ -107,9 +107,9 @@ class OfflineSettingsStorage(SettingsStorage):
         self.markers_3d_model_frame_index_range = markers_3d_model_frame_index_range
         self.camera_localizer_frame_index_range = camera_localizer_frame_index_range
         self.user_defined_origin_marker_id = user_defined_origin_marker_id
-        self.optimize_camera_intrinsics = optimize_camera_intrinsics
-        self.show_marker_id = show_marker_id
-        self.show_camera_trace = show_camera_trace
+        self.optimize_camera_intrinsics = bool(optimize_camera_intrinsics)
+        self.show_marker_id = bool(show_marker_id)
+        self.show_camera_trace = bool(show_camera_trace)
 
     @property
     def as_tuple(self):
@@ -128,20 +128,29 @@ class OnlineSettingsStorage(SettingsStorage):
     def __init__(self, save_dir, plugin):
         super().__init__(save_dir, plugin)
 
+        self.optimize_markers_3d_model = True
         self.optimize_camera_intrinsics = False
         self.show_marker_id = False
         self.show_camera_trace = True
 
+        self.load_from_disk()
+
     def _load_settings(
-        self, optimize_camera_intrinsics, show_marker_id, show_camera_trace
+        self,
+        optimize_markers_3d_model,
+        optimize_camera_intrinsics,
+        show_marker_id,
+        show_camera_trace,
     ):
-        self.optimize_camera_intrinsics = optimize_camera_intrinsics
-        self.show_marker_id = show_marker_id
-        self.show_camera_trace = show_camera_trace
+        self.optimize_markers_3d_model = bool(optimize_markers_3d_model)
+        self.optimize_camera_intrinsics = bool(optimize_camera_intrinsics)
+        self.show_marker_id = bool(show_marker_id)
+        self.show_camera_trace = bool(show_camera_trace)
 
     @property
     def as_tuple(self):
         return (
+            self.optimize_markers_3d_model,
             self.optimize_camera_intrinsics,
             self.show_marker_id,
             self.show_camera_trace,

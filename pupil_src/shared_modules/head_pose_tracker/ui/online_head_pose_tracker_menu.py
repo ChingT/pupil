@@ -30,7 +30,7 @@ class OnlineHeadPoseTrackerMenu:
 
     def _on_init_ui(self):
         self._plugin.add_menu()
-        self._plugin.menu.label = "Offline Head Pose Tracker"
+        self._plugin.menu.label = "Online Head Pose Tracker"
 
         self._plugin.menu.extend(self._render_on_top_menu())
 
@@ -74,7 +74,8 @@ class OnlineHeadPoseTrackerMenu:
 class OnlineMarkers3DModelMenu:
     menu_label = "Markers 3D Model"
 
-    def __init__(self, general_settings, markers_3d_model_storage):
+    def __init__(self, controller, general_settings, markers_3d_model_storage):
+        self._controller = controller
         self._general_settings = general_settings
         self._markers_3d_model_storage = markers_3d_model_storage
 
@@ -91,9 +92,11 @@ class OnlineMarkers3DModelMenu:
     def _render_ui_markers_3d_model(self):
         menu = [
             self._create_name_input(),
+            self._create_optimize_markers_3d_model_switch(),
             self._create_optimize_camera_intrinsics_switch(),
             self._create_origin_marker_id_display(),
             self._create_show_marker_id_switch(),
+            self._create_reset_markers_3d_model_button(),
         ]
         return menu
 
@@ -105,18 +108,29 @@ class OnlineMarkers3DModelMenu:
             setter=self._on_name_change,
         )
 
-    def _create_optimize_camera_intrinsics_switch(self):
+    def _create_optimize_markers_3d_model_switch(self):
         return ui.Switch(
+            "optimize_markers_3d_model",
+            self._general_settings,
+            label="Build Markers 3D Model",
+            setter=self._on_optimize_markers_3d_model_switched,
+        )
+
+    def _create_optimize_camera_intrinsics_switch(self):
+        switch = ui.Switch(
             "optimize_camera_intrinsics",
             self._general_settings,
             label="Optimize camera intrinsics",
         )
+        if not self._general_settings.optimize_markers_3d_model:
+            switch.read_only = True
+        return switch
 
     def _create_origin_marker_id_display(self):
         return ui.Text_Input(
             "origin_marker_id",
             self._markers_3d_model_storage,
-            label="the origin marker id",
+            label="origin marker id",
             getter=self._on_get_origin_marker_id,
             setter=lambda _: _,
         )
@@ -126,6 +140,9 @@ class OnlineMarkers3DModelMenu:
             "show_marker_id", self._general_settings, label="Show Marker IDs"
         )
 
+    def _create_reset_markers_3d_model_button(self):
+        return ui.Button("reset", function=self._controller.reset)
+
     def _on_name_change(self, new_name):
         self._markers_3d_model_storage.rename(new_name)
         self.render()
@@ -133,6 +150,10 @@ class OnlineMarkers3DModelMenu:
     def _on_get_origin_marker_id(self):
         origin_marker_id = self._markers_3d_model_storage.origin_marker_id
         return str(origin_marker_id)
+
+    def _on_optimize_markers_3d_model_switched(self, new_value):
+        self._controller.switch_optimize_markers_3d_model(new_value)
+        self.render()
 
 
 class OnlineCameraLocalizerMenu:

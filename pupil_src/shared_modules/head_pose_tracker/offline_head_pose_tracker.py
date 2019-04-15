@@ -57,7 +57,7 @@ class Offline_Head_Pose_Tracker(Plugin, Observable):
         self._markers_3d_model_storage = storage.Markers3DModelStorage(
             self.g_pool.rec_dir,
             plugin=self,
-            current_recording_uuid=self._current_recording_uuid,
+            recording_uuid_current=self._current_recording_uuid,
         )
         self._camera_localizer_storage = storage.OfflineCameraLocalizerStorage(
             self.g_pool.rec_dir,

@@ -37,7 +37,8 @@ class OnlineController:
         self._task = None
 
         # first trigger
-        self._calculate_markers_3d_model()
+        if self._general_settings.optimize_markers_3d_model:
+            self._calculate_markers_3d_model()
 
         plugin.add_observer("recent_events", self._on_recent_events)
         plugin.add_observer("cleanup", self._on_cleanup)
@@ -47,7 +48,6 @@ class OnlineController:
             self._calculate_current_markers(events["frame"])
             self._calculate_current_pose()
             self._save_key_markers()
-            self._calculate_markers_3d_model()
 
     def _calculate_current_markers(self, frame):
         self._marker_location_storage.current_markers = worker.online_detection(frame)
@@ -64,6 +64,8 @@ class OnlineController:
         )
 
     def _save_key_markers(self):
+        if not self._general_settings.optimize_markers_3d_model:
+            return
         self._markers_3d_model_storage.all_key_markers += pick_key_markers.run(
             self._marker_location_storage.current_markers,
             self._markers_3d_model_storage.all_key_markers,
@@ -74,17 +76,13 @@ class OnlineController:
             if result:
                 self._update_result(result)
                 self._markers_3d_model_storage.save_plmodel_to_disk()
-            # Start again the task when finished
+            # Start again when the task is done
             self._calculate_markers_3d_model()
-
-        def on_canceled_or_killed():
-            self._markers_3d_model_storage.save_plmodel_to_disk()
 
         if self.is_running_task:
             return
         self._task = self._create_task()
         self._task.add_observer("on_completed", on_completed)
-        self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
 
     def _create_task(self):
@@ -123,3 +121,16 @@ class OnlineController:
 
     def _on_cleanup(self):
         self._camera_intrinsics.save(self._user_dir)
+
+    def reset(self):
+        self.cancel_task()
+        self._markers_3d_model_storage.set_to_default_values()
+        if self._general_settings.optimize_markers_3d_model:
+            self._calculate_markers_3d_model()
+
+    def switch_optimize_markers_3d_model(self, new_value):
+        self._general_settings.optimize_markers_3d_model = new_value
+        if new_value:
+            self._calculate_markers_3d_model()
+        else:
+            self.cancel_task()

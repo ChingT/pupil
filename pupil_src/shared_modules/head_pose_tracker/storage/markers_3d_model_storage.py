@@ -117,12 +117,12 @@ class Markers3DModel:
 class Markers3DModelStorage(Markers3DModel):
     _plmodel_suffix = "plmodel"
 
-    def __init__(self, plmodel_dir, plugin, current_recording_uuid=None):
+    def __init__(self, plmodel_dir, plugin, recording_uuid_current=None):
         super().__init__()
 
         self._plmodel_dir = plmodel_dir
-        self._current_recording_uuid = current_recording_uuid
-        self._saved_recording_uuid = current_recording_uuid
+        self._recording_uuid_current = recording_uuid_current
+        self._recording_uuid_loaded_from_plmodel = None
 
         file_name = self._find_file_name()
         if file_name:
@@ -164,15 +164,14 @@ class Markers3DModelStorage(Markers3DModel):
         dict_representation = {
             "version": self.version,
             "data": self.plmodel,
-            "recording_uuid": self._current_recording_uuid,
+            "recording_uuid": self._recording_uuid_current,
         }
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         fm.save_object(dict_representation, file_path)
 
     def _load_plmodel_from_disk(self):
         recording_uuid, data = self._load_from_file()
-        if recording_uuid:
-            self._saved_recording_uuid = recording_uuid
+        self._recording_uuid_loaded_from_plmodel = recording_uuid
         if data:
             try:
                 self.load_model(data)
@@ -234,4 +233,8 @@ class Markers3DModelStorage(Markers3DModel):
 
     @property
     def is_from_same_recording(self):
-        return self._saved_recording_uuid == self._current_recording_uuid
+        return (
+            self._recording_uuid_loaded_from_plmodel is None
+            or self._recording_uuid_current is None
+            or self._recording_uuid_loaded_from_plmodel == self._recording_uuid_current
+        )

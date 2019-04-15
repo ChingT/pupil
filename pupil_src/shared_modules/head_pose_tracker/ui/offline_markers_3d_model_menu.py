@@ -147,7 +147,7 @@ class OfflineMarkers3DModelMenu:
         return ui.Text_Input(
             "user_defined_origin_marker_id",
             self._general_settings,
-            label="the origin marker id",
+            label="origin marker id",
             getter=self._on_get_origin_marker_id,
             setter=lambda _: _,
         )

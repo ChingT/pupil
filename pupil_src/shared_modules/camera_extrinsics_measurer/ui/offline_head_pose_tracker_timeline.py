@@ -72,10 +72,13 @@ class DetectionTimeline:
         self.row = Row(label=self.timeline_label, elements=elements)
 
     def _create_detection_bars(self):
+        frame_index_to_num_markers = self._detection_storage.frame_index_to_num_markers[
+            "world"
+        ]
         frame_indices = [
             frame_index
-            for frame_index in self._detection_storage.frame_index_to_num_markers
-            if self._detection_storage.frame_index_to_num_markers[frame_index] > 0
+            for frame_index in frame_index_to_num_markers
+            if frame_index_to_num_markers[frame_index] > 0
         ]
         bar_positions = self._all_timestamps[frame_indices]
         return BarsElementTs(

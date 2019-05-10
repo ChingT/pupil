@@ -11,7 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 
 import numpy as np
 
-from camera_extrinsics_measurer import ui as plugin_ui
+from camera_extrinsics_measurer import ui as plugin_ui, function
 from camera_extrinsics_measurer.ui import gl_renderer_utils as utils
 
 
@@ -51,7 +51,7 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
         current_poses = self._localization_storage.current_pose
         color = (0.2, 0.2, 0.2, 0.1)
 
-        for camera_name in ["world", "eye0", "eye1"]:
+        for camera_name in function.utils.camera_name:
             camera_pose_matrix = current_poses[camera_name]["camera_pose_matrix"]
             if camera_pose_matrix is not None:
                 utils.set_rotate_center(np.eye(4, dtype=np.float32))

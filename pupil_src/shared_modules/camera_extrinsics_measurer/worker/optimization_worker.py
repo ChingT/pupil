@@ -64,11 +64,9 @@ def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment):
 
 def offline_optimization(
     timestamps,
-    frame_index_range,
     user_defined_origin_marker_id,
     marker_id_to_extrinsics_opt,
     optimize_camera_intrinsics,
-    optimize_marker_extrinsics,
     markers_bisector,
     frame_index_to_num_markers,
     camera_intrinsics,
@@ -78,7 +76,7 @@ def offline_optimization(
         window = pm.enclosing_window(timestamps, index)
         return markers_bisector.by_ts_window(window)
 
-    frame_start, frame_end = frame_index_range
+    frame_start, frame_end = 0, len(timestamps) - 1
     frame_indices_with_marker = [
         frame_index
         for frame_index, num_markers in frame_index_to_num_markers.items()
@@ -95,7 +93,7 @@ def offline_optimization(
     bg_storage.marker_id_to_extrinsics = marker_id_to_extrinsics_opt
 
     bundle_adjustment = BundleAdjustment(
-        camera_intrinsics, optimize_camera_intrinsics, optimize_marker_extrinsics
+        camera_intrinsics, optimize_camera_intrinsics, optimize_marker_extrinsics=False
     )
 
     for idx, frame_index in enumerate(frame_indices):

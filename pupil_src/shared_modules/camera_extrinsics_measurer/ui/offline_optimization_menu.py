@@ -43,14 +43,9 @@ class OfflineOptimizationMenu:
         self._render_ui()
 
     def _render_ui(self):
-        if self._optimization_storage.is_from_same_recording:
-            self.menu.elements.extend(
-                self._render_ui_markers_3d_model_from_same_recording()
-            )
-        else:
-            self.menu.elements.extend(
-                self._render_ui_markers_3d_model_from_another_recording()
-            )
+        self.menu.elements.extend(
+            self._render_ui_markers_3d_model_from_same_recording()
+        )
 
     def _render_ui_markers_3d_model_from_same_recording(self):
         menu = [
@@ -156,12 +151,7 @@ class OfflineOptimizationMenu:
         self.render()
 
     def _on_get_origin_marker_id(self):
-        if (
-            self._optimization_storage.is_from_same_recording
-            and self._general_settings.user_defined_origin_marker_id is not None
-        ):
-            origin_marker_id = self._general_settings.user_defined_origin_marker_id
-        elif self._optimization_storage.calculated:
+        if self._optimization_storage.calculated:
             origin_marker_id = self._optimization_storage.origin_marker_id
         else:
             origin_marker_id = None

@@ -18,6 +18,8 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+camera_name = ["world", "eye0", "eye1"]
+
 
 def split_extrinsics(extrinsics):
     extrinsics = np.array(extrinsics, dtype=np.float32)

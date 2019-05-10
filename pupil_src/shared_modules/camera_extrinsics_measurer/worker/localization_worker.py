@@ -39,7 +39,6 @@ def get_pose_data(extrinsics, timestamp):
 
 def offline_localization(
     timestamps,
-    frame_index_range,
     markers_bisector,
     frame_index_to_num_markers,
     marker_id_to_extrinsics,
@@ -55,7 +54,7 @@ def offline_localization(
     camera_extrinsics_prv = None
     not_localized_count = 0
 
-    frame_start, frame_end = frame_index_range
+    frame_start, frame_end = 0, len(timestamps) - 1
     frame_count = frame_end - frame_start + 1
     frame_indices = sorted(
         set(range(frame_start, frame_end + 1)) & set(frame_index_to_num_markers.keys())
@@ -71,7 +70,7 @@ def offline_localization(
                 markers_in_frame,
                 marker_id_to_extrinsics,
                 camera_extrinsics_prv=camera_extrinsics_prv,
-                min_n_markers_per_frame=3,
+                min_n_markers_per_frame=2,
             )
             if camera_extrinsics is not None:
                 camera_extrinsics_prv = camera_extrinsics

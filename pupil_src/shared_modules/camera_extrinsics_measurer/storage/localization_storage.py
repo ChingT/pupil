@@ -48,9 +48,7 @@ class OfflineCameraLocalization(Localization):
 
     def set_to_default_values(self):
         super().set_to_default_values()
-        self.pose_bisector = {
-            name: pm.Mutable_Bisector() for name in ["world", "eye0", "eye1"]
-        }
+        self.pose_bisector = {name: pm.Mutable_Bisector() for name in utils.camera_name}
 
     @property
     def calculated(self):
@@ -60,8 +58,7 @@ class OfflineCameraLocalization(Localization):
     def current_pose(self):
         frame_window = self._get_current_frame_window()
         current_poses = {
-            camera_name: self.none_pose_data
-            for camera_name in ["world", "eye0", "eye1"]
+            camera_name: self.none_pose_data for camera_name in utils.camera_name
         }
         try:
             pose_data_world = self.pose_bisector["world"].by_ts_window(frame_window)[0]
@@ -81,10 +78,9 @@ class OfflineCameraLocalization(Localization):
             )
 
         for camera_name in ["eye0", "eye1"]:
+            pose_datum = self.pose_bisector[camera_name].by_ts_window(frame_window)
             try:
-                pose_data = self.pose_bisector[camera_name].by_ts_window(frame_window)[
-                    0
-                ]
+                pose_data = pose_datum[len(pose_datum) // 2]
             except IndexError:
                 pass
             else:
@@ -121,7 +117,7 @@ class OfflineLocalizationStorage(Observable, OfflineCameraLocalization):
 
     def _save_to_file(self):
         file_name = self._pldata_file_name
-        for camera_name in ["world", "eye0", "eye1"]:
+        for camera_name in utils.camera_name:
             directory = self._offline_data_folder_path(camera_name)
             os.makedirs(directory, exist_ok=True)
             with fm.PLData_Writer(directory, file_name) as writer:
@@ -138,23 +134,16 @@ class OfflineLocalizationStorage(Observable, OfflineCameraLocalization):
 
     def _load_from_file(self):
         file_name = self._pldata_file_name
-        for camera_name in ["world", "eye0", "eye1"]:
+        for camera_name in utils.camera_name:
             directory = self._offline_data_folder_path(camera_name)
             pldata = fm.load_pldata_file(directory, file_name)
             self.pose_bisector[camera_name] = pm.Mutable_Bisector(
                 pldata.data, pldata.timestamps
             )
 
-    def _offline_data_folder_path(self, camera_name):
-        return os.path.join(self._rec_dir, "offline_data", camera_name)
-
     @property
     def _pldata_file_name(self):
         return "camera_pose"
 
-
-class OnlineLocalizationStorage(Localization):
-    def __init__(self):
-        super().__init__()
-
-        self.current_pose = self.none_pose_data
+    def _offline_data_folder_path(self, camera_name):
+        return os.path.join(self._rec_dir, "offline_data", camera_name)

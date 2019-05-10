@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 class OfflineOptimizationController(Observable):
     def __init__(
         self,
+        camera_name,
         detection_controller,
         general_settings,
         detection_storage,
@@ -31,6 +32,7 @@ class OfflineOptimizationController(Observable):
         all_timestamps,
         rec_dir,
     ):
+        self._camera_name = camera_name
         self._general_settings = general_settings
         self._detection_storage = detection_storage
         self._optimization_storage = optimization_storage
@@ -56,12 +58,7 @@ class OfflineOptimizationController(Observable):
         return "Not calculated yet"
 
     def _on_detection_ended(self):
-        # self.calculate()
-        # return
-        if (
-            self._optimization_storage.is_from_same_recording
-            and not self._optimization_storage.calculated
-        ):
+        if self._general_settings.optimize_camera_intrinsics:
             self.calculate()
         else:
             self.on_optimization_had_completed_before()
@@ -97,8 +94,6 @@ class OfflineOptimizationController(Observable):
                 self.status = "failed: " + reason
             logger.info("markers 3d model optimization '{}' ".format(self.status))
 
-            self._optimization_storage.save_plmodel_to_disk()
-
         self._task = self._create_task()
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)
@@ -110,13 +105,11 @@ class OfflineOptimizationController(Observable):
     def _create_task(self):
         args = (
             self._all_timestamps,
-            self._general_settings.optimization_frame_index_range,
             self._general_settings.user_defined_origin_marker_id,
             self._optimization_storage.marker_id_to_extrinsics,
             self._general_settings.optimize_camera_intrinsics,
-            False,
-            self._detection_storage.markers_bisector,
-            self._detection_storage.frame_index_to_num_markers,
+            self._detection_storage.markers_bisector[self._camera_name],
+            self._detection_storage.frame_index_to_num_markers[self._camera_name],
             self._camera_intrinsics,
         )
         return self._task_manager.create_background_task(

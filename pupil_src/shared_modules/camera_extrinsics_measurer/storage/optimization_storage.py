@@ -123,11 +123,10 @@ class Markers3DModel:
 class OptimizationStorage(Markers3DModel):
     _plmodel_suffix = "plmodel"
 
-    def __init__(self, plmodel_dir, plugin, recording_uuid_current=None):
+    def __init__(self, plmodel_dir):
         super().__init__()
 
         self._plmodel_dir = plmodel_dir
-        self._recording_uuid_current = recording_uuid_current
         self._recording_uuid_loaded_from_plmodel = None
 
         file_name = self._find_file_name()
@@ -136,11 +135,6 @@ class OptimizationStorage(Markers3DModel):
             self._load_plmodel_from_disk()
         else:
             self.name = "Default"
-
-        plugin.add_observer("cleanup", self._on_cleanup)
-
-    def _on_cleanup(self):
-        self.save_plmodel_to_disk()
 
     def _find_file_name(self):
         try:
@@ -160,21 +154,6 @@ class OptimizationStorage(Markers3DModel):
                 "{}".format(self._plmodel_dir)
             )
         return os.path.splitext(plmodel_files[0])[0]
-
-    def save_plmodel_to_disk(self):
-        #  for offline version          / for online version
-        if self.is_from_same_recording or self._recording_uuid_current is None:
-            self._save_to_file()
-
-    def _save_to_file(self):
-        file_path = self._plmodel_file_path
-        dict_representation = {
-            "version": self.version,
-            "data": self.plmodel,
-            "recording_uuid": self._recording_uuid_current,
-        }
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        fm.save_object(dict_representation, file_path)
 
     def _load_plmodel_from_disk(self):
         recording_uuid, data = self._load_from_file()
@@ -237,11 +216,3 @@ class OptimizationStorage(Markers3DModel):
         # django uses \w instead of _a-zA-Z0-9 but this leaves characters like ä, Ü, é
         # in the filename, which might be problematic
         return re.sub(r"(?u)[^-_a-zA-Z0-9.]", "", file_name)
-
-    @property
-    def is_from_same_recording(self):
-        return True
-        # return (
-        #     self._recording_uuid_loaded_from_plmodel is None
-        #     or self._recording_uuid_loaded_from_plmodel == self._recording_uuid_current
-        # )

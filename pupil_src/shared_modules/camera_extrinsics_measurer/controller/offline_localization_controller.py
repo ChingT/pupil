@@ -128,9 +128,8 @@ class OfflineLocalizationController(Observable):
     def _create_task(self):
         args = (
             self._all_timestamps,
-            self._general_settings.localization_frame_index_range,
-            self._detection_storage.markers_bisector,
-            self._detection_storage.frame_index_to_num_markers,
+            self._detection_storage.markers_bisector[self._camera_name],
+            self._detection_storage.frame_index_to_num_markers[self._camera_name],
             self._optimization_storage.marker_id_to_extrinsics,
             self._camera_intrinsics,
         )

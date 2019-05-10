@@ -12,9 +12,6 @@ See COPYING and COPYING.LESSER for license details.
 import OpenGL.GL as gl
 import numpy as np
 
-from pyglui.pyfontstash import fontstash
-from pyglui.ui import get_roboto_font_path
-
 
 def set_rotate_center(matrix):
     gl.glLoadTransposeMatrixf(matrix)
@@ -67,7 +64,7 @@ def render_coordinate(scale=1):
 
 def render_camera_frustum(camera_pose_matrix, camera_intrinsics, color):
     shift_render_center(camera_pose_matrix)
-    render_coordinate()
+    render_coordinate(camera_intrinsics.resolution[0] / 1000)
     _render_frustum(camera_intrinsics.resolution, camera_intrinsics.K, color)
 
 

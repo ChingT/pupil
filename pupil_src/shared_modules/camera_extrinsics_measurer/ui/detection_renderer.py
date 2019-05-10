@@ -64,12 +64,7 @@ class DetectionRenderer:
 
     def _render_markers(self, current_markers, marker_id_optimized):
         for marker in current_markers:
-            try:
-                marker_points = np.array(marker["verts"], dtype=np.float32)
-            except KeyError:
-                return
-            except TypeError:
-                return
+            marker_points = np.array(marker["verts"], dtype=np.float32)
             hat_points = self._calculate_hat_points(marker_points)
             if marker["id"] in marker_id_optimized:
                 color = (1.0, 0.0, 0.0, 0.2)

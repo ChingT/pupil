@@ -41,15 +41,10 @@ def _detect(frame):
 
 
 def offline_detection(
-    source_path,
-    timestamps,
-    frame_index_range,
-    frame_index_to_num_markers,
-    shared_memory,
+    source_path, timestamps, frame_index_to_num_markers, shared_memory
 ):
     batch_size = 30
-    frame_start, frame_end = frame_index_range
-    frame_end = len(timestamps) - 1
+    frame_start, frame_end = 0, len(timestamps) - 1
     frame_indices = sorted(
         set(range(frame_start, frame_end + 1)) - set(frame_index_to_num_markers.keys())
     )

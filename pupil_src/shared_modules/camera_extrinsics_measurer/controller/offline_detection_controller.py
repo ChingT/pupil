@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 class OfflineDetectionController(Observable):
     def __init__(
         self,
+        camera_name,
         general_settings,
         detection_storage,
         task_manager,
@@ -28,6 +29,7 @@ class OfflineDetectionController(Observable):
         all_timestamps,
         source_path,
     ):
+        self._camera_name = camera_name
         self._general_settings = general_settings
         self._detection_storage = detection_storage
         self._task_manager = task_manager
@@ -69,8 +71,7 @@ class OfflineDetectionController(Observable):
         args = (
             self._source_path,
             self._all_timestamps,
-            self._general_settings.detection_frame_index_range,
-            self._detection_storage.frame_index_to_num_markers,
+            self._detection_storage.frame_index_to_num_markers[self._camera_name],
         )
         return self._task_manager.create_background_task(
             name="marker detection",
@@ -82,8 +83,10 @@ class OfflineDetectionController(Observable):
     def _insert_markers_bisector(self, data_pairs):
         for timestamp, markers, frame_index, num_markers in data_pairs:
             for marker in markers:
-                self._detection_storage.markers_bisector.insert(timestamp, marker)
-            self._detection_storage.frame_index_to_num_markers[
+                self._detection_storage.markers_bisector[self._camera_name].insert(
+                    timestamp, marker
+                )
+            self._detection_storage.frame_index_to_num_markers[self._camera_name][
                 frame_index
             ] = num_markers
         self.on_detection_yield()

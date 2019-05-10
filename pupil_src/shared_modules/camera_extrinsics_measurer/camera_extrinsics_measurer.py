@@ -11,16 +11,18 @@ See COPYING and COPYING.LESSER for license details.
 
 import os
 
-import numpy as np
-
 import csv_utils
 import player_methods as pm
-from camera_extrinsics_measurer import ui as plugin_ui, controller, storage
-from camera_models import load_intrinsics
+import video_capture
+from camera_extrinsics_measurer import ui as plugin_ui, controller, storage, function
 from observable import Observable
 from plugin import Plugin
 from plugin_timeline import PluginTimeline
 from tasklib.manager import PluginTaskManager
+
+
+class Empty(object):
+    pass
 
 
 class Camera_Extrinsics_Measurer(Plugin, Observable):
@@ -35,32 +37,31 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
         self._task_manager = PluginTaskManager(plugin=self)
         self._current_recording_uuid = self._load_recording_uuid_from_info_csv()
 
-        self._camera_names = ["world", "eye0", "eye1"]
-        # self._camera_names = ["eye0", "eye1"]
+        self._init_cameras()
 
-        self._intrinsics_dict = {
-            "world": load_intrinsics(self._rec_dir, "world", (1088, 1080)),
-            "eye0": load_intrinsics(self._rec_dir, "eye0", (400, 400)),
-            "eye1": load_intrinsics(self._rec_dir, "eye1", (400, 400)),
-        }
-        self._all_timestamps_dict = {
-            "world": np.load(os.path.join(self._rec_dir, "world_timestamps.npy")),
-            "eye0": np.load(os.path.join(self._rec_dir, "eye0_timestamps.npy")),
-            "eye1": np.load(os.path.join(self._rec_dir, "eye1_timestamps.npy")),
-        }
-        self._source_path_dict = {
-            "world": os.path.join(self._rec_dir, "world.mp4"),
-            "eye0": os.path.join(self._rec_dir, "eye0.mp4"),
-            "eye1": os.path.join(self._rec_dir, "eye1.mp4"),
-        }
+        self._setup_storages()
+        self._routine()
+        self._setup_menus()
+        self._setup_timelines()
 
-        self._localization_storage = storage.OfflineLocalizationStorage(
-            self.g_pool.rec_dir,
+        self._detection_renderer = plugin_ui.DetectionRenderer(
+            self._offline_settings_storage,
+            self._detection_storage,
+            self._optimization_storage,
             plugin=self,
-            get_current_frame_window=self.get_current_frame_window,
         )
 
-        self._routine()
+    def _init_cameras(self):
+        self._camera_names = function.utils.camera_name.copy()
+        self._source_path_dict = {}
+        self._intrinsics_dict = {}
+        self._all_timestamps_dict = {}
+        for camera_name in self._camera_names:
+            source_path = os.path.join(self._rec_dir, "{}.mp4".format(camera_name))
+            src = video_capture.File_Source(Empty(), source_path, timing=None)
+            self._source_path_dict[camera_name] = source_path
+            self._intrinsics_dict[camera_name] = src.intrinsics
+            self._all_timestamps_dict[camera_name] = src.timestamps
 
     def _routine(self):
         try:
@@ -72,11 +73,8 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
         self._detection_controller.calculate()
 
     def _setup_classes(self):
-        self._setup_storages()
         self._setup_controllers()
         self._setup_renderers()
-        self._setup_menus()
-        self._setup_timelines()
 
         self._localization_controller.add_observer(
             "on_localization_ended", self._routine
@@ -90,20 +88,21 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
         )
         self._detection_storage = storage.OfflineDetectionStorage(
             self.g_pool.rec_dir,
-            self._camera_name,
-            all_timestamps=self._all_timestamps_dict[self._camera_name],
+            all_timestamps_dict=self._all_timestamps_dict,
             plugin=self,
             get_current_frame_index=self.get_current_frame_index,
             get_current_frame_window=self.get_current_frame_window,
         )
-        self._optimization_storage = storage.OptimizationStorage(
+        self._optimization_storage = storage.OptimizationStorage(self.g_pool.rec_dir)
+        self._localization_storage = storage.OfflineLocalizationStorage(
             self.g_pool.rec_dir,
             plugin=self,
-            recording_uuid_current=self._current_recording_uuid,
+            get_current_frame_window=self.get_current_frame_window,
         )
 
     def _setup_controllers(self):
         self._detection_controller = controller.OfflineDetectionController(
+            self._camera_name,
             self._offline_settings_storage,
             self._detection_storage,
             task_manager=self._task_manager,
@@ -112,6 +111,7 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
             source_path=self._source_path_dict[self._camera_name],
         )
         self._optimization_controller = controller.OfflineOptimizationController(
+            self._camera_name,
             self._detection_controller,
             self._offline_settings_storage,
             self._detection_storage,
@@ -142,24 +142,12 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
         )
 
     def _setup_renderers(self):
-        self._detection_renderer = plugin_ui.DetectionRenderer(
-            self._offline_settings_storage,
-            self._detection_storage,
-            self._optimization_storage,
-            plugin=self,
-        )
         self._head_pose_tracker_3d_renderer = plugin_ui.HeadPoseTracker3DRenderer(
             self._offline_settings_storage,
             self._detection_storage,
             self._optimization_storage,
             self._localization_storage,
             self._intrinsics_dict,
-            plugin=self,
-        )
-        self._export_controller = controller.ExportController(
-            self._optimization_storage,
-            self._localization_storage,
-            task_manager=self._task_manager,
             plugin=self,
         )
 
@@ -197,7 +185,7 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
             self._detection_controller,
             self._offline_settings_storage,
             self._detection_storage,
-            all_timestamps=self._all_timestamps_dict[self._camera_name],
+            all_timestamps=self._all_timestamps_dict["world"],
         )
         self._localization_timeline = plugin_ui.LocalizationTimeline(
             self._localization_controller,

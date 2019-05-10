@@ -127,30 +127,3 @@ class OfflineSettingsStorage(SettingsStorage):
             self.window_size,
             self.window_position,
         )
-
-
-class OnlineSettings:
-    def __init__(self, settings_tuple):
-        (
-            self.optimize_markers_3d_model,
-            self.optimize_camera_intrinsics,
-            self.open_visualization_window,
-            self.show_camera_trace_in_3d_window,
-            self.render_markers,
-            self.show_marker_id_in_main_window,
-            self.window_size,
-            self.window_position,
-        ) = settings_tuple
-
-    @property
-    def data_as_dict(self):
-        return {
-            "optimize_markers_3d_model": self.optimize_markers_3d_model,
-            "optimize_camera_intrinsics": self.optimize_camera_intrinsics,
-            "open_visualization_window": self.open_visualization_window,
-            "show_camera_trace_in_3d_window": self.show_camera_trace_in_3d_window,
-            "render_markers": self.render_markers,
-            "show_marker_id_in_main_window": self.show_marker_id_in_main_window,
-            "window_size": self.window_size,
-            "window_position": self.window_position,
-        }

@@ -92,14 +92,18 @@ class OfflineOptimizationController(Observable):
                     reason = "not enough markers were collected"
 
                 self.status = "failed: " + reason
-            logger.info("markers 3d model optimization '{}' ".format(self.status))
+            logger.info(
+                "[{}] markers 3d model optimization '{}' ".format(
+                    self.status, self._camera_name
+                )
+            )
 
         self._task = self._create_task()
         self._task.add_observer("on_yield", on_yield)
         self._task.add_observer("on_completed", on_completed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
         self._task.add_observer("on_started", self.on_optimization_started)
-        logger.info("Start markers 3d model optimization")
+        logger.info("[{}] Start markers 3d model optimization".format(self._camera_name))
         self.status = "0% completed"
 
     def _create_task(self):

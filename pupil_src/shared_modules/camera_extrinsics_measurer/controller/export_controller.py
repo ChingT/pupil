@@ -11,6 +11,7 @@ See COPYING and COPYING.LESSER for license details.
 import logging
 
 from camera_extrinsics_measurer import worker
+from camera_extrinsics_measurer.function import utils
 from observable import Observable
 
 logger = logging.getLogger(__name__)
@@ -43,11 +44,11 @@ class ExportController(Observable):
 
     def _on_should_export(self, export_dir, export_window):
         model_flat = self._3d_model_as_list()
-        poses = self._camera_poses(export_window)
-        self._task = self._create_export_task(export_dir, model_flat, poses)
+        poses_dict = self._camera_poses(export_window)
+        self._task = self._create_export_task(export_dir, model_flat, poses_dict)
 
-    def _create_export_task(self, rec_dir, model, poses):
-        args = (rec_dir, model, poses)
+    def _create_export_task(self, rec_dir, model, poses_dict):
+        args = (rec_dir, model, poses_dict)
         return self._task_manager.create_background_task(
             name="head pose data export",
             routine_or_generator_function=worker.export_routine,
@@ -59,4 +60,7 @@ class ExportController(Observable):
         return self._optimization_storage.flattened_vertices()
 
     def _camera_poses(self, ts_window):
-        return self._localization_storage.pose_bisector.by_ts_window(ts_window)
+        return {
+            name: self._localization_storage.pose_bisector[name].by_ts_window(ts_window)
+            for name in utils.camera_name
+        }

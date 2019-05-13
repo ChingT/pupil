@@ -9,7 +9,6 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import collections
 import os
 
 import numpy as np
@@ -21,15 +20,6 @@ from observable import Observable
 
 
 class Localization:
-    def __init__(self):
-        self.set_to_default_values()
-
-    def set_to_default_values(self):
-        self.recent_camera_trace = collections.deque(maxlen=300)
-
-    def add_recent_camera_trace(self, camera_trace):
-        self.recent_camera_trace.append(camera_trace)
-
     @property
     def none_pose_data(self):
         return {
@@ -42,17 +32,14 @@ class Localization:
 
 class OfflineCameraLocalization(Localization):
     def __init__(self, get_current_frame_window):
-        super().__init__()
-
+        self.pose_bisector = {name: pm.Mutable_Bisector() for name in utils.camera_name}
         self._get_current_frame_window = get_current_frame_window
 
-    def set_to_default_values(self):
-        super().set_to_default_values()
-        self.pose_bisector = {name: pm.Mutable_Bisector() for name in utils.camera_name}
+    def set_to_default_values(self, camera_name):
+        self.pose_bisector[camera_name] = pm.Mutable_Bisector()
 
-    @property
-    def calculated(self):
-        return bool(self.pose_bisector["world"])
+    def calculated(self, camera_name):
+        return bool(self.pose_bisector[camera_name])
 
     @property
     def current_pose(self):
@@ -60,57 +47,26 @@ class OfflineCameraLocalization(Localization):
         current_poses = {
             camera_name: self.none_pose_data for camera_name in utils.camera_name
         }
-        try:
-            pose_data_world = self.pose_bisector["world"].by_ts_window(frame_window)[0]
-        except IndexError:
-            return current_poses
-        else:
-            current_poses["world"].update(
-                {
-                    "camera_extrinsics": np.zeros((6,), dtype=np.float32).tolist(),
-                    "camera_poses": np.zeros((6,), dtype=np.float32).tolist(),
-                    "camera_trace": np.zeros((3,), dtype=np.float32).tolist(),
-                    "camera_pose_matrix": np.eye(4, dtype=np.float32).tolist(),
-                }
-            )
-            inv = utils.convert_extrinsic_to_matrix(
-                pose_data_world["camera_extrinsics"]
-            )
 
-        for camera_name in ["eye0", "eye1"]:
+        for camera_name in utils.camera_name:
             pose_datum = self.pose_bisector[camera_name].by_ts_window(frame_window)
             try:
-                pose_data = pose_datum[len(pose_datum) // 2]
+                pose_data = pose_datum[0]
             except IndexError:
                 pass
             else:
-                camera_pose_matrix = inv @ pose_data["camera_pose_matrix"]
-                camera_poses = utils.convert_matrix_to_extrinsic(camera_pose_matrix)
-                camera_extrinsics = utils.get_camera_pose(camera_poses)
-                current_poses[camera_name].update(
-                    {
-                        "camera_extrinsics": camera_extrinsics.tolist(),
-                        "camera_poses": camera_poses.tolist(),
-                        "camera_trace": camera_poses[3:6].tolist(),
-                        "camera_pose_matrix": camera_pose_matrix.tolist(),
-                    }
-                )
+                current_poses[camera_name] = pose_data
 
         return current_poses
 
 
 class OfflineLocalizationStorage(Observable, OfflineCameraLocalization):
-    def __init__(self, rec_dir, plugin, get_current_frame_window):
+    def __init__(self, rec_dir, get_current_frame_window):
         super().__init__(get_current_frame_window)
 
         self._rec_dir = rec_dir
 
         self.load_pldata_from_disk()
-
-        plugin.add_observer("cleanup", self._on_cleanup)
-
-    def _on_cleanup(self):
-        self.save_pldata_to_disk()
 
     def save_pldata_to_disk(self):
         self._save_to_file()

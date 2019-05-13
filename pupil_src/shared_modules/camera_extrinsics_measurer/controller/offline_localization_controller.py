@@ -64,8 +64,8 @@ class OfflineLocalizationController(Observable):
         return "Not calculated yet"
 
     def _on_optimization_had_completed_before(self):
-        # if not self._localization_storage.calculated:
-        self.calculate()
+        if not self._localization_storage.calculated(self._camera_name):
+            self.calculate()
 
     def _on_optimization_started(self):
         self.reset()
@@ -97,7 +97,7 @@ class OfflineLocalizationController(Observable):
 
     def reset(self):
         self.cancel_task()
-        # self._localization_storage.set_to_default_values()
+        self._localization_storage.set_to_default_values(self._camera_name)
         self.status = self._default_status
 
     def _create_localization_task(self):
@@ -107,13 +107,11 @@ class OfflineLocalizationController(Observable):
 
         def on_completed(_):
             self.status = "successfully completed"
-            self._localization_storage.save_pldata_to_disk()
-            logger.info("camera localization completed")
+            logger.info("[{}] camera localization completed".format(self._camera_name))
             self.on_localization_ended()
 
         def on_canceled_or_killed():
-            self._localization_storage.save_pldata_to_disk()
-            logger.info("camera localization canceled")
+            logger.info("[{}] camera localization canceled".format(self._camera_name))
             self.on_localization_ended()
 
         self._task = self._create_task()
@@ -122,7 +120,7 @@ class OfflineLocalizationController(Observable):
         self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
         self._task.add_observer("on_started", self.on_localization_started)
-        logger.info("Start camera localization")
+        logger.info("[{}] Start camera localization".format(self._camera_name))
         self.status = "0% completed"
 
     def _create_task(self):

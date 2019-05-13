@@ -15,6 +15,7 @@ import csv_utils
 import player_methods as pm
 import video_capture
 from camera_extrinsics_measurer import ui as plugin_ui, controller, storage, function
+from camera_extrinsics_measurer import worker
 from observable import Observable
 from plugin import Plugin
 from plugin_timeline import PluginTimeline
@@ -63,12 +64,19 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
             self._intrinsics_dict[camera_name] = src.intrinsics
             self._all_timestamps_dict[camera_name] = src.timestamps
 
+    def _convert_to_world_coordinate(self):
+        self._localization_storage.pose_bisector = worker.convert_to_world_coordinate(
+            self._all_timestamps_dict["world"], self._localization_storage.pose_bisector
+        )
+        print("_convert_to_world_coordinate done")
+        self._localization_storage.save_pldata_to_disk()
+
     def _routine(self):
         try:
             self._camera_name = self._camera_names.pop(0)
         except IndexError:
+            self._convert_to_world_coordinate()
             return
-        print("camera_name", self._camera_name)
         self._setup_classes()
         self._detection_controller.calculate()
 
@@ -95,9 +103,7 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
         )
         self._optimization_storage = storage.OptimizationStorage(self.g_pool.rec_dir)
         self._localization_storage = storage.OfflineLocalizationStorage(
-            self.g_pool.rec_dir,
-            plugin=self,
-            get_current_frame_window=self.get_current_frame_window,
+            self.g_pool.rec_dir, get_current_frame_window=self.get_current_frame_window
         )
 
     def _setup_controllers(self):

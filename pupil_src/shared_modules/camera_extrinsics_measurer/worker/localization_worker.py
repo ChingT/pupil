@@ -23,16 +23,16 @@ def get_pose_data(extrinsics, timestamp):
         return {
             "camera_extrinsics": extrinsics.tolist(),
             "camera_poses": camera_poses.tolist(),
-            "camera_trace": camera_poses[3:6].tolist(),
             "camera_pose_matrix": camera_pose_matrix.tolist(),
+            "camera_trace": camera_poses[3:6].tolist(),
             "timestamp": timestamp,
         }
     else:
         return {
             "camera_extrinsics": None,
             "camera_poses": [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
-            "camera_trace": [np.nan, np.nan, np.nan],
             "camera_pose_matrix": None,
+            "camera_trace": [np.nan, np.nan, np.nan],
             "timestamp": timestamp,
         }
 
@@ -70,7 +70,7 @@ def offline_localization(
                 markers_in_frame,
                 marker_id_to_extrinsics,
                 camera_extrinsics_prv=camera_extrinsics_prv,
-                min_n_markers_per_frame=2,
+                min_n_markers_per_frame=3,
             )
             if camera_extrinsics is not None:
                 camera_extrinsics_prv = camera_extrinsics
@@ -93,3 +93,51 @@ def offline_localization(
             camera_extrinsics_prv = None
 
     yield queue
+
+
+def convert_to_world_coordinate(timestamps_world, pose_bisector):
+    timestamps_new = {name: [] for name in utils.camera_name}
+    pose_datum_converted = {name: [] for name in utils.camera_name}
+
+    for index in range(len(timestamps_world)):
+        frame_window = pm.enclosing_window(timestamps_world, index)
+
+        pose_datum_world = pose_bisector["world"].by_ts_window(frame_window)
+        try:
+            current_pose_world = pose_datum_world[0]
+        except IndexError:
+            continue
+
+        inv = utils.convert_extrinsic_to_matrix(current_pose_world["camera_extrinsics"])
+
+        for camera_name in utils.camera_name:
+            pose_datum = pose_bisector[camera_name].by_ts_window(frame_window)
+            try:
+                current_pose = pose_datum[len(pose_datum) // 2]
+            except IndexError:
+                continue
+
+            camera_pose_matrix_converted = inv @ current_pose["camera_pose_matrix"]
+            camera_poses_converted = utils.convert_matrix_to_extrinsic(
+                camera_pose_matrix_converted
+            )
+            camera_extrinsics_converted = utils.get_camera_pose(camera_poses_converted)
+            pose_data_converted = {
+                "camera_extrinsics": camera_extrinsics_converted.tolist(),
+                "camera_poses": camera_poses_converted.tolist(),
+                "camera_pose_matrix": camera_pose_matrix_converted.tolist(),
+                "camera_trace": camera_poses_converted[3:6].tolist(),
+                "timestamp": current_pose["timestamp"],
+            }
+
+            pose_datum_converted[camera_name].append(
+                fm.Serialized_Dict(pose_data_converted)
+            )
+            timestamps_new[camera_name].append(current_pose["timestamp"])
+
+    pose_bisector = {}
+    for camera_name in utils.camera_name:
+        pose_bisector[camera_name] = pm.Bisector(
+            pose_datum_converted[camera_name], timestamps_new[camera_name]
+        )
+    return pose_bisector

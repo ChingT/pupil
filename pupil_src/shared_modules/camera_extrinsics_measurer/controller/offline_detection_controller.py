@@ -51,12 +51,12 @@ class OfflineDetectionController(Observable):
 
         def on_completed(_):
             self._detection_storage.save_pldata_to_disk()
-            logger.info("marker detection completed")
+            logger.info("[{}] marker detection completed".format(self._camera_name))
             self.on_detection_ended()
 
         def on_canceled_or_killed():
             self._detection_storage.save_pldata_to_disk()
-            logger.info("marker detection canceled")
+            logger.info("[{}] marker detection canceled".format(self._camera_name))
             self.on_detection_ended()
 
         self._task = self._create_task()
@@ -65,7 +65,7 @@ class OfflineDetectionController(Observable):
         self._task.add_observer("on_canceled_or_killed", on_canceled_or_killed)
         self._task.add_observer("on_exception", tasklib.raise_exception)
         self._task.add_observer("on_started", self.on_detection_started)
-        logger.info("Start marker detection")
+        logger.info("[{}] Start marker detection".format(self._camera_name))
 
     def _create_task(self):
         args = (

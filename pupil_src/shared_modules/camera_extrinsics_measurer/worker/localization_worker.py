@@ -13,6 +13,7 @@ import numpy as np
 
 import file_methods as fm
 import player_methods as pm
+from camera_extrinsics_measurer import camera_names
 from camera_extrinsics_measurer.function import solvepnp, utils
 
 
@@ -70,7 +71,7 @@ def offline_localization(
                 markers_in_frame,
                 marker_id_to_extrinsics,
                 camera_extrinsics_prv=camera_extrinsics_prv,
-                min_n_markers_per_frame=3,
+                min_n_markers_per_frame=2,
             )
             if camera_extrinsics is not None:
                 camera_extrinsics_prv = camera_extrinsics
@@ -95,14 +96,14 @@ def offline_localization(
     yield queue
 
 
-def convert_to_world_coordinate(timestamps_world, pose_bisector):
-    timestamps_new = {name: [] for name in utils.camera_name}
-    pose_datum_converted = {name: [] for name in utils.camera_name}
+def convert_to_world_coordinate(timestamps_world, pose_bisector_converted):
+    timestamps_new = {name: [] for name in camera_names}
+    pose_datum_converted = {name: [] for name in camera_names}
 
     for index in range(len(timestamps_world)):
         frame_window = pm.enclosing_window(timestamps_world, index)
 
-        pose_datum_world = pose_bisector["world"].by_ts_window(frame_window)
+        pose_datum_world = pose_bisector_converted["world"].by_ts_window(frame_window)
         try:
             current_pose_world = pose_datum_world[0]
         except IndexError:
@@ -110,8 +111,8 @@ def convert_to_world_coordinate(timestamps_world, pose_bisector):
 
         inv = utils.convert_extrinsic_to_matrix(current_pose_world["camera_extrinsics"])
 
-        for camera_name in utils.camera_name:
-            pose_datum = pose_bisector[camera_name].by_ts_window(frame_window)
+        for camera_name in camera_names:
+            pose_datum = pose_bisector_converted[camera_name].by_ts_window(frame_window)
             try:
                 current_pose = pose_datum[len(pose_datum) // 2]
             except IndexError:
@@ -135,9 +136,9 @@ def convert_to_world_coordinate(timestamps_world, pose_bisector):
             )
             timestamps_new[camera_name].append(current_pose["timestamp"])
 
-    pose_bisector = {}
-    for camera_name in utils.camera_name:
-        pose_bisector[camera_name] = pm.Bisector(
+    pose_bisector_converted = {}
+    for camera_name in camera_names:
+        pose_bisector_converted[camera_name] = pm.Bisector(
             pose_datum_converted[camera_name], timestamps_new[camera_name]
         )
-    return pose_bisector
+    return pose_bisector_converted

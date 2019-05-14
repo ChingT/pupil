@@ -10,7 +10,11 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import OpenGL.GL as gl
+import OpenGL.GLUT as glut
 import numpy as np
+
+
+glut.glutInit()
 
 
 def set_rotate_center(matrix):
@@ -44,6 +48,13 @@ def render_strip_in_3d_window(vertices, color):
     for vertex in vertices:
         gl.glVertex3f(*vertex)
     gl.glEnd()
+
+
+def render_text_in_3d_window(characters, position, color):
+    gl.glColor4f(*color)
+    gl.glRasterPos3f(*position)
+    for character in characters:
+        glut.glutBitmapCharacter(glut.GLUT_BITMAP_8_BY_13, ord(character))
 
 
 def render_centroid(color, point_size=5):

@@ -50,7 +50,7 @@ class DetectionRenderer:
         self._render()
 
     def _render(self):
-        if not self._general_settings.render_markers:
+        if not self._general_settings.render_markers_in_main_window:
             return
         current_markers = self._detection_storage.current_markers
         marker_id_optimized = self._get_marker_id_optimized()

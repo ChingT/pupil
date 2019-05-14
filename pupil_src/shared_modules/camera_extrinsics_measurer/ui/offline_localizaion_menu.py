@@ -20,13 +20,13 @@ class OfflineLocalizationMenu:
         localization_controller,
         general_settings,
         localization_storage,
-        index_range_as_str,
+        ts_range_as_str,
     ):
         self._localization_controller = localization_controller
         self._general_settings = general_settings
         self._localization_storage = localization_storage
 
-        self._index_range_as_str = index_range_as_str
+        self._ts_range_as_str = ts_range_as_str
 
         self.menu = ui.Growing_Menu(self.menu_label)
         self.menu.collapsed = False
@@ -53,13 +53,13 @@ class OfflineLocalizationMenu:
         )
 
     def _create_range_selector(self):
-        range_string = "Localize camera in: " + self._index_range_as_str(
-            self._general_settings.localization_frame_index_range
+        range_string = "Localize camera in: " + self._ts_range_as_str(
+            self._general_settings.localization_frame_ts_range
         )
         return ui.Button(
             outer_label=range_string,
             label="Set from trim marks",
-            function=self._on_set_index_range_from_trim_marks,
+            function=self._on_set_ts_range_from_trim_marks,
         )
 
     def _create_calculate_button(self):
@@ -75,12 +75,12 @@ class OfflineLocalizationMenu:
             "status", self._localization_controller, label="Status", setter=lambda _: _
         )
 
-    def _on_set_index_range_from_trim_marks(self):
+    def _on_set_ts_range_from_trim_marks(self):
         self._localization_controller.set_range_from_current_trim_marks()
         self.render()
 
     def _on_click_calculate(self):
-        self._localization_controller.calculate()
+        self._localization_controller.calculate("world")
 
     def _on_localization_could_not_be_started(self):
         self.render()

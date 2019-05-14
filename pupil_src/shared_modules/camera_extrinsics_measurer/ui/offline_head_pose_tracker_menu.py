@@ -32,7 +32,7 @@ class OfflineHeadPoseTrackerMenu:
 
     def _on_init_ui(self):
         self._plugin.add_menu()
-        self._plugin.menu.label = "Offline Head Pose Tracker"
+        self._plugin.menu.label = "Camera Extrinsics Measurer"
 
         self._plugin.menu.extend(self._render_on_top_menu())
 

@@ -35,11 +35,13 @@ class VisualizationMenu:
     def _render_ui(self):
         menu = [
             self._create_color_info_text(),
-            self._create_render_markers_switch(),
+            self._create_render_markers_in_main_window_switch(),
             self._create_show_marker_id_in_main_window_switch(),
             ui.Separator(),
             self._create_open_visualization_window_button(),
-            self._create_show_camera_trace_switch(),
+            self._create_convert_to_world_coordinate_switch(),
+            self._create_render_markers_in_3d_window_switch(),
+            self._create_show_marker_id_in_3d_window_switch(),
         ]
         self.menu.elements.extend(menu)
 
@@ -50,12 +52,12 @@ class VisualizationMenu:
             "Otherwise, they are drawn green"
         )
 
-    def _create_render_markers_switch(self):
+    def _create_render_markers_in_main_window_switch(self):
         return ui.Switch(
-            "render_markers",
+            "render_markers_in_main_window",
             self._general_settings,
             label=_SPACES + "Render markers",
-            setter=self._on_render_markers_switched,
+            setter=self._on_render_markers_in_main_window_switched,
         )
 
     def _create_show_marker_id_in_main_window_switch(self):
@@ -64,7 +66,7 @@ class VisualizationMenu:
             self._general_settings,
             label=_SPACES + "Show marker id",
         )
-        if not self._general_settings.render_markers:
+        if not self._general_settings.render_markers_in_main_window:
             switch.read_only = True
         return switch
 
@@ -78,18 +80,38 @@ class VisualizationMenu:
             button.read_only = True
         return button
 
-    def _create_show_camera_trace_switch(self):
+    def _create_convert_to_world_coordinate_switch(self):
         switch = ui.Switch(
-            "show_camera_trace_in_3d_window",
+            "convert_to_world_coordinate",
             self._general_settings,
-            label=_SPACES + "Show camera trace",
+            label=_SPACES + "Convert to world coordinate",
         )
         if not self._general_settings.open_visualization_window:
             switch.read_only = True
         return switch
 
-    def _on_render_markers_switched(self, new_value):
-        self._general_settings.render_markers = new_value
+    def _create_render_markers_in_3d_window_switch(self):
+        switch = ui.Switch(
+            "render_markers_in_3d_window",
+            self._general_settings,
+            label=_SPACES + "Render markers",
+        )
+        if not self._general_settings.open_visualization_window:
+            switch.read_only = True
+        return switch
+
+    def _create_show_marker_id_in_3d_window_switch(self):
+        switch = ui.Switch(
+            "show_marker_id_in_3d_window",
+            self._general_settings,
+            label=_SPACES + "Show marker id",
+        )
+        if not self._general_settings.open_visualization_window:
+            switch.read_only = True
+        return switch
+
+    def _on_render_markers_in_main_window_switched(self, new_value):
+        self._general_settings.render_markers_in_main_window = new_value
         self.render()
 
     def _on_open_visualization_window_button_clicked(self):

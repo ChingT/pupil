@@ -15,7 +15,7 @@ import numpy as np
 
 import file_methods as fm
 import player_methods as pm
-from camera_extrinsics_measurer.function import utils
+from camera_extrinsics_measurer import camera_names
 from observable import Observable
 
 
@@ -32,7 +32,8 @@ class Localization:
 
 class OfflineCameraLocalization(Localization):
     def __init__(self, get_current_frame_window):
-        self.pose_bisector = {name: pm.Mutable_Bisector() for name in utils.camera_name}
+        self.pose_bisector = {name: pm.Mutable_Bisector() for name in camera_names}
+        self.pose_bisector_converted = {name: pm.Bisector() for name in camera_names}
         self._get_current_frame_window = get_current_frame_window
 
     def set_to_default_values(self, camera_name):
@@ -43,13 +44,20 @@ class OfflineCameraLocalization(Localization):
 
     @property
     def current_pose(self):
+        return self._get_current_pose(self.pose_bisector)
+
+    @property
+    def current_pose_converted(self):
+        return self._get_current_pose(self.pose_bisector_converted)
+
+    def _get_current_pose(self, pose_bisector):
         frame_window = self._get_current_frame_window()
         current_poses = {
-            camera_name: self.none_pose_data for camera_name in utils.camera_name
+            camera_name: self.none_pose_data for camera_name in camera_names
         }
 
-        for camera_name in utils.camera_name:
-            pose_datum = self.pose_bisector[camera_name].by_ts_window(frame_window)
+        for camera_name in camera_names:
+            pose_datum = pose_bisector[camera_name].by_ts_window(frame_window)
             try:
                 pose_data = pose_datum[0]
             except IndexError:
@@ -69,37 +77,59 @@ class OfflineLocalizationStorage(Observable, OfflineCameraLocalization):
         self.load_pldata_from_disk()
 
     def save_pldata_to_disk(self):
-        self._save_to_file()
+        self._save_to_file(self._pldata_file_name, self.pose_bisector)
+        self._save_to_file(
+            self._pldata_file_name_converted, self.pose_bisector_converted
+        )
+        self._export_poses_array()
 
-    def _save_to_file(self):
-        file_name = self._pldata_file_name
-        for camera_name in utils.camera_name:
+    def _save_to_file(self, file_name, pose_bisector):
+        for camera_name in camera_names:
             directory = self._offline_data_folder_path(camera_name)
             os.makedirs(directory, exist_ok=True)
+
             with fm.PLData_Writer(directory, file_name) as writer:
                 for pose_ts, pose in zip(
-                    self.pose_bisector[camera_name].timestamps,
-                    self.pose_bisector[camera_name].data,
+                    pose_bisector[camera_name].timestamps,
+                    pose_bisector[camera_name].data,
                 ):
                     writer.append_serialized(
                         pose_ts, topic="pose", datum_serialized=pose.serialized
                     )
 
-    def load_pldata_from_disk(self):
-        self._load_from_file()
+    def _export_poses_array(self):
+        file_path = os.path.join(self._rec_dir, self._pldata_file_name_converted)
+        poses_dict = {
+            camera_name: [
+                [p["timestamp"], *p["camera_poses"]]
+                for p in self.pose_bisector_converted[camera_name].data
+            ]
+            for camera_name in camera_names
+        }
+        fm.save_object(poses_dict, file_path)
+        print("_export_poses_array")
 
-    def _load_from_file(self):
-        file_name = self._pldata_file_name
-        for camera_name in utils.camera_name:
+    def load_pldata_from_disk(self):
+        self._load_from_file(self._pldata_file_name, self.pose_bisector)
+        self._load_from_file(
+            self._pldata_file_name_converted, self.pose_bisector_converted
+        )
+
+    def _load_from_file(self, file_name, pose_bisector):
+        for camera_name in camera_names:
             directory = self._offline_data_folder_path(camera_name)
             pldata = fm.load_pldata_file(directory, file_name)
-            self.pose_bisector[camera_name] = pm.Mutable_Bisector(
+            pose_bisector[camera_name] = pm.Mutable_Bisector(
                 pldata.data, pldata.timestamps
             )
 
     @property
     def _pldata_file_name(self):
         return "camera_pose"
+
+    @property
+    def _pldata_file_name_converted(self):
+        return "camera_pose_converted"
 
     def _offline_data_folder_path(self, camera_name):
         return os.path.join(self._rec_dir, "offline_data", camera_name)

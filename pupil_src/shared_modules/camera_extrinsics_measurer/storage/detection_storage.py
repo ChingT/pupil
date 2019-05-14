@@ -13,7 +13,7 @@ import os
 
 import file_methods as fm
 import player_methods as pm
-from camera_extrinsics_measurer.function import utils
+from camera_extrinsics_measurer import camera_names
 from observable import Observable
 
 
@@ -22,10 +22,8 @@ class OfflineMarkerLocation:
         self._get_current_frame_index = get_current_frame_index
         self._get_current_frame_window = get_current_frame_window
 
-        self.markers_bisector = {
-            name: pm.Mutable_Bisector() for name in utils.camera_name
-        }
-        self.frame_index_to_num_markers = {name: {} for name in utils.camera_name}
+        self.markers_bisector = {name: pm.Mutable_Bisector() for name in camera_names}
+        self.frame_index_to_num_markers = {name: {} for name in camera_names}
 
     @property
     def calculated(self):
@@ -75,7 +73,7 @@ class OfflineDetectionStorage(Observable, OfflineMarkerLocation):
 
     def _save_to_file(self):
         file_name = self._pldata_file_name
-        for camera_name in utils.camera_name:
+        for camera_name in camera_names:
             directory = self._offline_data_folder_path(camera_name)
             os.makedirs(directory, exist_ok=True)
             all_topics = {
@@ -103,7 +101,7 @@ class OfflineDetectionStorage(Observable, OfflineMarkerLocation):
 
     def _load_from_file(self):
         file_name = self._pldata_file_name
-        for camera_name in utils.camera_name:
+        for camera_name in camera_names:
             directory = self._offline_data_folder_path(camera_name)
             pldata = fm.load_pldata_file(directory, file_name)
             self.markers_bisector[camera_name] = pm.Mutable_Bisector(

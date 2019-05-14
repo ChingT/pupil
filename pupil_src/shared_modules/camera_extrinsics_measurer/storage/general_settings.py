@@ -77,20 +77,22 @@ class SettingsStorage(abc.ABC):
 
 
 class OfflineSettingsStorage(SettingsStorage):
-    def __init__(self, save_dir, plugin, get_recording_index_range):
+    def __init__(self, save_dir, plugin, get_recording_ts_range):
         save_dir = os.path.join(save_dir, "offline_data")
         super().__init__(save_dir, plugin)
 
-        self._get_recording_index_range = get_recording_index_range
+        self._get_recording_ts_range = get_recording_ts_range
 
-        self.detection_frame_index_range = self._get_recording_index_range()
-        self.optimization_frame_index_range = self._get_recording_index_range()
-        self.localization_frame_index_range = self._get_recording_index_range()
+        self.detection_frame_ts_range = self._get_recording_ts_range()
+        self.optimization_frame_ts_range = self._get_recording_ts_range()
+        self.localization_frame_ts_range = self._get_recording_ts_range()
         self.user_defined_origin_marker_id = None
         self.optimize_camera_intrinsics = True
         self.open_visualization_window = False
-        self.show_camera_trace_in_3d_window = False
-        self.render_markers = True
+        self.convert_to_world_coordinate = False
+        self.render_markers_in_3d_window = True
+        self.show_marker_id_in_3d_window = False
+        self.render_markers_in_main_window = True
         self.show_marker_id_in_main_window = False
         self.window_size = (1000, 1000)
         self.window_position = (0, 0)
@@ -99,14 +101,16 @@ class OfflineSettingsStorage(SettingsStorage):
 
     def _data_from_tuple(self, settings_tuple):
         (
-            self.detection_frame_index_range,
-            self.optimization_frame_index_range,
-            self.localization_frame_index_range,
+            self.detection_frame_ts_range,
+            self.optimization_frame_ts_range,
+            self.localization_frame_ts_range,
             self.user_defined_origin_marker_id,
             self.optimize_camera_intrinsics,
             self.open_visualization_window,
-            self.show_camera_trace_in_3d_window,
-            self.render_markers,
+            self.convert_to_world_coordinate,
+            self.render_markers_in_3d_window,
+            self.show_marker_id_in_3d_window,
+            self.render_markers_in_main_window,
             self.show_marker_id_in_main_window,
             self.window_size,
             self.window_position,
@@ -115,14 +119,16 @@ class OfflineSettingsStorage(SettingsStorage):
     @property
     def _data_as_tuple(self):
         return (
-            self.detection_frame_index_range,
-            self.optimization_frame_index_range,
-            self.localization_frame_index_range,
+            self.detection_frame_ts_range,
+            self.optimization_frame_ts_range,
+            self.localization_frame_ts_range,
             self.user_defined_origin_marker_id,
             self.optimize_camera_intrinsics,
             self.open_visualization_window,
-            self.show_camera_trace_in_3d_window,
-            self.render_markers,
+            self.convert_to_world_coordinate,
+            self.render_markers_in_3d_window,
+            self.show_marker_id_in_3d_window,
+            self.render_markers_in_main_window,
             self.show_marker_id_in_main_window,
             self.window_size,
             self.window_position,

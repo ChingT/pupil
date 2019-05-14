@@ -8,3 +8,5 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
+
+camera_names = ["world", "eye0", "eye1"]

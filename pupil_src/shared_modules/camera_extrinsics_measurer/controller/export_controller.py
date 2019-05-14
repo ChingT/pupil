@@ -10,8 +10,7 @@ See COPYING and COPYING.LESSER for license details.
 """
 import logging
 
-from camera_extrinsics_measurer import worker
-from camera_extrinsics_measurer.function import utils
+from camera_extrinsics_measurer import worker, camera_names
 from observable import Observable
 
 logger = logging.getLogger(__name__)
@@ -61,6 +60,8 @@ class ExportController(Observable):
 
     def _camera_poses(self, ts_window):
         return {
-            name: self._localization_storage.pose_bisector[name].by_ts_window(ts_window)
-            for name in utils.camera_name
+            name: self._localization_storage.pose_bisector_converted[name].by_ts_window(
+                ts_window
+            )
+            for name in camera_names
         }

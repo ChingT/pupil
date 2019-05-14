@@ -15,10 +15,10 @@ from pyglui import ui
 class OfflineDetectionMenu:
     menu_label = "Marker Detection"
 
-    def __init__(self, detection_controller, general_settings, index_range_as_str):
+    def __init__(self, detection_controller, general_settings, ts_range_as_str):
         self._detection_controller = detection_controller
         self._general_settings = general_settings
-        self._index_range_as_str = index_range_as_str
+        self._ts_range_as_str = ts_range_as_str
 
         self.menu = ui.Growing_Menu(self.menu_label)
         self.menu.collapsed = False
@@ -40,13 +40,13 @@ class OfflineDetectionMenu:
         )
 
     def _create_range_selector(self):
-        range_string = "Detect markers in: " + self._index_range_as_str(
-            self._general_settings.detection_frame_index_range
+        range_string = "Detect markers in: " + self._ts_range_as_str(
+            self._general_settings.detection_frame_ts_range
         )
         return ui.Button(
             outer_label=range_string,
             label="Set from trim marks",
-            function=self._on_set_index_range_from_trim_marks,
+            function=self._on_set_ts_range_from_trim_marks,
         )
 
     def _create_toggle_detection_button(self):
@@ -55,12 +55,12 @@ class OfflineDetectionMenu:
         else:
             return ui.Button("Start detection", self._on_click_start_detection)
 
-    def _on_set_index_range_from_trim_marks(self):
+    def _on_set_ts_range_from_trim_marks(self):
         self._detection_controller.set_range_from_current_trim_marks()
         self.render()
 
     def _on_click_start_detection(self):
-        self._detection_controller.calculate()
+        self._detection_controller.calculate("world")
 
     def _on_click_cancel_detection(self):
         self._detection_controller.cancel_task()
@@ -68,5 +68,5 @@ class OfflineDetectionMenu:
     def _on_detection_started(self):
         self.render()
 
-    def _on_detection_ended(self):
+    def _on_detection_ended(self, _):
         self.render()

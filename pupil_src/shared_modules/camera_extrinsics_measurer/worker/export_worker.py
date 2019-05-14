@@ -2,7 +2,7 @@ import csv
 import logging
 import os
 
-from camera_extrinsics_measurer.function import utils
+from camera_extrinsics_measurer import camera_names
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +28,11 @@ def _export_model(rec_dir, model):
 
 
 def _export_poses(rec_dir, poses_dict):
-    for name in utils.camera_name:
+    for name in camera_names:
         poses = poses_dict[name]
-        export_dir = os.path.join(rec_dir, name)
-        os.makedirs(export_dir, exist_ok=True)
-        logger.info("Exporting {} head poses to {}".format(len(poses), export_dir))
-        poses_path = os.path.join(export_dir, "head_pose_tacker_poses.csv")
+        os.makedirs(rec_dir, exist_ok=True)
+        poses_path = os.path.join(rec_dir, "head_pose_tacker_poses_{}.csv".format(name))
+        logger.info("Exporting {} head poses to {}".format(len(poses), poses_path))
         poses_flat = [(p["timestamp"], *p["camera_poses"]) for p in poses]
         _write_csv(poses_path, POSES_HEADER, poses_flat)
 

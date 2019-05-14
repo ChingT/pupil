@@ -9,6 +9,8 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import numpy as np
+
 import apriltag
 import file_methods as fm
 import video_capture
@@ -41,10 +43,19 @@ def _detect(frame):
 
 
 def offline_detection(
-    source_path, timestamps, frame_index_to_num_markers, shared_memory
+    source_path,
+    detection_frame_ts_range,
+    timestamps,
+    frame_index_to_num_markers,
+    shared_memory,
 ):
     batch_size = 30
-    frame_start, frame_end = 0, len(timestamps) - 1
+
+    left_ts, right_ts = detection_frame_ts_range
+    frame_start, frame_end = np.searchsorted(timestamps, (left_ts, right_ts))
+    if right_ts > timestamps[-1]:
+        frame_end = len(timestamps) - 1
+
     frame_indices = sorted(
         set(range(frame_start, frame_end + 1)) - set(frame_index_to_num_markers.keys())
     )

@@ -14,8 +14,12 @@ import os
 import csv_utils
 import player_methods as pm
 import video_capture
-from camera_extrinsics_measurer import ui as plugin_ui, controller, storage, function
-from camera_extrinsics_measurer import worker
+from camera_extrinsics_measurer import (
+    ui as plugin_ui,
+    controller,
+    storage,
+    camera_names,
+)
 from observable import Observable
 from plugin import Plugin
 from plugin_timeline import PluginTimeline
@@ -39,60 +43,33 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
         self._current_recording_uuid = self._load_recording_uuid_from_info_csv()
 
         self._init_cameras()
+        self._setup_classes()
 
-        self._setup_storages()
-        self._routine()
-        self._setup_menus()
-        self._setup_timelines()
-
-        self._detection_renderer = plugin_ui.DetectionRenderer(
-            self._offline_settings_storage,
-            self._detection_storage,
-            self._optimization_storage,
-            plugin=self,
-        )
+        self._detection_controller.calculate("world")
 
     def _init_cameras(self):
-        self._camera_names = function.utils.camera_name.copy()
         self._source_path_dict = {}
         self._intrinsics_dict = {}
         self._all_timestamps_dict = {}
-        for camera_name in self._camera_names:
+        for camera_name in camera_names:
             source_path = os.path.join(self._rec_dir, "{}.mp4".format(camera_name))
             src = video_capture.File_Source(Empty(), source_path, timing=None)
             self._source_path_dict[camera_name] = source_path
             self._intrinsics_dict[camera_name] = src.intrinsics
             self._all_timestamps_dict[camera_name] = src.timestamps
 
-    def _convert_to_world_coordinate(self):
-        self._localization_storage.pose_bisector = worker.convert_to_world_coordinate(
-            self._all_timestamps_dict["world"], self._localization_storage.pose_bisector
-        )
-        print("_convert_to_world_coordinate done")
-        self._localization_storage.save_pldata_to_disk()
-
-    def _routine(self):
-        try:
-            self._camera_name = self._camera_names.pop(0)
-        except IndexError:
-            self._convert_to_world_coordinate()
-            return
-        self._setup_classes()
-        self._detection_controller.calculate()
-
     def _setup_classes(self):
+        self._setup_storages()
         self._setup_controllers()
         self._setup_renderers()
-
-        self._localization_controller.add_observer(
-            "on_localization_ended", self._routine
-        )
+        self._setup_menus()
+        self._setup_timelines()
 
     def _setup_storages(self):
         self._offline_settings_storage = storage.OfflineSettingsStorage(
             self.g_pool.rec_dir,
             plugin=self,
-            get_recording_index_range=self._recording_index_range,
+            get_recording_ts_range=self._recording_ts_range,
         )
         self._detection_storage = storage.OfflineDetectionStorage(
             self.g_pool.rec_dir,
@@ -108,37 +85,35 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
 
     def _setup_controllers(self):
         self._detection_controller = controller.OfflineDetectionController(
-            self._camera_name,
             self._offline_settings_storage,
             self._detection_storage,
             task_manager=self._task_manager,
-            get_current_trim_mark_range=self._current_trim_mark_range,
-            all_timestamps=self._all_timestamps_dict[self._camera_name],
-            source_path=self._source_path_dict[self._camera_name],
+            current_trim_mark_ts_range=self._current_trim_mark_ts_range,
+            all_timestamps_dict=self._all_timestamps_dict,
+            source_path_dict=self._source_path_dict,
         )
         self._optimization_controller = controller.OfflineOptimizationController(
-            self._camera_name,
             self._detection_controller,
             self._offline_settings_storage,
             self._detection_storage,
             self._optimization_storage,
-            self._intrinsics_dict[self._camera_name],
+            camera_intrinsics_dict=self._intrinsics_dict,
             task_manager=self._task_manager,
-            get_current_trim_mark_range=self._current_trim_mark_range,
-            all_timestamps=self._all_timestamps_dict[self._camera_name],
+            current_trim_mark_ts_range=self._current_trim_mark_ts_range,
+            all_timestamps_dict=self._all_timestamps_dict,
             rec_dir=self.g_pool.rec_dir,
         )
         self._localization_controller = controller.OfflineLocalizationController(
-            self._camera_name,
+            self._detection_controller,
             self._optimization_controller,
             self._offline_settings_storage,
             self._detection_storage,
             self._optimization_storage,
             self._localization_storage,
-            self._intrinsics_dict[self._camera_name],
+            camera_intrinsics_dict=self._intrinsics_dict,
             task_manager=self._task_manager,
-            get_current_trim_mark_range=self._current_trim_mark_range,
-            all_timestamps=self._all_timestamps_dict[self._camera_name],
+            current_trim_mark_ts_range=self._current_trim_mark_ts_range,
+            all_timestamps_dict=self._all_timestamps_dict,
         )
         self._export_controller = controller.ExportController(
             self._optimization_storage,
@@ -148,6 +123,13 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
         )
 
     def _setup_renderers(self):
+        self._detection_renderer = plugin_ui.DetectionRenderer(
+            self._offline_settings_storage,
+            self._detection_storage,
+            self._optimization_storage,
+            plugin=self,
+        )
+
         self._head_pose_tracker_3d_renderer = plugin_ui.HeadPoseTracker3DRenderer(
             self._offline_settings_storage,
             self._detection_storage,
@@ -164,19 +146,19 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
         self._detection_menu = plugin_ui.OfflineDetectionMenu(
             self._detection_controller,
             self._offline_settings_storage,
-            index_range_as_str=self._index_range_as_str,
+            ts_range_as_str=self._ts_range_as_str,
         )
         self._optimization_menu = plugin_ui.OfflineOptimizationMenu(
             self._optimization_controller,
             self._offline_settings_storage,
             self._optimization_storage,
-            index_range_as_str=self._index_range_as_str,
+            ts_range_as_str=self._ts_range_as_str,
         )
         self._localization_menu = plugin_ui.OfflineLocalizationMenu(
             self._localization_controller,
             self._offline_settings_storage,
             self._localization_storage,
-            index_range_as_str=self._index_range_as_str,
+            ts_range_as_str=self._ts_range_as_str,
         )
         self._head_pose_tracker_menu = plugin_ui.OfflineHeadPoseTrackerMenu(
             self._visualization_menu,
@@ -197,10 +179,11 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
             self._localization_controller,
             self._offline_settings_storage,
             self._localization_storage,
+            all_timestamps=self._all_timestamps_dict["world"],
         )
         plugin_timeline = PluginTimeline(
             plugin=self,
-            title="Offline Head Pose Tracker",
+            title="Camera Extrinsics Measurer",
             timeline_ui_parent=self.g_pool.user_timelines,
             all_timestamps=self._all_timestamps_dict["world"],
         )
@@ -211,27 +194,24 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
             plugin=self,
         )
 
-    def _recording_index_range(self):
-        left_index = 0
-        right_index = len(self._all_timestamps_dict["world"]) - 1
-        return left_index, right_index
-
-    def _current_trim_mark_range(self):
-        right_idx = self.g_pool.seek_control.trim_right
-        left_idx = self.g_pool.seek_control.trim_left
-        return left_idx, right_idx
-
-    def _index_range_as_str(self, index_range):
-        from_index, to_index = index_range
-        return "{} - {}".format(
-            self._index_time_as_str(from_index), self._index_time_as_str(to_index)
+    def _recording_ts_range(self):
+        return (
+            self._all_timestamps_dict["world"][0],
+            self._all_timestamps_dict["world"][-1],
         )
 
-    def _index_time_as_str(self, index):
-        try:
-            ts = self._all_timestamps_dict["world"][index]
-        except IndexError:
-            pass
+    def _current_trim_mark_ts_range(self):
+        right_ts = self.g_pool.seek_control.trim_right_ts
+        left_ts = self.g_pool.seek_control.trim_left_ts
+        return left_ts, right_ts
+
+    def _ts_range_as_str(self, ts_range):
+        from_ts, to_ts = ts_range
+        return "{} - {}".format(
+            self._ts_time_as_str(from_ts), self._ts_time_as_str(to_ts)
+        )
+
+    def _ts_time_as_str(self, ts):
         min_ts = self._all_timestamps_dict["world"][0]
         time = ts - min_ts
         minutes = abs(time // 60)  # abs because it's sometimes -0

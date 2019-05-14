@@ -24,12 +24,12 @@ class OfflineOptimizationMenu:
         optimization_controller,
         general_settings,
         optimization_storage,
-        index_range_as_str,
+        ts_range_as_str,
     ):
         self._optimization_controller = optimization_controller
         self._general_settings = general_settings
         self._optimization_storage = optimization_storage
-        self._index_range_as_str = index_range_as_str
+        self._ts_range_as_str = ts_range_as_str
 
         self.menu = ui.Growing_Menu(self.menu_label)
         self.menu.collapsed = False
@@ -58,30 +58,6 @@ class OfflineOptimizationMenu:
         ]
         return menu
 
-    def _render_ui_markers_3d_model_from_another_recording(self):
-        menu = [
-            self._create_info_text_for_markers_3d_model_from_another_recording(),
-            self._create_origin_marker_id_display_from_another_recording(),
-        ]
-        return menu
-
-    def _create_info_text_for_markers_3d_model_from_another_recording(self):
-        if self._optimization_storage.calculated:
-            text = (
-                "This markers 3d model '{}' was copied from another recording. "
-                "It is ready to be used for camera localization.".format(
-                    self._optimization_storage.name
-                )
-            )
-        else:
-            text = (
-                "This markers 3d model '{}' was copied from another recording, "
-                "but it cannot be used here, since it was not successfully calculated. "
-                "Please go back to the original recording, calculate and copy it here "
-                "again.".format(self._optimization_storage.name)
-            )
-        return ui.Info_Text(text)
-
     def _create_name_input(self):
         return ui.Text_Input(
             "name",
@@ -91,13 +67,13 @@ class OfflineOptimizationMenu:
         )
 
     def _create_range_selector(self):
-        range_string = "Collect markers in: " + self._index_range_as_str(
-            self._general_settings.optimization_frame_index_range
+        range_string = "Collect markers in: " + self._ts_range_as_str(
+            self._general_settings.optimization_frame_ts_range
         )
         return ui.Button(
             outer_label=range_string,
             label="Set from trim marks",
-            function=self._on_set_index_range_from_trim_marks,
+            function=self._on_set_ts_range_from_trim_marks,
         )
 
     def _create_optimize_camera_intrinsics_switch(self):
@@ -124,15 +100,6 @@ class OfflineOptimizationMenu:
         return ui.Text_Input(
             "user_defined_origin_marker_id",
             self._general_settings,
-            label="Define the origin marker id",
-            getter=self._on_get_origin_marker_id,
-            setter=self._on_set_origin_marker_id,
-        )
-
-    def _create_origin_marker_id_display_from_another_recording(self):
-        return ui.Text_Input(
-            "user_defined_origin_marker_id",
-            self._general_settings,
             label="Origin marker id",
             getter=self._on_get_origin_marker_id,
             setter=lambda _: _,
@@ -142,12 +109,12 @@ class OfflineOptimizationMenu:
         self._optimization_storage.rename(new_name)
         self.render()
 
-    def _on_set_index_range_from_trim_marks(self):
+    def _on_set_ts_range_from_trim_marks(self):
         self._optimization_controller.set_range_from_current_trim_marks()
         self.render()
 
     def _on_calculate_button_clicked(self):
-        self._optimization_controller.calculate()
+        self._optimization_controller.calculate("world")
         self.render()
 
     def _on_get_origin_marker_id(self):
@@ -157,21 +124,5 @@ class OfflineOptimizationMenu:
             origin_marker_id = None
         return str(origin_marker_id)
 
-    def _on_set_origin_marker_id(self, new_id):
-        try:
-            new_id = int(new_id)
-        except ValueError:
-            logger.info("'{}' is not a valid input".format(new_id))
-            return
-
-        if self._general_settings.user_defined_origin_marker_id != new_id:
-            self._general_settings.user_defined_origin_marker_id = new_id
-            logger.info(
-                "The marker with id {} will be defined as the origin of the"
-                "coordinate system during the next calculation of the markers 3d "
-                "model '{}'.".format(new_id, self._optimization_storage.name)
-            )
-            self._optimization_controller.calculate()
-
-    def _on_optimization_completed(self):
+    def _on_optimization_completed(self, _):
         self.render()

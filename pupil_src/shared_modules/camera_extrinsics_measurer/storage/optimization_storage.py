@@ -42,6 +42,8 @@ class Markers3DModel:
         if self.origin_marker_id is None:
             return
 
+        # marker_ids = sorted(marker_id_to_extrinsics.keys())
+
         self.marker_id_to_extrinsics = {
             marker_id: np.array(extrinsics)
             for marker_id, extrinsics in marker_id_to_extrinsics.items()

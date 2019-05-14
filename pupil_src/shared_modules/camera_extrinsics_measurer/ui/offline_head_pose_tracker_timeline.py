@@ -9,6 +9,8 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import numpy as np
+
 from plugin_timeline import Row, RangeElementFrameIdx, BarsElementTs
 
 
@@ -98,8 +100,9 @@ class DetectionTimeline:
             return RangeElementFrameIdx()
 
     def _on_detection_started(self):
-        self._frame_start, frame_end = (
-            self._general_settings.detection_frame_index_range
+        left_ts, right_ts = self._general_settings.detection_frame_ts_range
+        self._frame_start, frame_end = np.searchsorted(
+            self._all_timestamps, (left_ts, right_ts)
         )
         self._frame_count = frame_end - self._frame_start + 1
 
@@ -111,7 +114,7 @@ class DetectionTimeline:
         self.update_row()
         self.render_parent_timeline()
 
-    def _on_detection_ended(self):
+    def _on_detection_ended(self, _):
         self.update_row()
         self.render_parent_timeline()
 
@@ -119,12 +122,19 @@ class DetectionTimeline:
 class LocalizationTimeline:
     timeline_label = "Camera localization"
 
-    def __init__(self, localization_controller, general_settings, localization_storage):
+    def __init__(
+        self,
+        localization_controller,
+        general_settings,
+        localization_storage,
+        all_timestamps,
+    ):
         self.render_parent_timeline = None
 
         self._localization_controller = localization_controller
         self._general_settings = general_settings
         self._localization_storage = localization_storage
+        self._all_timestamps = all_timestamps
 
         localization_storage.add_observer(
             "load_pldata_from_disk", self._on_storage_changed
@@ -167,13 +177,14 @@ class LocalizationTimeline:
         else:
             return RangeElementFrameIdx()
 
-    def _on_localization_reset(self):
+    def _on_localization_reset(self, _):
         self.update_row()
         self.render_parent_timeline()
 
     def _on_localization_started(self):
-        self._frame_start, frame_end = (
-            self._general_settings.localization_frame_index_range
+        left_ts, right_ts = self._general_settings.localization_frame_ts_range
+        self._frame_start, frame_end = np.searchsorted(
+            self._all_timestamps, (left_ts, right_ts)
         )
         self._frame_count = frame_end - self._frame_start + 1
 

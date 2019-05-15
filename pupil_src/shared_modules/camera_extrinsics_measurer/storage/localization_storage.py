@@ -97,15 +97,23 @@ class OfflineLocalizationStorage(Observable, OfflineCameraLocalization):
                         pose_ts, topic="pose", datum_serialized=pose.serialized
                     )
 
-    def _export_poses_array(self):
+    def _export_poses_array(self, scale=35.9):
         file_path = os.path.join(self._rec_dir, self._pldata_file_name_converted)
-        poses_dict = {
-            camera_name: [
-                [p["timestamp"], *p["camera_poses"]]
-                for p in self.pose_bisector_converted[camera_name].data
-            ]
-            for camera_name in camera_names
-        }
+
+        poses_dict = {}
+        for camera_name in camera_names:
+            poses = np.array(
+                [
+                    [p["timestamp"], *p["camera_poses"]]
+                    for p in self.pose_bisector_converted[camera_name]
+                ]
+            )
+            try:
+                poses[:, 1:4] *= 180 / np.pi
+                poses[:, 4:7] *= scale
+            except IndexError:
+                pass
+            poses_dict[camera_name] = poses.tolist()
         fm.save_object(poses_dict, file_path)
         print("_export_poses_array")
 

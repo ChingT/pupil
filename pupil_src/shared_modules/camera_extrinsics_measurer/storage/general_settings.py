@@ -87,7 +87,7 @@ class OfflineSettingsStorage(SettingsStorage):
         self.optimization_frame_ts_range = self._get_recording_ts_range()
         self.localization_frame_ts_range = self._get_recording_ts_range()
         self.user_defined_origin_marker_id = None
-        self.optimize_camera_intrinsics = True
+        self.optimize_camera_intrinsics = False
         self.open_visualization_window = False
         self.convert_to_world_coordinate = False
         self.render_markers_in_3d_window = True

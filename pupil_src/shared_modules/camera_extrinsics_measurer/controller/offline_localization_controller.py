@@ -64,10 +64,7 @@ class OfflineLocalizationController(Observable):
         return "Not calculated yet"
 
     def _on_optimization_had_completed_before(self, camera_name):
-        if not self._localization_storage.calculated(camera_name):
-            self.calculate(camera_name)
-        else:
-            self._on_routine_ended(camera_name)
+        self.calculate(camera_name)
 
     def _on_optimization_started(self, camera_name):
         self.reset(camera_name)

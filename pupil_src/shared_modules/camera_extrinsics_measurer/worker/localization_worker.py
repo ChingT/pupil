@@ -71,7 +71,7 @@ def offline_localization(
                 markers_in_frame,
                 marker_id_to_extrinsics,
                 camera_extrinsics_prv=camera_extrinsics_prv,
-                min_n_markers_per_frame=2,
+                min_n_markers_per_frame=5,
             )
             if camera_extrinsics is not None:
                 camera_extrinsics_prv = camera_extrinsics
@@ -94,6 +94,65 @@ def offline_localization(
             camera_extrinsics_prv = None
 
     yield queue
+
+
+def convert_to_gt_coordinate(timestamps_world, pose_bisector_converted, scale=40):
+    timestamps_new = {name: [] for name in camera_names}
+    pose_datum_converted = {name: [] for name in camera_names}
+
+    for index in range(len(timestamps_world)):
+        frame_window = pm.enclosing_window(timestamps_world, index)
+
+        current_poses = []
+        for camera_name in camera_names:
+            pose_datum = pose_bisector_converted[camera_name].by_ts_window(frame_window)
+            try:
+                current_pose = pose_datum[len(pose_datum) // 2]
+            except IndexError:
+                current_poses = []
+                break
+            else:
+                current_poses.append(current_pose)
+
+        if not current_poses:
+            continue
+
+        transformation_matrix_to_gt = utils.find_transformation_matrix_to_gt(
+            [
+                np.array(current_pose["camera_trace"]) * scale
+                for current_pose in current_poses
+            ]
+        )
+
+        for current_pose, camera_name in zip(current_poses, camera_names):
+            camera_pose_matrix = np.array(current_pose["camera_pose_matrix"])
+            camera_pose_matrix[0:3, 3] *= scale
+            camera_pose_matrix_converted = (
+                transformation_matrix_to_gt @ camera_pose_matrix
+            )
+            camera_poses_converted = utils.convert_matrix_to_extrinsic(
+                camera_pose_matrix_converted
+            )
+            camera_extrinsics_converted = utils.get_camera_pose(camera_poses_converted)
+            pose_data_converted = {
+                "camera_extrinsics": camera_extrinsics_converted.tolist(),
+                "camera_poses": camera_poses_converted.tolist(),
+                "camera_pose_matrix": camera_pose_matrix_converted.tolist(),
+                "camera_trace": camera_poses_converted[3:6].tolist(),
+                "timestamp": current_pose["timestamp"],
+            }
+
+            pose_datum_converted[camera_name].append(
+                fm.Serialized_Dict(pose_data_converted)
+            )
+            timestamps_new[camera_name].append(current_pose["timestamp"])
+
+    pose_bisector_converted = {}
+    for camera_name in camera_names:
+        pose_bisector_converted[camera_name] = pm.Bisector(
+            pose_datum_converted[camera_name], timestamps_new[camera_name]
+        )
+    return pose_bisector_converted
 
 
 def convert_to_world_coordinate(timestamps_world, pose_bisector_converted):

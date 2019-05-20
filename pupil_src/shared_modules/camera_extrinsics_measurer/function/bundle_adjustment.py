@@ -46,7 +46,7 @@ class BundleAdjustment:
         self._marker_ids = []
         self._frame_ids = []
 
-    def calculate(self, initial_guess_result):
+    def calculate(self, initial_guess_result, max_nfev=50):
         """ run bundle adjustment given the initial guess and then check the result of
         markers_3d_model
         """
@@ -67,7 +67,7 @@ class BundleAdjustment:
             camera_extrinsics_array, self._marker_extrinsics_array
         )
         least_sq_result = self._least_squares(
-            initial_guess_array, bounds, sparsity_matrix
+            initial_guess_array, bounds, sparsity_matrix, max_nfev
         )
 
         bundle_adjustment_result = self._get_result(least_sq_result)
@@ -224,7 +224,7 @@ class BundleAdjustment:
         sparsity_matrix = scipy_sparse.lil_matrix(sparsity_matrix)
         return sparsity_matrix
 
-    def _least_squares(self, initial_guess_array, bounds, sparsity_matrix):
+    def _least_squares(self, initial_guess_array, bounds, sparsity_matrix, max_nfev=50):
         result = scipy_optimize.least_squares(
             fun=self._function_compute_residuals,
             x0=initial_guess_array,
@@ -236,7 +236,7 @@ class BundleAdjustment:
             loss="soft_l1",
             diff_step=self._diff_step,
             jac_sparsity=sparsity_matrix,
-            max_nfev=50,
+            max_nfev=max_nfev,
         )
         return result
 

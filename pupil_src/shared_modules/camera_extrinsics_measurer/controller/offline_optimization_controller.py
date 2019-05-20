@@ -109,6 +109,7 @@ class OfflineOptimizationController(Observable):
 
     def _create_task(self, camera_name):
         args = (
+            camera_name,
             self._all_timestamps_dict[camera_name],
             self._general_settings.user_defined_origin_marker_id,
             self._optimization_storage.marker_id_to_extrinsics,

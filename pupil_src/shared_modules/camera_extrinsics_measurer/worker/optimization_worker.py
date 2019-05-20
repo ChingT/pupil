@@ -25,7 +25,7 @@ IntrinsicsTuple = collections.namedtuple(
 )
 
 
-def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment):
+def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment, max_nfev):
     try:
         bg_storage.marker_id_to_extrinsics[bg_storage.origin_marker_id]
     except KeyError:
@@ -40,7 +40,7 @@ def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment):
     if not initial_guess:
         return
 
-    result = bundle_adjustment.calculate(initial_guess)
+    result = bundle_adjustment.calculate(initial_guess, max_nfev)
 
     marker_id_to_extrinsics = result.marker_id_to_extrinsics
     marker_id_to_points_3d = {
@@ -63,6 +63,7 @@ def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment):
 
 
 def offline_optimization(
+    camera_name,
     timestamps,
     user_defined_origin_marker_id,
     marker_id_to_extrinsics_opt,
@@ -96,14 +97,24 @@ def offline_optimization(
         camera_intrinsics, optimize_camera_intrinsics, optimize_marker_extrinsics=False
     )
 
+    if "eye" in camera_name:
+        select_key_markers_interval = 8
+    else:
+        select_key_markers_interval = 2
+
     for idx, frame_index in enumerate(frame_indices):
         markers_in_frame = find_markers_in_frame(frame_index)
         bg_storage.all_key_markers += pick_key_markers.run(
-            markers_in_frame, bg_storage.all_key_markers, select_key_markers_interval=1
+            markers_in_frame, bg_storage.all_key_markers, select_key_markers_interval
         )
 
-        if not (idx % 50 == 25 or idx == frame_count - 1):
+        if not (idx % 100 == 99 or idx == frame_count - 2 or idx == frame_count - 1):
             continue
+
+        if idx == frame_count - 2 or idx == frame_count - 1:
+            max_nfev = 100000
+        else:
+            max_nfev = 25
 
         shared_memory.progress = (idx + 1) / frame_count
         try:
@@ -112,7 +123,7 @@ def offline_optimization(
                 frame_id_to_extrinsics,
                 frame_ids_failed,
                 intrinsics_tuple,
-            ) = optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment)
+            ) = optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment, max_nfev)
         except TypeError:
             pass
         else:

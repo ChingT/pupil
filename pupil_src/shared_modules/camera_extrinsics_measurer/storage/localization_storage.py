@@ -57,7 +57,11 @@ class OfflineCameraLocalization(Localization):
         }
 
         for camera_name in camera_names:
-            pose_datum = pose_bisector[camera_name].by_ts_window(frame_window)
+            try:
+                pose_datum = pose_bisector[camera_name].by_ts_window(frame_window)
+            except ValueError:
+                continue
+
             try:
                 pose_data = pose_datum[0]
             except IndexError:
@@ -110,7 +114,7 @@ class OfflineLocalizationStorage(Observable, OfflineCameraLocalization):
             )
             try:
                 poses[:, 1:4] *= 180 / np.pi
-                poses[:, 4:7] *= scale
+                # poses[:, 4:7] *= scale
             except IndexError:
                 pass
             poses_dict[camera_name] = poses.tolist()

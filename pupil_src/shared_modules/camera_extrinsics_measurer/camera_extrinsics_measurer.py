@@ -229,7 +229,10 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
 
     def get_current_frame_window(self):
         frame_index = self.get_current_frame_index()
-        frame_window = pm.enclosing_window(
-            self._all_timestamps_dict["world"], frame_index
-        )
+        try:
+            frame_window = pm.enclosing_window(
+                self._all_timestamps_dict["world"], frame_index
+            )
+        except IndexError:
+            frame_window = []
         return frame_window

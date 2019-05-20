@@ -184,7 +184,7 @@ class OfflineLocalizationController(Observable):
 
     def _convert_to_world_coordinate(self):
         logger.info("Start converting to world coordinate")
-        pose_bisector_converted = worker.convert_to_world_coordinate(
+        pose_bisector_converted = worker.convert_to_gt_coordinate(
             self._all_timestamps_dict["world"], self._localization_storage.pose_bisector
         )
         self._localization_storage.pose_bisector_converted = pose_bisector_converted

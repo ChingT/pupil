@@ -15,6 +15,7 @@ import time
 
 import cv2
 import numpy as np
+from scipy.optimize import least_squares
 
 logger = logging.getLogger(__name__)
 
@@ -73,21 +74,42 @@ def get_camera_pose(camera_extrinsics):
 
 def convert_marker_extrinsics_to_points_3d(marker_extrinsics):
     mat = convert_extrinsic_to_matrix(marker_extrinsics)
-    marker_transformed_h = np.matmul(mat, get_marker_points_4d_origin().T)
-    marker_points_3d = cv2.convertPointsFromHomogeneous(marker_transformed_h.T)
-    marker_points_3d.shape = 4, 3
+    marker_points_3d = transform_points(mat, get_marker_points_3d_origin())
 
     return marker_points_3d
 
 
+def transform_points(matrix, points):
+    points = np.array(points)
+    return cv2.convertPointsFromHomogeneous(
+        np.matmul(matrix.copy(), cv2.convertPointsToHomogeneous(points)[:, 0].T).T
+    )[:, 0]
+
+
+def find_transformation_matrix_to_gt(camera_position_detected):
+    def fun(x):
+        transformation_matrix = convert_extrinsic_to_matrix(x)
+        camera_position_detected_transformed = transform_points(
+            transformation_matrix, camera_position_detected
+        )
+        return (camera_position_detected_transformed - get_camera_position_gt()).ravel()
+
+    initial_guess_array = np.array([0, 0, 0, 0, 0, 0], dtype=np.float64)
+    result = least_squares(fun=fun, x0=initial_guess_array, diff_step=1e-3, verbose=0)
+    transformation_vector = result.x
+    return convert_extrinsic_to_matrix(transformation_vector)
+
+
+def get_camera_position_gt():
+    return np.array(
+        [[-71.254955, 20.82487, -9.92992], [61.295385, 0, 0], [-61.295385, 0, 0]],
+        # [[71.254955, 20.82487, 9.92992], [-61.295385, 0, 0], [61.295385, 0, 0]],
+        dtype=np.float64,
+    )
+
+
 def get_marker_points_3d_origin():
     return np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=np.float32)
-
-
-def get_marker_points_4d_origin():
-    return np.array(
-        [[0, 0, 0, 1], [1, 0, 0, 1], [1, 1, 0, 1], [0, 1, 0, 1]], dtype=np.float32
-    )
 
 
 def get_marker_extrinsics_origin():

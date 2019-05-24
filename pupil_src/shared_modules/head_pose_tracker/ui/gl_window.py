@@ -57,7 +57,7 @@ class GLWindow(Observable, abc.ABC):
     @staticmethod
     def _init_trackball():
         trackball = gl_utils.Trackball()
-        trackball.zoom_to(-100)
+        trackball.zoom_to(-30)
         return trackball
 
     def _glfw_init(self):

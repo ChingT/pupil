@@ -9,6 +9,9 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import os
+
+import cv2
 import numpy as np
 
 import apriltag
@@ -23,12 +26,13 @@ class Empty(object):
     pass
 
 
-def get_markers_data(detection, img_size, timestamp):
+def get_markers_data(detection, img_size, timestamp, frame_index):
     return {
         "id": detection.tag_id,
         "verts": detection.corners[::-1].tolist(),
         "centroid": normalize(detection.center, img_size, flip_y=True),
         "timestamp": timestamp,
+        "frame_index": frame_index,
     }
 
 
@@ -37,8 +41,9 @@ def _detect(frame):
     apriltag_detections = apriltag_detector.detect(image)
     img_size = image.shape[::-1]
     return [
-        get_markers_data(detection, img_size, frame.timestamp)
+        get_markers_data(detection, img_size, frame.timestamp, frame.index)
         for detection in apriltag_detections
+        if detection.hamming == 0
     ]
 
 
@@ -68,14 +73,23 @@ def offline_detection(
 
     src = video_capture.File_Source(Empty(), source_path, timing=None)
 
+    debug_img_folder = os.path.splitext(source_path)[0]
+    os.makedirs(debug_img_folder, exist_ok=True)
+
     queue = []
     for frame_index in frame_indices:
         shared_memory.progress = (frame_index - frame_start + 1) / frame_count
         timestamp = timestamps[frame_index]
         src.seek_to_frame(frame_index)
         frame = src.get_frame()
-
         detections = _detect(frame)
+
+        img = frame.bgr.copy()
+        verts = [
+            np.around(detection["verts"]).astype(np.int32) for detection in detections
+        ]
+        cv2.polylines(img, verts, True, (0, 0, 255))
+        cv2.imwrite("{}/{}.jpg".format(debug_img_folder, frame_index), img)
         if detections:
             serialized_dicts = [
                 fm.Serialized_Dict(detection) for detection in detections

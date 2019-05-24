@@ -48,7 +48,7 @@ class OfflineCameraLocalization(Localization):
 
     @property
     def current_pose_converted(self):
-        return self._get_current_pose(self.pose_bisector_converted)
+        return self._get_current_pose(self.pose_bisector_converted["world"])
 
     def _get_current_pose(self, pose_bisector):
         frame_window = self._get_current_frame_window()
@@ -82,9 +82,9 @@ class OfflineLocalizationStorage(Observable, OfflineCameraLocalization):
 
     def save_pldata_to_disk(self):
         self._save_to_file(self._pldata_file_name, self.pose_bisector)
-        self._save_to_file(
-            self._pldata_file_name_converted, self.pose_bisector_converted
-        )
+        # self._save_to_file(
+        #     self._pldata_file_name_converted, self.pose_bisector_converted
+        # )
         self._export_poses_array()
 
     def _save_to_file(self, file_name, pose_bisector):
@@ -101,31 +101,34 @@ class OfflineLocalizationStorage(Observable, OfflineCameraLocalization):
                         pose_ts, topic="pose", datum_serialized=pose.serialized
                     )
 
-    def _export_poses_array(self, scale=35.9):
+    def _export_poses_array(self, scale=40):
         file_path = os.path.join(self._rec_dir, self._pldata_file_name_converted)
 
-        poses_dict = {}
-        for camera_name in camera_names:
-            poses = np.array(
-                [
-                    [p["timestamp"], *p["camera_poses"]]
-                    for p in self.pose_bisector_converted[camera_name]
-                ]
-            )
-            try:
-                poses[:, 1:4] *= 180 / np.pi
-                # poses[:, 4:7] *= scale
-            except IndexError:
-                pass
-            poses_dict[camera_name] = poses.tolist()
+        poses_dict = {name: {n: {} for n in camera_names} for name in camera_names}
+        for camera_name_coor in camera_names:
+            for camera_name in camera_names:
+                poses = np.array(
+                    [
+                        [p["timestamp"], *p["camera_poses"]]
+                        for p in self.pose_bisector_converted[camera_name_coor][
+                            camera_name
+                        ]
+                    ]
+                )
+                try:
+                    poses[:, 1:4] *= 180 / np.pi
+                    poses[:, 4:7] *= scale
+                except IndexError:
+                    pass
+                poses_dict[camera_name_coor][camera_name] = poses.tolist()
         fm.save_object(poses_dict, file_path)
         print("_export_poses_array")
 
     def load_pldata_from_disk(self):
         self._load_from_file(self._pldata_file_name, self.pose_bisector)
-        self._load_from_file(
-            self._pldata_file_name_converted, self.pose_bisector_converted
-        )
+        # self._load_from_file(
+        #     self._pldata_file_name_converted, self.pose_bisector_converted
+        # )
 
     def _load_from_file(self, file_name, pose_bisector):
         for camera_name in camera_names:

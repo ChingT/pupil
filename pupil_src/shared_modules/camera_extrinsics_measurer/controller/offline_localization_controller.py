@@ -31,6 +31,7 @@ class OfflineLocalizationController(Observable):
         task_manager,
         current_trim_mark_ts_range,
         all_timestamps_dict,
+        rec_dir,
     ):
         self._detection_controller = detection_controller
         self._general_settings = general_settings
@@ -41,6 +42,7 @@ class OfflineLocalizationController(Observable):
         self._task_manager = task_manager
         self._current_trim_mark_ts_range = current_trim_mark_ts_range
         self._all_timestamps_dict = all_timestamps_dict
+        self._rec_dir = rec_dir
         self._task = None
 
         if self._localization_storage.calculated:
@@ -126,6 +128,7 @@ class OfflineLocalizationController(Observable):
 
     def _create_task(self, camera_name):
         args = (
+            camera_name,
             self._all_timestamps_dict[camera_name],
             self._detection_storage.markers_bisector[camera_name],
             self._detection_storage.frame_index_to_num_markers[camera_name],
@@ -184,8 +187,11 @@ class OfflineLocalizationController(Observable):
 
     def _convert_to_world_coordinate(self):
         logger.info("Start converting to world coordinate")
-        pose_bisector_converted = worker.convert_to_gt_coordinate(
-            self._all_timestamps_dict["world"], self._localization_storage.pose_bisector
+        pose_bisector_converted = worker.convert_to_world_coordinate(
+            self._all_timestamps_dict,
+            self._localization_storage.pose_bisector,
+            self._rec_dir,
+            self._general_settings.debug,
         )
         self._localization_storage.pose_bisector_converted = pose_bisector_converted
         logger.info("Converting to world coordinate completed")

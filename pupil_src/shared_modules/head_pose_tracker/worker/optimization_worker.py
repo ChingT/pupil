@@ -70,6 +70,7 @@ def offline_optimization(
     markers_bisector,
     frame_index_to_num_markers,
     camera_intrinsics,
+    marker_id_to_extrinsics_opt,
     shared_memory,
 ):
     def find_markers_in_frame(index):
@@ -88,6 +89,10 @@ def offline_optimization(
     frame_count = len(frame_indices)
 
     bg_storage = storage.Markers3DModel(user_defined_origin_marker_id)
+    origin_marker_id = utils.find_origin_marker_id(marker_id_to_extrinsics_opt)
+    bg_storage.origin_marker_id = origin_marker_id
+    bg_storage.marker_id_to_extrinsics = marker_id_to_extrinsics_opt
+
     bundle_adjustment = BundleAdjustment(camera_intrinsics, optimize_camera_intrinsics)
 
     for idx, frame_index in enumerate(frame_indices):
@@ -96,7 +101,7 @@ def offline_optimization(
             markers_in_frame, bg_storage.all_key_markers, select_key_markers_interval=1
         )
 
-        if not (idx % 50 == 25 or idx == frame_count - 1):
+        if not (idx % 20 == 19 or idx == frame_count - 1):
             continue
 
         shared_memory.progress = (idx + 1) / frame_count

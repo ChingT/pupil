@@ -40,6 +40,7 @@ def _prepare_data_for_solvepnp(
         marker
         for marker in markers_in_frame
         if marker["id"] in marker_id_to_extrinsics.keys()
+        # and marker["id"] in range(300, 336)
     ]
     if len(markers_available) < min_n_markers_per_frame:
         return None
@@ -67,7 +68,14 @@ def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
     retval, rotation, translation = _run_solvepnp(
         camera_intrinsics, markers_points_3d, markers_points_2d, camera_extrinsics_prv
     )
-    if _check_result_reasonable(retval, rotation, translation, markers_points_3d):
+    if _check_result_reasonable(
+        retval,
+        rotation,
+        translation,
+        markers_points_3d,
+        markers_points_2d,
+        camera_intrinsics,
+    ):
         camera_extrinsics = utils.merge_extrinsics(rotation, translation)
         return camera_extrinsics
 
@@ -76,7 +84,14 @@ def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
     retval, rotation, translation = _run_solvepnp(
         camera_intrinsics, markers_points_3d, markers_points_2d
     )
-    if _check_result_reasonable(retval, rotation, translation, markers_points_3d):
+    if _check_result_reasonable(
+        retval,
+        rotation,
+        translation,
+        markers_points_3d,
+        markers_points_2d,
+        camera_intrinsics,
+    ):
         camera_extrinsics = utils.merge_extrinsics(rotation, translation)
         return camera_extrinsics
     else:
@@ -90,6 +105,15 @@ def _run_solvepnp(
     assert markers_points_3d.shape[1:] == (4, 3)
     assert markers_points_2d.shape[1:] == (4, 2)
 
+    # retval, cameraMatrix, distCoeffs, rvecs, tvecs = cv2.calibrateCamera(
+    #     markers_points_3d,
+    #     markers_points_2d,
+    #     camera_intrinsics.resolution,
+    #     cameraMatrix=None,
+    #     distCoeffs=None,
+    #     flags=cv2.CALIB_ZERO_TANGENT_DIST,
+    # )
+    # print(retval, cameraMatrix, distCoeffs, rvecs, tvecs)
     if camera_extrinsics_prv is None or np.isnan(camera_extrinsics_prv).any():
         retval, rotation, translation = camera_intrinsics.solvePnP(
             markers_points_3d, markers_points_2d
@@ -106,7 +130,14 @@ def _run_solvepnp(
     return retval, rotation, translation
 
 
-def _check_result_reasonable(retval, rotation, translation, pts_3d_world):
+def _check_result_reasonable(
+    retval,
+    rotation,
+    translation,
+    markers_points_3d,
+    markers_points_2d_detected,
+    camera_intrinsics,
+):
     # solvePnP outputs wrong pose estimations sometimes, so it is necessary to check
     # if the rotation and translation from the output of solvePnP is reasonable.
     if not retval:
@@ -126,8 +157,17 @@ def _check_result_reasonable(retval, rotation, translation, pts_3d_world):
     # the depth of the markers in the camera coordinate system should be positive,
     # i.e. all seen markers in the frame should be in front of the camera;
     # if not, that implies the output of solvePnP is wrong.
-    pts_3d_camera = utils.to_camera_coordinate(pts_3d_world, rotation, translation)
-    if (pts_3d_camera[:, 2] < 1).any():
+    pts_3d_camera = utils.to_camera_coordinate(markers_points_3d, rotation, translation)
+    if (pts_3d_camera[:, 2] < -1).any():
+        return False
+
+    markers_points_2d_projected = camera_intrinsics.projectPoints(
+        np.concatenate(markers_points_3d), rotation, translation
+    ).reshape(-1, 4, 2)
+    residuals = markers_points_2d_projected - markers_points_2d_detected
+    errors = np.linalg.norm(residuals, axis=2).sum(axis=1)
+    img_size = camera_intrinsics.resolution
+    if np.median(errors) > img_size[0] / 100:
         return False
 
     return True

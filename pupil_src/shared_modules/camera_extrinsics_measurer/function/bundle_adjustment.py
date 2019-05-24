@@ -38,7 +38,7 @@ class BundleAdjustment:
         self._optimize_camera_intrinsics = optimize_camera_intrinsics
         self._optimize_marker_extrinsics = optimize_marker_extrinsics
         self._enough_samples = False
-        self._camera_intrinsics_params_size = 7
+        self._camera_intrinsics_params_size = 12
 
         self._tol = 1e-8
         self._diff_step = 1e-3
@@ -46,12 +46,12 @@ class BundleAdjustment:
         self._marker_ids = []
         self._frame_ids = []
 
-    def calculate(self, initial_guess_result, max_nfev=50):
+    def calculate(self, initial_guess_result):
         """ run bundle adjustment given the initial guess and then check the result of
         markers_3d_model
         """
 
-        self._enough_samples = bool(len(initial_guess_result.key_markers) >= 20)
+        self._enough_samples = bool(len(initial_guess_result.key_markers) >= 40)
 
         self._marker_ids, self._frame_ids = self._set_ids(
             initial_guess_result.frame_id_to_extrinsics,
@@ -67,7 +67,7 @@ class BundleAdjustment:
             camera_extrinsics_array, self._marker_extrinsics_array
         )
         least_sq_result = self._least_squares(
-            initial_guess_array, bounds, sparsity_matrix, max_nfev
+            initial_guess_array, bounds, sparsity_matrix
         )
 
         bundle_adjustment_result = self._get_result(least_sq_result)
@@ -156,8 +156,12 @@ class BundleAdjustment:
         if self._optimize_camera_intrinsics and self._enough_samples:
             camera_matrix_lower_bound = np.full((4,), 0)
             camera_matrix_upper_bound = np.full((4,), 2000)
-            dist_coefs_lower_bound = np.full((3,), -1)
-            dist_coefs_upper_bound = np.full((3,), 1)
+            dist_coefs_lower_bound = np.full(
+                (self._camera_intrinsics_params_size - 4,), -1
+            )
+            dist_coefs_upper_bound = np.full(
+                (self._camera_intrinsics_params_size - 4,), 1
+            )
             lower_bound = np.hstack(
                 (lower_bound, camera_matrix_lower_bound, dist_coefs_lower_bound)
             )
@@ -224,7 +228,7 @@ class BundleAdjustment:
         sparsity_matrix = scipy_sparse.lil_matrix(sparsity_matrix)
         return sparsity_matrix
 
-    def _least_squares(self, initial_guess_array, bounds, sparsity_matrix, max_nfev=50):
+    def _least_squares(self, initial_guess_array, bounds, sparsity_matrix):
         result = scipy_optimize.least_squares(
             fun=self._function_compute_residuals,
             x0=initial_guess_array,
@@ -236,7 +240,8 @@ class BundleAdjustment:
             loss="soft_l1",
             diff_step=self._diff_step,
             jac_sparsity=sparsity_matrix,
-            max_nfev=max_nfev,
+            # max_nfev=max_nfev,
+            verbose=0,
         )
         return result
 
@@ -245,7 +250,7 @@ class BundleAdjustment:
             least_sq_result.x
         )
         frame_indices_failed, marker_indices_failed = self._find_failed_indices(
-            least_sq_result.fun
+            least_sq_result.fun, self._camera_intrinsics.resolution[0] / 100
         )
 
         frame_id_to_extrinsics_opt = {
@@ -259,6 +264,11 @@ class BundleAdjustment:
             if marker_index not in marker_indices_failed
         }
         frame_ids_failed = [self._frame_ids[i] for i in frame_indices_failed]
+        print(
+            "frame_ids_failed",
+            len(self._frame_ids) - len(frame_ids_failed),
+            len(frame_ids_failed),
+        )
 
         bundle_adjustment_result = BundleAdjustmentResult(
             frame_id_to_extrinsics_opt, marker_id_to_extrinsics_opt, frame_ids_failed
@@ -341,19 +351,24 @@ class BundleAdjustment:
         frame_indices_failed = [
             frame_indice
             for frame_indice in set(self._frame_indices)
-            if np.min(reprojection_errors[self._frame_indices == frame_indice])
+            if np.median(reprojection_errors[self._frame_indices == frame_indice])
             > thres_frame
         ]
         marker_indices_failed = [
             marker_indice
             for marker_indice in set(self._marker_indices)
-            if np.min(reprojection_errors[self._marker_indices == marker_indice])
+            if np.median(reprojection_errors[self._marker_indices == marker_indice])
             > thres_marker
         ]
         return frame_indices_failed, marker_indices_failed
 
     def _load_camera_intrinsics_params(self, camera_matrix, dist_coefs):
-        assert camera_matrix.shape == (3, 3) and dist_coefs.shape == (1, 5)
+        assert camera_matrix.shape == (3, 3)
+        if self._camera_intrinsics_params_size != 12:
+            assert dist_coefs.shape == (1, 5), dist_coefs.shape
+        else:
+            assert dist_coefs.shape == (1, 8)
+
         camera_intrinsics_params = np.zeros((self._camera_intrinsics_params_size,))
 
         camera_intrinsics_params[0] = camera_matrix[0, 0]  # fx
@@ -361,9 +376,13 @@ class BundleAdjustment:
         camera_intrinsics_params[2] = camera_matrix[0, 2]  # cx
         camera_intrinsics_params[3] = camera_matrix[1, 2]  # cy
 
-        camera_intrinsics_params[4] = dist_coefs[0, 0]
-        camera_intrinsics_params[5] = dist_coefs[0, 1]
-        camera_intrinsics_params[6] = dist_coefs[0, 4]
+        if self._camera_intrinsics_params_size != 12:
+            camera_intrinsics_params[4] = dist_coefs[0, 0]
+            camera_intrinsics_params[5] = dist_coefs[0, 1]
+            camera_intrinsics_params[6] = dist_coefs[0, 4]
+        else:
+            for i in range(8):
+                camera_intrinsics_params[i + 4] = dist_coefs[0, i]
 
         return camera_intrinsics_params
 
@@ -376,10 +395,15 @@ class BundleAdjustment:
         camera_matrix[0, 2] = camera_intrinsics_params[2]  # cx
         camera_matrix[1, 2] = camera_intrinsics_params[3]  # cy
 
-        dist_coefs = np.zeros((1, 5))
-        dist_coefs[0, 0] = camera_intrinsics_params[4]
-        dist_coefs[0, 1] = camera_intrinsics_params[5]
-        dist_coefs[0, 4] = camera_intrinsics_params[6]
+        if self._camera_intrinsics_params_size != 12:
+            dist_coefs = np.zeros((1, 5))
+            dist_coefs[0, 0] = camera_intrinsics_params[4]
+            dist_coefs[0, 1] = camera_intrinsics_params[5]
+            dist_coefs[0, 4] = camera_intrinsics_params[6]
+        else:
+            dist_coefs = np.zeros((1, 8))
+            for i in range(8):
+                dist_coefs[0, i] = camera_intrinsics_params[i + 4]
 
         self._camera_intrinsics.update_camera_matrix(camera_matrix)
         self._camera_intrinsics.update_dist_coefs(dist_coefs)

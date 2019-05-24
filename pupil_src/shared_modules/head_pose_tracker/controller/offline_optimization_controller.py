@@ -70,7 +70,7 @@ class OfflineOptimizationController(Observable):
 
     def _reset(self):
         self.cancel_task()
-        self._optimization_storage.set_to_default_values()
+        # self._optimization_storage.set_to_default_values()
         self.status = self._default_status
 
     def _create_optimization_task(self):
@@ -114,6 +114,7 @@ class OfflineOptimizationController(Observable):
             self._detection_storage.markers_bisector,
             self._detection_storage.frame_index_to_num_markers,
             self._camera_intrinsics,
+            self._optimization_storage.marker_id_to_extrinsics,
         )
         return self._task_manager.create_background_task(
             name="markers 3d model optimization",

@@ -2,8 +2,11 @@ import cv2
 import numpy as np
 
 import camera_extrinsics_measurer.function.utils as utils
+import file_methods as fm
 
 np.set_printoptions(precision=6, suppress=True)
+camera_names = ["world", "eye0", "eye1"]
+scale = 40
 
 
 def get_camera_pose_gt(world, eye0, eye1):
@@ -27,12 +30,12 @@ def get_camera_pose_gt(world, eye0, eye1):
         "eye0": calculate_camera_pose(eye0_transformed),
         "eye1": calculate_camera_pose(eye1_transformed),
     }
-    for k, v in camera_pose_dict.items():
-        v[0:3] *= 180 / np.pi
-        print(k, v)
+    # for k, v in camera_pose_dict.items():
+    #     v[0:3] *= 180 / np.pi
+    #     print(k, v)
 
-    camera_pose_array = np.array(list(camera_pose_dict.values()), dtype=np.float64)
-    return camera_pose_array
+    # camera_pose_array = np.array(list(camera_pose_dict.values()), dtype=np.float64)
+    return camera_pose_dict
 
 
 def calculate_camera_pose(square):
@@ -57,10 +60,10 @@ def get_camera_points_3d_origin():
 if __name__ == "__main__":
     world_raw = np.array(
         [
-            [147.78915, 52.73564, 154.39790],  # 2
-            [139.78915, 52.73564, 154.39790],  # 3
-            [139.78915, 44.91046, 152.73462],  # 0
-            [147.78915, 44.91046, 152.73462],  # 1
+            [147.78915, 52.73564, 154.39790],  # 0
+            [139.78915, 52.73564, 154.39790],  # 1
+            [139.78915, 44.91046, 152.73462],  # 2
+            [147.78915, 44.91046, 152.73462],  # 3
         ],
         dtype=np.float64,
     )
@@ -83,8 +86,36 @@ if __name__ == "__main__":
         dtype=np.float64,
     )
 
-    camera_poses_gt = get_camera_pose_gt(world_raw, eye0_raw, eye1_raw)
-    np.save(
-        "/cluster/users/Ching/codebase/pi_extrinsics_measurer/camera_pose_gt",
-        camera_poses_gt,
+    camera_pose_dict = get_camera_pose_gt(world_raw, eye0_raw, eye1_raw)
+    # np.save(
+    #     "/cluster/users/Ching/codebase/pi_extrinsics_measurer/camera_pose_gt",
+    #     camera_poses_gt,
+    # )
+
+    camera_params_gt = {name: {n: [] for n in camera_names} for name in camera_names}
+    for camera_name_coor in camera_names:
+        transformation_matrix = utils.convert_extrinsic_to_matrix(
+            utils.get_camera_pose(camera_pose_dict[camera_name_coor])
+        )
+
+        for camera_name in camera_names:
+            camera_pose_matrix = utils.convert_extrinsic_to_matrix(
+                camera_pose_dict[camera_name]
+            )
+            camera_pose_matrix_converted = transformation_matrix @ camera_pose_matrix
+            camera_poses_converted = utils.convert_matrix_to_extrinsic(
+                camera_pose_matrix_converted
+            )
+            camera_poses_converted[0:3] *= 180 / np.pi
+            camera_params_gt[camera_name_coor][
+                camera_name
+            ] = camera_poses_converted.tolist()
+            # print(camera_name_coor, camera_name, camera_poses_converted)
+
+    for keys, values in camera_params_gt.items():
+        for k, v in values.items():
+            print(keys, k, v)
+    fm.save_object(
+        camera_params_gt,
+        "/cluster/users/Ching/codebase/pi_extrinsics_measurer/camera_params_gt",
     )

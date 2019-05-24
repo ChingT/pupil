@@ -114,6 +114,7 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
             task_manager=self._task_manager,
             current_trim_mark_ts_range=self._current_trim_mark_ts_range,
             all_timestamps_dict=self._all_timestamps_dict,
+            rec_dir=self.g_pool.rec_dir,
         )
         self._export_controller = controller.ExportController(
             self._optimization_storage,

@@ -11,6 +11,8 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
+import numpy as np
+
 import tasklib
 from camera_extrinsics_measurer import worker
 from observable import Observable
@@ -117,6 +119,8 @@ class OfflineOptimizationController(Observable):
             self._detection_storage.markers_bisector[camera_name],
             self._detection_storage.frame_index_to_num_markers[camera_name],
             self._camera_intrinsics_dict[camera_name],
+            self._rec_dir,
+            self._general_settings.debug,
         )
         return self._task_manager.create_background_task(
             name="markers 3d model optimization",
@@ -134,7 +138,8 @@ class OfflineOptimizationController(Observable):
         self._camera_intrinsics_dict[camera_name].update_dist_coefs(
             intrinsics_tuple.dist_coefs
         )
-        print(self._camera_intrinsics_dict[camera_name].K.tolist())
+        print(np.around(self._camera_intrinsics_dict[camera_name].K, 8).tolist())
+        print(np.around(self._camera_intrinsics_dict[camera_name].D, 8).tolist())
 
     def cancel_task(self):
         if self.is_running_task:

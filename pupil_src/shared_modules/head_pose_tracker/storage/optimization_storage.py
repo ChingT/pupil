@@ -240,6 +240,7 @@ class OptimizationStorage(Markers3DModel):
 
     @property
     def is_from_same_recording(self):
+        return True
         return (
             self._recording_uuid_loaded_from_plmodel is None
             or self._recording_uuid_loaded_from_plmodel == self._recording_uuid_current

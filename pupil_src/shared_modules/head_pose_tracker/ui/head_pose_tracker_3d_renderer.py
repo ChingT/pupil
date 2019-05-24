@@ -55,14 +55,14 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
 
     def _render_markers(self):
         marker_id_to_points_3d = self._optimization_storage.marker_id_to_points_3d
-        current_markers = self._detection_storage.current_markers
-        current_marker_ids = [marker["id"] for marker in current_markers]
 
         for marker_id, points_3d in marker_id_to_points_3d.items():
-            color = (
-                (1, 0, 0, 0.2) if marker_id in current_marker_ids else (1, 0, 0, 0.1)
-            )
+            color = (1, 0, 0, 0.2)
             utils.render_polygon_in_3d_window(points_3d, color)
+
+            if self._general_settings.show_marker_id_in_3d_window:
+                color = (1, 0, 0, 1)
+                utils.render_text_in_3d_window(str(marker_id), points_3d[0], color)
 
     def _render_camera(self):
         pose_data = self._localization_storage.current_pose

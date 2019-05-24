@@ -96,6 +96,7 @@ class OfflineSettingsStorage(SettingsStorage):
         self.show_marker_id_in_main_window = False
         self.window_size = (1000, 1000)
         self.window_position = (0, 0)
+        self.debug = True
 
         self.load_from_disk()
 

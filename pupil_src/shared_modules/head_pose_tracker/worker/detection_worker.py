@@ -9,9 +9,9 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import apriltag
 import file_methods as fm
 import video_capture
-import apriltag
 from methods import normalize
 
 apriltag_detector = apriltag.Detector()

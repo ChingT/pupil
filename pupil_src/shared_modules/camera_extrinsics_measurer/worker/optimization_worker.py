@@ -10,6 +10,11 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import collections
+import os
+import random
+import shutil
+
+import cv2
 
 import player_methods as pm
 from camera_extrinsics_measurer import storage
@@ -25,13 +30,13 @@ IntrinsicsTuple = collections.namedtuple(
 )
 
 
-def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment, max_nfev):
+def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment):
     try:
         bg_storage.marker_id_to_extrinsics[bg_storage.origin_marker_id]
     except KeyError:
         bg_storage.set_origin_marker_id()
 
-    initial_guess = get_initial_guess.calculate(
+    initial_guess, frame_ids_failed = get_initial_guess.calculate(
         bg_storage.marker_id_to_extrinsics,
         bg_storage.frame_id_to_extrinsics,
         bg_storage.all_key_markers,
@@ -40,7 +45,7 @@ def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment, max_n
     if not initial_guess:
         return
 
-    result = bundle_adjustment.calculate(initial_guess, max_nfev)
+    result = bundle_adjustment.calculate(initial_guess)
 
     marker_id_to_extrinsics = result.marker_id_to_extrinsics
     marker_id_to_points_3d = {
@@ -57,7 +62,7 @@ def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment, max_n
     return (
         model_tuple,
         result.frame_id_to_extrinsics,
-        result.frame_ids_failed,
+        result.frame_ids_failed + frame_ids_failed,
         intrinsics_tuple,
     )
 
@@ -71,6 +76,8 @@ def offline_optimization(
     markers_bisector,
     frame_index_to_num_markers,
     camera_intrinsics,
+    rec_dir,
+    debug,
     shared_memory,
 ):
     def find_markers_in_frame(index):
@@ -97,24 +104,40 @@ def offline_optimization(
         camera_intrinsics, optimize_camera_intrinsics, optimize_marker_extrinsics=False
     )
 
-    if "eye" in camera_name:
-        select_key_markers_interval = 8
-    else:
-        select_key_markers_interval = 2
+    random.seed(0)
+    random.shuffle(frame_indices)
 
+    if debug:
+        key_markers_folder = os.path.join(rec_dir, camera_name, "key_markers")
+        key_markers_failed_folder = os.path.join(
+            rec_dir, camera_name, "key_markers_failed"
+        )
+        os.makedirs(key_markers_folder, exist_ok=True)
+        os.makedirs(key_markers_failed_folder, exist_ok=True)
+
+    opt_interval = 400 if "eye" in camera_name else 100
     for idx, frame_index in enumerate(frame_indices):
         markers_in_frame = find_markers_in_frame(frame_index)
-        bg_storage.all_key_markers += pick_key_markers.run(
-            markers_in_frame, bg_storage.all_key_markers, select_key_markers_interval
-        )
+        if idx < frame_count - 4:
+            new_key_markers = pick_key_markers.run(
+                markers_in_frame,
+                bg_storage.all_key_markers,
+                select_key_markers_interval=8 if "eye" in camera_name else 2,
+            )
+            bg_storage.all_key_markers += new_key_markers
+            if debug and new_key_markers:
+                img = cv2.imread(
+                    os.path.join(rec_dir, camera_name, "{}.jpg".format(frame_index))
+                )
+                cv2.imwrite(
+                    os.path.join(key_markers_folder, "{}.jpg".format(frame_index)), img
+                )
 
-        if not (idx % 100 == 99 or idx == frame_count - 2 or idx == frame_count - 1):
+        if not (
+            idx % opt_interval == opt_interval - 1
+            or idx in range(frame_count - 3, frame_count)
+        ):
             continue
-
-        if idx == frame_count - 2 or idx == frame_count - 1:
-            max_nfev = 100000
-        else:
-            max_nfev = 25
 
         shared_memory.progress = (idx + 1) / frame_count
         try:
@@ -123,11 +146,22 @@ def offline_optimization(
                 frame_id_to_extrinsics,
                 frame_ids_failed,
                 intrinsics_tuple,
-            ) = optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment, max_nfev)
+            ) = optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment)
         except TypeError:
             pass
         else:
             bg_storage.frame_id_to_extrinsics = frame_id_to_extrinsics
+            if debug:
+                for frame_id_failed in frame_ids_failed:
+                    shutil.move(
+                        os.path.join(
+                            key_markers_folder, "{}.jpg".format(frame_id_failed)
+                        ),
+                        os.path.join(
+                            key_markers_failed_folder, "{}.jpg".format(frame_id_failed)
+                        ),
+                    )
+
             bg_storage.discard_failed_key_markers(frame_ids_failed)
 
             yield model_tuple, intrinsics_tuple

@@ -58,21 +58,23 @@ def calculate(
             marker_ids,
         )
 
+    frame_ids_failed = list(set(frame_ids) - set(frame_id_to_extrinsics_init.keys()))
+
     key_markers_useful = [
         key_marker
         for key_marker in key_markers
         if (
-            key_marker.frame_id in frame_id_to_extrinsics_init.keys()
+            key_marker.frame_id not in frame_ids_failed
             and key_marker.marker_id in marker_id_to_extrinsics_init.keys()
         )
     ]
     if not key_markers_useful:
-        return None
+        return None, frame_ids_failed
 
     initial_guess = InitialGuess(
         key_markers_useful, frame_id_to_extrinsics_init, marker_id_to_extrinsics_init
     )
-    return initial_guess
+    return initial_guess, frame_ids_failed
 
 
 def _get_frame_id_to_extrinsics_init(

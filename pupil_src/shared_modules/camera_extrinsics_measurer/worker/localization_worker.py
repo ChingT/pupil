@@ -9,6 +9,9 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import os
+
+import cv2
 import numpy as np
 
 import file_methods as fm
@@ -39,6 +42,7 @@ def get_pose_data(extrinsics, timestamp):
 
 
 def offline_localization(
+    camera_name,
     timestamps,
     markers_bisector,
     frame_index_to_num_markers,
@@ -62,6 +66,7 @@ def offline_localization(
     )
 
     queue = []
+    min_n_markers_per_frame = 6 if "eye" in camera_name else 6
     for frame_index in frame_indices:
         shared_memory.progress = (frame_index - frame_start + 1) / frame_count
         if frame_index_to_num_markers[frame_index]:
@@ -71,7 +76,7 @@ def offline_localization(
                 markers_in_frame,
                 marker_id_to_extrinsics,
                 camera_extrinsics_prv=camera_extrinsics_prv,
-                min_n_markers_per_frame=5,
+                min_n_markers_per_frame=min_n_markers_per_frame,
             )
             if camera_extrinsics is not None:
                 camera_extrinsics_prv = camera_extrinsics
@@ -96,40 +101,40 @@ def offline_localization(
     yield queue
 
 
-def convert_to_gt_coordinate(timestamps_world, pose_bisector_converted, scale=40):
+def convert_to_gt_coordinate(timestamps_world, pose_bisector, scale=40):
     timestamps_new = {name: [] for name in camera_names}
     pose_datum_converted = {name: [] for name in camera_names}
 
     for index in range(len(timestamps_world)):
         frame_window = pm.enclosing_window(timestamps_world, index)
 
-        current_poses = []
+        current_poses = {}
         for camera_name in camera_names:
-            pose_datum = pose_bisector_converted[camera_name].by_ts_window(frame_window)
+            pose_datum = pose_bisector[camera_name].by_ts_window(frame_window)
             try:
                 current_pose = pose_datum[len(pose_datum) // 2]
             except IndexError:
-                current_poses = []
+                current_poses = {}
                 break
             else:
-                current_poses.append(current_pose)
+                current_poses[camera_name] = current_pose
 
         if not current_poses:
             continue
 
-        transformation_matrix_to_gt = utils.find_transformation_matrix_to_gt(
+        transformation_matrix = utils.find_transformation_matrix_to_gt(
             [
                 np.array(current_pose["camera_trace"]) * scale
                 for current_pose in current_poses
             ]
         )
 
-        for current_pose, camera_name in zip(current_poses, camera_names):
-            camera_pose_matrix = np.array(current_pose["camera_pose_matrix"])
-            camera_pose_matrix[0:3, 3] *= scale
-            camera_pose_matrix_converted = (
-                transformation_matrix_to_gt @ camera_pose_matrix
+        for camera_name in camera_names:
+            camera_pose_matrix = np.array(
+                current_poses[camera_name]["camera_pose_matrix"]
             )
+            camera_pose_matrix[0:3, 3] *= scale
+            camera_pose_matrix_converted = transformation_matrix @ camera_pose_matrix
             camera_poses_converted = utils.convert_matrix_to_extrinsic(
                 camera_pose_matrix_converted
             )
@@ -139,13 +144,13 @@ def convert_to_gt_coordinate(timestamps_world, pose_bisector_converted, scale=40
                 "camera_poses": camera_poses_converted.tolist(),
                 "camera_pose_matrix": camera_pose_matrix_converted.tolist(),
                 "camera_trace": camera_poses_converted[3:6].tolist(),
-                "timestamp": current_pose["timestamp"],
+                "timestamp": current_poses[camera_name]["timestamp"],
             }
 
             pose_datum_converted[camera_name].append(
                 fm.Serialized_Dict(pose_data_converted)
             )
-            timestamps_new[camera_name].append(current_pose["timestamp"])
+            timestamps_new[camera_name].append(current_poses[camera_name]["timestamp"])
 
     pose_bisector_converted = {}
     for camera_name in camera_names:
@@ -155,49 +160,133 @@ def convert_to_gt_coordinate(timestamps_world, pose_bisector_converted, scale=40
     return pose_bisector_converted
 
 
-def convert_to_world_coordinate(timestamps_world, pose_bisector_converted):
-    timestamps_new = {name: [] for name in camera_names}
-    pose_datum_converted = {name: [] for name in camera_names}
+def convert_to_world_coordinate(all_timestamps_dict, pose_bisector, rec_dir, debug):
+    if debug:
+        debug_img_folder = os.path.join(rec_dir, "debug_imgs")
+        os.makedirs(debug_img_folder, exist_ok=True)
 
-    for index in range(len(timestamps_world)):
-        frame_window = pm.enclosing_window(timestamps_world, index)
+    timestamps_new = {name: {n: [] for n in camera_names} for name in camera_names}
+    pose_datum_converted = {
+        name: {n: [] for n in camera_names} for name in camera_names
+    }
 
-        pose_datum_world = pose_bisector_converted["world"].by_ts_window(frame_window)
-        try:
-            current_pose_world = pose_datum_world[0]
-        except IndexError:
-            continue
+    for index, ts_world in enumerate(all_timestamps_dict["world"]):
+        current_poses = {}
 
-        inv = utils.convert_extrinsic_to_matrix(current_pose_world["camera_extrinsics"])
-
+        canvas = np.ones((100 + 1080, 1088 + 400 * 2, 3), dtype=np.uint8) * 255
         for camera_name in camera_names:
-            pose_datum = pose_bisector_converted[camera_name].by_ts_window(frame_window)
-            try:
-                current_pose = pose_datum[len(pose_datum) // 2]
-            except IndexError:
+            frame_window = pm.enclosing_window(all_timestamps_dict["world"], index)
+            closest_idx = pm.find_closest(all_timestamps_dict[camera_name], ts_world)
+            ts_cam = all_timestamps_dict[camera_name][closest_idx]
+            if not frame_window[0] < ts_cam < frame_window[1]:
                 continue
 
-            camera_pose_matrix_converted = inv @ current_pose["camera_pose_matrix"]
-            camera_poses_converted = utils.convert_matrix_to_extrinsic(
-                camera_pose_matrix_converted
-            )
-            camera_extrinsics_converted = utils.get_camera_pose(camera_poses_converted)
-            pose_data_converted = {
-                "camera_extrinsics": camera_extrinsics_converted.tolist(),
-                "camera_poses": camera_poses_converted.tolist(),
-                "camera_pose_matrix": camera_pose_matrix_converted.tolist(),
-                "camera_trace": camera_poses_converted[3:6].tolist(),
-                "timestamp": current_pose["timestamp"],
-            }
+            if debug:
+                img = cv2.imread(
+                    os.path.join(rec_dir, camera_name, "{}.jpg".format(closest_idx))
+                )
+                if img is not None:
+                    if camera_name == "world":
+                        canvas[100 : 100 + 1080, 0:1088] = img
+                    elif camera_name == "eye1":
+                        canvas[100 : 100 + 400, 1088 : 1088 + 400] = img
+                    elif camera_name == "eye0":
+                        canvas[100 : 100 + 400, 1088 + 400 : 1088 + 400 * 2] = img
 
-            pose_datum_converted[camera_name].append(
-                fm.Serialized_Dict(pose_data_converted)
-            )
-            timestamps_new[camera_name].append(current_pose["timestamp"])
+            try:
+                current_pose = pose_bisector[camera_name].by_ts(ts_cam)
+            except ValueError:
+                continue
+            else:
+                current_poses[camera_name] = current_pose
+        if not current_poses:
+            continue
 
-    pose_bisector_converted = {}
-    for camera_name in camera_names:
-        pose_bisector_converted[camera_name] = pm.Bisector(
-            pose_datum_converted[camera_name], timestamps_new[camera_name]
-        )
+        for camera_name_coor in camera_names:
+            try:
+                transformation_matrix = utils.convert_extrinsic_to_matrix(
+                    current_poses[camera_name_coor]["camera_extrinsics"]
+                )
+            except KeyError:
+                continue
+
+            for camera_name in camera_names:
+                if camera_name_coor == camera_name:
+                    continue
+                try:
+                    camera_pose_matrix = np.array(
+                        current_poses[camera_name]["camera_pose_matrix"]
+                    )
+                except KeyError:
+                    continue
+                camera_pose_matrix_converted = (
+                    transformation_matrix @ camera_pose_matrix
+                )
+                camera_poses_converted = utils.convert_matrix_to_extrinsic(
+                    camera_pose_matrix_converted
+                )
+                camera_extrinsics_converted = utils.get_camera_pose(
+                    camera_poses_converted
+                )
+                pose_data_converted = {
+                    "camera_extrinsics": camera_extrinsics_converted.tolist(),
+                    "camera_poses": camera_poses_converted.tolist(),
+                    "camera_pose_matrix": camera_pose_matrix_converted.tolist(),
+                    "camera_trace": camera_poses_converted[3:6].tolist(),
+                    "timestamp": current_poses[camera_name]["timestamp"],
+                }
+
+                pose_datum_converted[camera_name_coor][camera_name].append(
+                    fm.Serialized_Dict(pose_data_converted)
+                )
+                timestamps_new[camera_name_coor][camera_name].append(
+                    current_poses[camera_name]["timestamp"]
+                )
+                if debug:
+                    show_pose = np.array(camera_poses_converted)
+                    show_pose[0:3] *= 180 / np.pi
+                    show_pose[3:6] *= 40
+                    text = (
+                        str(camera_name_coor)
+                        + ": ["
+                        + ", ".join("{:6.1f}".format(e) for e in show_pose)
+                        + "]"
+                    )
+
+                    if camera_name == "world":
+                        org_x = 0
+                    elif camera_name == "eye1":
+                        org_x = 1088
+                    elif camera_name == "eye0":
+                        org_x = 1088 + 400
+
+                    if camera_name_coor == "world":
+                        org_y = 30
+                    elif camera_name_coor == "eye1":
+                        org_y = 30 * 2
+                    elif camera_name_coor == "eye0":
+                        org_y = 30 * 3
+
+                    cv2.putText(
+                        canvas,
+                        text,
+                        (org_x, org_y),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale=0.4,
+                        color=(0, 0, 255),
+                    )
+        if debug:
+            cv2.imwrite(
+                "{}/{}-{}.jpg".format(debug_img_folder, index, ts_world), canvas
+            )
+
+    pose_bisector_converted = {
+        name: {n: {} for n in camera_names} for name in camera_names
+    }
+    for camera_name_coor in camera_names:
+        for camera_name in camera_names:
+            pose_bisector_converted[camera_name_coor][camera_name] = pm.Bisector(
+                pose_datum_converted[camera_name_coor][camera_name],
+                timestamps_new[camera_name_coor][camera_name],
+            )
     return pose_bisector_converted

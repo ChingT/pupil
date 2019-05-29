@@ -183,11 +183,11 @@ class OfflineLocalizationController(Observable):
         try:
             self._detection_controller.calculate(camera_names[index + 1])
         except IndexError:
-            self._convert_to_world_coordinate()
+            self._convert_to_cam_coordinate()
 
-    def _convert_to_world_coordinate(self):
+    def _convert_to_cam_coordinate(self):
         logger.info("Start converting to world coordinate")
-        pose_bisector_converted = worker.convert_to_world_coordinate(
+        pose_bisector_converted = worker.offline_convert_to_cam_coordinate(
             self._all_timestamps_dict,
             self._localization_storage.pose_bisector,
             self._rec_dir,

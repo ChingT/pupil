@@ -39,7 +39,7 @@ class VisualizationMenu:
             self._create_show_marker_id_in_main_window_switch(),
             ui.Separator(),
             self._create_open_visualization_window_button(),
-            self._create_convert_to_world_coordinate_switch(),
+            self._create_convert_to_cam_coordinate_switch(),
             self._create_render_markers_in_3d_window_switch(),
             self._create_show_marker_id_in_3d_window_switch(),
         ]
@@ -80,9 +80,9 @@ class VisualizationMenu:
             button.read_only = True
         return button
 
-    def _create_convert_to_world_coordinate_switch(self):
+    def _create_convert_to_cam_coordinate_switch(self):
         switch = ui.Switch(
-            "convert_to_world_coordinate",
+            "convert_to_cam_coordinate",
             self._general_settings,
             label=_SPACES + "Convert to world coordinate",
         )

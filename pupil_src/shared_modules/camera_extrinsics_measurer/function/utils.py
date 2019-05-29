@@ -47,6 +47,9 @@ def to_camera_coordinate(pts_3d_world, rotation, translation):
 
 
 def convert_extrinsic_to_matrix(extrinsics):
+    if extrinsics is None:
+        return None
+
     rotation, translation = split_extrinsics(extrinsics)
     extrinsic_matrix = np.eye(4, dtype=np.float32)
     extrinsic_matrix[0:3, 0:3] = cv2.Rodrigues(rotation)[0]

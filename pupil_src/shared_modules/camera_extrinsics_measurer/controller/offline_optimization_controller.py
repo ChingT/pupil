@@ -11,8 +11,6 @@ See COPYING and COPYING.LESSER for license details.
 
 import logging
 
-import numpy as np
-
 import tasklib
 from camera_extrinsics_measurer import worker
 from observable import Observable
@@ -130,6 +128,8 @@ class OfflineOptimizationController(Observable):
         )
 
     def _update_result(self, camera_name, result):
+        if not result:
+            return
         model_tuple, intrinsics_tuple = result
         self._optimization_storage.update_model(*model_tuple)
         self._camera_intrinsics_dict[camera_name].update_camera_matrix(
@@ -138,8 +138,7 @@ class OfflineOptimizationController(Observable):
         self._camera_intrinsics_dict[camera_name].update_dist_coefs(
             intrinsics_tuple.dist_coefs
         )
-        print(np.around(self._camera_intrinsics_dict[camera_name].K, 8).tolist())
-        print(np.around(self._camera_intrinsics_dict[camera_name].D, 8).tolist())
+        # self._camera_intrinsics_dict[camera_name].save(self._rec_dir)
 
     def cancel_task(self):
         if self.is_running_task:

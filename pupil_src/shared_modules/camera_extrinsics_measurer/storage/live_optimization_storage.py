@@ -17,6 +17,7 @@ import re
 import numpy as np
 
 import file_methods as fm
+from camera_extrinsics_measurer import camera_names
 from camera_extrinsics_measurer.function import utils
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ KeyMarker = collections.namedtuple(
 )
 
 
-class Markers3DModel:
+class LiveMarkers3DModel:
     version = 1
 
     def __init__(self, user_defined_origin_marker_id=None):
@@ -40,14 +41,12 @@ class Markers3DModel:
         self.marker_id_to_points_3d = {}
 
         self.frame_id_to_extrinsics = {}
-        self.all_key_markers = []
+        self.all_key_markers = {name: [] for name in camera_names}
 
     def load_model(self, marker_id_to_extrinsics):
         self.origin_marker_id = utils.find_origin_marker_id(marker_id_to_extrinsics)
         if self.origin_marker_id is None:
             return
-
-        # marker_ids = sorted(marker_id_to_extrinsics.keys())
 
         self.marker_id_to_extrinsics = {
             marker_id: np.array(extrinsics)
@@ -72,28 +71,6 @@ class Markers3DModel:
             for marker_id, extrinsics in self.marker_id_to_extrinsics.items()
         }
 
-    def flattened_vertices(self):
-        return [
-            (marker_id, *vertices.flat)
-            for marker_id, vertices in self.marker_id_to_points_3d.items()
-        ]
-
-    def set_origin_marker_id(self):
-        if self.origin_marker_id is not None or not self.all_key_markers:
-            return
-
-        all_markers_id = [marker.marker_id for marker in self.all_key_markers]
-        if self._user_defined_origin_marker_id is None:
-            most_common_marker_id = max(all_markers_id, key=all_markers_id.count)
-            origin_marker_id = most_common_marker_id
-        elif self._user_defined_origin_marker_id in all_markers_id:
-            origin_marker_id = self._user_defined_origin_marker_id
-        else:
-            origin_marker_id = None
-
-        if origin_marker_id is not None:
-            self._set_coordinate_system(origin_marker_id)
-
     def _set_coordinate_system(self, origin_marker_id):
         self.marker_id_to_extrinsics = {
             origin_marker_id: utils.get_marker_extrinsics_origin()
@@ -108,8 +85,8 @@ class Markers3DModel:
             "system".format(origin_marker_id)
         )
 
-    def filter_valid_key_marker_ids(self, valid_key_marker_ids):
-        self.all_key_markers = [
+    def filter_valid_key_marker_ids(self, camera_name, valid_key_marker_ids):
+        self.all_key_markers[camera_name] = [
             KeyMarker(
                 marker.index,
                 marker.frame_id,
@@ -118,7 +95,7 @@ class Markers3DModel:
                 marker.bin,
                 marker.index in valid_key_marker_ids,
             )
-            for marker in self.all_key_markers
+            for marker in self.all_key_markers[camera_name]
         ]
 
     @property
@@ -133,7 +110,7 @@ class Markers3DModel:
             return np.array([0.0, 0.0, 0.0])
 
 
-class OptimizationStorage(Markers3DModel):
+class LiveOptimizationStorage(LiveMarkers3DModel):
     _plmodel_suffix = "plmodel"
 
     def __init__(self, plmodel_dir):

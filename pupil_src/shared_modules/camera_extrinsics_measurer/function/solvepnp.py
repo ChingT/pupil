@@ -40,7 +40,6 @@ def _prepare_data_for_solvepnp(
         marker
         for marker in markers_in_frame
         if marker["id"] in marker_id_to_extrinsics.keys()
-        # and marker["id"] in range(300, 336)
     ]
     if len(markers_available) < min_n_markers_per_frame:
         return None
@@ -161,13 +160,13 @@ def _check_result_reasonable(
     if (pts_3d_camera[:, 2] < -1).any():
         return False
 
-    markers_points_2d_projected = camera_intrinsics.projectPoints(
-        np.concatenate(markers_points_3d), rotation, translation
-    ).reshape(-1, 4, 2)
-    residuals = markers_points_2d_projected - markers_points_2d_detected
-    errors = np.linalg.norm(residuals, axis=2).sum(axis=1)
-    img_size = camera_intrinsics.resolution
-    if np.median(errors) > img_size[0] / 100:
-        return False
+    # markers_points_2d_projected = camera_intrinsics.projectPoints(
+    #     np.concatenate(markers_points_3d), rotation, translation
+    # ).reshape(-1, 4, 2)
+    # residuals = markers_points_2d_projected - markers_points_2d_detected
+    # errors = np.linalg.norm(residuals, axis=2).sum(axis=1)
+    # img_size = camera_intrinsics.resolution
+    # if np.min(errors) > img_size[0] / 100:
+    #     return False
 
     return True

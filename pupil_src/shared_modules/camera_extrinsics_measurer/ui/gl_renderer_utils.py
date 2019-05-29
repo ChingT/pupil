@@ -66,16 +66,20 @@ def render_centroid(color, point_size=5):
     gl.glEnd()
 
 
-def render_coordinate(scale=1):
+def render_coordinate(scale=1, alpha=1):
     origin = [0, 0, 0]
-    colors = [(0.12, 0.46, 0.70, 1), (1.0, 0.49, 0.05, 1), (0.17, 0.62, 0.17, 1)]
+    colors = [
+        (0.12, 0.46, 0.70, alpha),
+        (1.0, 0.49, 0.05, alpha),
+        (0.17, 0.62, 0.17, alpha),
+    ]
     for axis, color in zip(np.eye(3), colors):
         render_strip_in_3d_window([origin, axis * scale], color)
 
 
-def render_camera_frustum(camera_pose_matrix, camera_intrinsics, color):
+def render_camera_frustum(camera_pose_matrix, camera_intrinsics, color, alpha=1):
     shift_render_center(camera_pose_matrix)
-    render_coordinate(camera_intrinsics.resolution[0] / 1000)
+    render_coordinate(camera_intrinsics.resolution[0] / 1000, alpha)
     _render_frustum(camera_intrinsics.resolution, camera_intrinsics.K, color)
 
 

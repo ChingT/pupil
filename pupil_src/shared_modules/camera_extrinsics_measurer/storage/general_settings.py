@@ -89,14 +89,14 @@ class OfflineSettingsStorage(SettingsStorage):
         self.user_defined_origin_marker_id = None
         self.optimize_camera_intrinsics = False
         self.open_visualization_window = False
-        self.convert_to_world_coordinate = False
-        self.render_markers_in_3d_window = True
+        self.convert_to_cam_coordinate = False
+        self.render_markers_in_3d_window = False
         self.show_marker_id_in_3d_window = False
         self.render_markers_in_main_window = True
         self.show_marker_id_in_main_window = False
         self.window_size = (1000, 1000)
         self.window_position = (0, 0)
-        self.debug = True
+        self.debug = False
 
         self.load_from_disk()
 
@@ -108,7 +108,7 @@ class OfflineSettingsStorage(SettingsStorage):
             self.user_defined_origin_marker_id,
             self.optimize_camera_intrinsics,
             self.open_visualization_window,
-            self.convert_to_world_coordinate,
+            self.convert_to_cam_coordinate,
             self.render_markers_in_3d_window,
             self.show_marker_id_in_3d_window,
             self.render_markers_in_main_window,
@@ -126,7 +126,7 @@ class OfflineSettingsStorage(SettingsStorage):
             self.user_defined_origin_marker_id,
             self.optimize_camera_intrinsics,
             self.open_visualization_window,
-            self.convert_to_world_coordinate,
+            self.convert_to_cam_coordinate,
             self.render_markers_in_3d_window,
             self.show_marker_id_in_3d_window,
             self.render_markers_in_main_window,
@@ -134,3 +134,28 @@ class OfflineSettingsStorage(SettingsStorage):
             self.window_size,
             self.window_position,
         )
+
+
+class OnlineSettings:
+    def __init__(self, settings_tuple):
+        (
+            self.optimize_markers_3d_model,
+            self.optimize_camera_intrinsics,
+            self.render_markers_in_3d_window,
+            self.convert_to_cam_coordinate,
+            self.show_marker_id_in_3d_window,
+            self.window_size,
+            self.window_position,
+        ) = settings_tuple
+
+    @property
+    def data_as_dict(self):
+        return {
+            "optimize_markers_3d_model": self.optimize_markers_3d_model,
+            "optimize_camera_intrinsics": self.optimize_camera_intrinsics,
+            "render_markers_in_3d_window": self.render_markers_in_3d_window,
+            "convert_to_cam_coordinate": self.convert_to_cam_coordinate,
+            "show_marker_id_in_3d_window": self.show_marker_id_in_3d_window,
+            "window_size": self.window_size,
+            "window_position": self.window_position,
+        }

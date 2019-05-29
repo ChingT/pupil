@@ -10,4 +10,5 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 camera_names = ["world", "eye0", "eye1"]
-# camera_names = ["world", "eye1"]
+
+PI_device = "Charly"  # Abel, Baker, Charly

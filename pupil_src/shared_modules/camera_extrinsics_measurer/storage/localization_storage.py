@@ -33,7 +33,9 @@ class Localization:
 class OfflineCameraLocalization(Localization):
     def __init__(self, get_current_frame_window):
         self.pose_bisector = {name: pm.Mutable_Bisector() for name in camera_names}
-        self.pose_bisector_converted = {name: pm.Bisector() for name in camera_names}
+        self.pose_bisector_converted = {
+            name: {n: {} for n in camera_names} for name in camera_names
+        }
         self._get_current_frame_window = get_current_frame_window
 
     def set_to_default_values(self, camera_name):
@@ -148,3 +150,11 @@ class OfflineLocalizationStorage(Observable, OfflineCameraLocalization):
 
     def _offline_data_folder_path(self, camera_name):
         return os.path.join(self._rec_dir, "offline_data", camera_name)
+
+
+class OnlineLocalizationStorage(Localization):
+    def __init__(self):
+        super().__init__()
+
+        self.current_pose = {name: self.none_pose_data for name in camera_names}
+        self.current_pose_converted = {}

@@ -19,3 +19,4 @@ from camera_extrinsics_measurer.controller.offline_optimization_controller impor
     OfflineOptimizationController,
 )
 from camera_extrinsics_measurer.controller.export_controller import ExportController
+from camera_extrinsics_measurer.controller.live_controller import LiveController

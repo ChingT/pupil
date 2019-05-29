@@ -12,6 +12,7 @@ np.set_printoptions(precision=2, suppress=True)
 camera_names = ["world", "eye0", "eye1"]
 
 scale = 40
+min_n_markers_per_frame = 4
 
 
 class Empty(object):
@@ -19,74 +20,74 @@ class Empty(object):
 
 
 def localization(
-    timestamps_eye0,
-    marker_id_to_extrinsics,
-    markers_bisector_origin,
-    markers_bisector_1,
-    markers_bisector_2,
-    camera_intrinsics_list_origin,
-    camera_intrinsics_list_1,
-    camera_intrinsics_list_2,
+    marker_id_to_extrinsics, timestamps_list, markers_bisector_list, intrinsics_lists
 ):
-    def enclosing_window(timestamps, idx):
-        before = timestamps[idx - 1] if idx > 0 else -np.inf
-        now = timestamps[idx]
-        after = timestamps[idx + 1] if idx < len(timestamps) - 1 else np.inf
-        return now - (now - before) / 4.0, now + (after - now) / 4.0
+    def find_markers_in_frame(timestamps, markers_bisector):
+        closest_idx = pm.find_closest(timestamps, ts_0)
+        if frame_window_0[0] < timestamps[closest_idx] < frame_window_0[1]:
+            return markers_bisector.by_ts_window(
+                pm.enclosing_window(timestamps, closest_idx)
+            )
+        else:
+            return []
 
-    def find_markers_in_frame(markers_bisector, window):
-        return markers_bisector.by_ts_window(window)
+    for frame_index in range(0, 10000):
+        frame_window_0 = pm.enclosing_window(timestamps_list[0], frame_index)
+        ts_0 = timestamps_list[0][frame_index]
 
-    for frame_index in range(0, len(timestamps_eye0)):
-        # print("frame_index", frame_index)
-        ts_window = enclosing_window(timestamps_eye0, frame_index)
-        markers_in_frame_1 = find_markers_in_frame(markers_bisector_1, ts_window)
-        markers_in_frame_origin = find_markers_in_frame(
-            markers_bisector_origin, ts_window
+        markers_in_frame_0 = find_markers_in_frame(
+            timestamps_list[0], markers_bisector_list[0]
         )
-        markers_in_frame_2 = find_markers_in_frame(markers_bisector_2, ts_window)
+        markers_in_frame_1 = find_markers_in_frame(
+            timestamps_list[1], markers_bisector_list[1]
+        )
+        markers_in_frame_2 = find_markers_in_frame(
+            timestamps_list[2], markers_bisector_list[2]
+        )
 
         try:
-            markers_in_frame_origin[4]["id"]
-            markers_in_frame_1[4]["id"]
-            markers_in_frame_2[4]["id"]
+            markers_in_frame_0[min_n_markers_per_frame - 1]["id"]
+            markers_in_frame_1[min_n_markers_per_frame - 1]["id"]
+            markers_in_frame_2[min_n_markers_per_frame - 1]["id"]
         except IndexError:
             continue
         except KeyError:
             continue
         else:
-            for camera_intrinsics_origin in camera_intrinsics_list_origin:
-                print("camera_intrinsics_origin", camera_intrinsics_origin)
-                camera_extrinsics_origin = solvepnp.calculate(
-                    camera_intrinsics_origin,
-                    markers_in_frame_origin,
+            print("frame_index", frame_index)
+            for camera_intrinsics_0 in intrinsics_lists[0]:
+                print("camera_intrinsics_0", camera_intrinsics_0)
+                camera_extrinsics_0 = solvepnp.calculate(
+                    camera_intrinsics_0,
+                    markers_in_frame_0,
                     marker_id_to_extrinsics,
-                    min_n_markers_per_frame=5,
+                    min_n_markers_per_frame=min_n_markers_per_frame,
                 )
-                if camera_extrinsics_origin is None:
+                if camera_extrinsics_0 is None:
                     continue
+
                 transformation_matrix = utils.convert_extrinsic_to_matrix(
-                    camera_extrinsics_origin
+                    camera_extrinsics_0
                 )
 
-                for camera_intrinsics_1 in camera_intrinsics_list_1:
+                for camera_intrinsics_1 in intrinsics_lists[1]:
                     camera_extrinsics_1 = solvepnp.calculate(
                         camera_intrinsics_1,
                         markers_in_frame_1,
                         marker_id_to_extrinsics,
-                        min_n_markers_per_frame=5,
+                        min_n_markers_per_frame=min_n_markers_per_frame,
                     )
                     camera_poses_converted_1 = get_camera_poses_converted(
                         transformation_matrix, camera_extrinsics_1
                     )
                     print("1", camera_poses_converted_1)
 
-                for camera_intrinsics_2 in camera_intrinsics_list_2:
+                for camera_intrinsics_2 in intrinsics_lists[2]:
                     camera_extrinsics_2 = solvepnp.calculate(
                         camera_intrinsics_2,
                         markers_in_frame_2,
                         marker_id_to_extrinsics,
-                        min_n_markers_per_frame=5,
+                        min_n_markers_per_frame=min_n_markers_per_frame,
                     )
                     camera_poses_converted_2 = get_camera_poses_converted(
                         transformation_matrix, camera_extrinsics_2
@@ -118,8 +119,14 @@ def load_markers_bisector(rec_dir, camera_name):
     return pm.Mutable_Bisector(pldata.data, pldata.timestamps)
 
 
-def load_plmodel_from_disk(rec_dir):
-    file_path = os.path.join(rec_dir, "five-boards.plmodel")
+def load_timestamps(rec_dir, camera_name):
+    return video_capture.File_Source(
+        Empty(), os.path.join(rec_dir, "{}.mp4".format(camera_name)), timing=None
+    ).timestamps
+
+
+def load_plmodel_from_disk():
+    file_path = "/home/ch/recordings/five-boards/Five-Boards.plmodel"
     dict_representation = fm.load_object(file_path)
     data = dict_representation.get("data", None)
     marker_id_to_extrinsics = {
@@ -134,7 +141,7 @@ def get_world_intrinsics(path):
     return Radial_Dist_Camera(camera_matrix, dist_coefs, "(1088, 1080)", "world")
 
 
-def convert_to_world_coordinate(timestamps_world, pose_bisector):
+def convert_to_cam_coordinate(timestamps_world, pose_bisector):
     timestamps_new = {name: {n: [] for n in camera_names} for name in camera_names}
     pose_datum_converted = {
         name: {n: [] for n in camera_names} for name in camera_names
@@ -208,30 +215,19 @@ def get_intrinsics_from_source(rec_dir, camera_name):
 
 
 if __name__ == "__main__":
-    intrinsics_list_world = []
-    intrinsics_list_eye0 = []
-    intrinsics_list_eye1 = []
+    _intrinsics_lists = {idx: [] for idx in range(len(camera_names))}
 
-    for folder_idx in range(1, 3):
-        _rec_dir = "/home/ch/recordings/camera_extrinsics_measurement/Baker-moving-{}".format(
+    for folder_idx in [0, 1]:
+        _rec_dir = "/home/ch/recordings/five-boards/prototype/Baker-intrinsics-extrinsics-{}".format(
             folder_idx
         )
-        intrinsics_list_world.append(get_intrinsics_from_source(_rec_dir, "world"))
-        intrinsics_list_eye0.append(get_intrinsics_from_source(_rec_dir, "eye0"))
-        intrinsics_list_eye1.append(get_intrinsics_from_source(_rec_dir, "eye1"))
-
-    intrinsics_list_world = list(
-        filter(lambda x: type(x) == Radial_Dist_Camera, intrinsics_list_world)
-    )
-    intrinsics_list_eye0 = list(
-        filter(lambda x: type(x) == Radial_Dist_Camera, intrinsics_list_eye0)
-    )
-    intrinsics_list_eye1 = list(
-        filter(lambda x: type(x) == Radial_Dist_Camera, intrinsics_list_eye1)
-    )
+        for idx, camera_name in enumerate(camera_names):
+            intrinsics = get_intrinsics_from_source(_rec_dir, camera_name)
+            if type(intrinsics) == Radial_Dist_Camera:
+                _intrinsics_lists[idx].append(intrinsics)
 
     for folder_idx in range(5):
-        intrinsics_list_world.append(
+        _intrinsics_lists[camera_names.index("world")].append(
             get_world_intrinsics(
                 "/cluster/users/Marc/experiments/camera_calibration/vtukq-2/400/{}".format(
                     folder_idx
@@ -239,24 +235,23 @@ if __name__ == "__main__":
             )
         )
 
-    for intr in intrinsics_list_world:
-        print(intr.K.tolist(), intr.D.tolist())
-    # for intr in intrinsics_list_eye0:
-    #     print(intr.K.tolist(), intr.D.tolist())
+    for idx in range(len(camera_names)):
+        for intr in _intrinsics_lists[idx]:
+            print(intr.K.tolist(), intr.D.tolist())
 
-    _rec_dir = "/home/ch/recordings/camera_extrinsics_measurement/Baker-still-1"
-    src = video_capture.File_Source(
-        Empty(), os.path.join(_rec_dir, "eye0.mp4"), timing=None
-    )
-    all_timestamps_eye0 = src.timestamps
+    _rec_dir = "/home/ch/recordings/five-boards/prototype/Baker-intrinsics-extrinsics-2"
+
+    _timestamps_list = [
+        load_timestamps(_rec_dir, camera_name) for camera_name in camera_names
+    ]
+
+    _markers_bisector_list = [
+        load_markers_bisector(_rec_dir, camera_name) for camera_name in camera_names
+    ]
 
     localization(
-        all_timestamps_eye0,
-        load_plmodel_from_disk(_rec_dir),
-        load_markers_bisector(_rec_dir, "eye1"),
-        load_markers_bisector(_rec_dir, "eye0"),
-        load_markers_bisector(_rec_dir, "world"),
-        intrinsics_list_eye1,
-        intrinsics_list_eye0,
-        intrinsics_list_world,
+        load_plmodel_from_disk(),
+        _timestamps_list,
+        _markers_bisector_list,
+        _intrinsics_lists,
     )

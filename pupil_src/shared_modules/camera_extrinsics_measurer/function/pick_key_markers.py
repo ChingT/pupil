@@ -9,16 +9,13 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import collections
 
 import numpy as np
 
-KeyMarker = collections.namedtuple(
-    "KeyMarker", ["frame_id", "marker_id", "verts", "bin"]
-)
+from camera_extrinsics_measurer.storage.optimization_storage import KeyMarker
 
-min_n_markers_per_frame = 4
-max_n_markers_per_frame = 36
+min_n_markers_per_frame = 5
+max_n_markers_per_frame = 30
 max_n_same_markers_per_bin = 1
 assert min_n_markers_per_frame >= 2
 assert max_n_same_markers_per_bin >= 1
@@ -30,6 +27,7 @@ _bins_y = np.linspace(0, 1, n_bins_y + 1)[1:-1]
 
 
 _n_frames_passed = 0
+_index_start = 0
 
 
 def run(markers_in_frame, all_key_markers, select_key_markers_interval=2):
@@ -53,8 +51,6 @@ def _decide_key_markers(markers_in_frame, all_key_markers, select_key_markers_in
         if min_n_markers_per_frame <= len(markers_in_frame) <= max_n_markers_per_frame:
             if _check_bins_availability(markers_in_frame, all_key_markers):
                 return True
-        if len(markers_in_frame) > max_n_markers_per_frame:
-            pass
     return False
 
 
@@ -66,6 +62,7 @@ def _check_bins_availability(markers_in_frame, all_key_markers):
                 for key_marker in all_key_markers
                 if key_marker.marker_id == marker["id"]
                 and key_marker.bin == _get_bin(marker)
+                and key_marker.valid
             ]
         )
         # when there is one marker whose bin is available,
@@ -77,12 +74,21 @@ def _check_bins_availability(markers_in_frame, all_key_markers):
 
 
 def _get_key_markers(markers_in_frame):
-    return [
+    global _index_start
+
+    key_markers = [
         KeyMarker(
-            marker["frame_index"], marker["id"], marker["verts"], _get_bin(marker)
+            _index_start + idx,
+            marker["frame_index"],
+            marker["id"],
+            marker["verts"],
+            _get_bin(marker),
+            True,
         )
-        for marker in markers_in_frame
+        for idx, marker in enumerate(markers_in_frame)
     ]
+    _index_start += len(key_markers)
+    return key_markers
 
 
 def _get_bin(detection):

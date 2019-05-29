@@ -4,8 +4,8 @@ import shutil
 camera_names = ["world", "eye0", "eye1"]
 
 
-recording_path = "/home/ch/recordings/2019_05_24/002"
-recording_path_new = "/home/ch/recordings/five-boards/prototype/Abel-build-model-1"
+recording_path = "/home/ch/recordings/2019_05_24/000"
+recording_path_new = "/home/ch/recordings/five-boards/prototype/Charly-cable-1"
 
 device = os.path.basename(recording_path_new).split("-")[0]
 intrinsics_path = "/home/ch/recordings/five-boards/intrinscis/%s" % device

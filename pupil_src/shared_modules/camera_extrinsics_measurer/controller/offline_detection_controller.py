@@ -68,9 +68,9 @@ class OfflineDetectionController(Observable):
     def _create_task(self, camera_name):
         args = (
             self._source_path_dict[camera_name],
-            self._general_settings.detection_frame_ts_range,
             self._all_timestamps_dict[camera_name],
             self._detection_storage.frame_index_to_num_markers[camera_name],
+            self._general_settings.debug,
         )
         return self._task_manager.create_background_task(
             name="marker detection",

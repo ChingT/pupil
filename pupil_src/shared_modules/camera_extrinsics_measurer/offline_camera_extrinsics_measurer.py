@@ -53,7 +53,10 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
         self._all_timestamps_dict = {}
         for camera_name in camera_names:
             source_path = os.path.join(self._rec_dir, "{}.mp4".format(camera_name))
-            src = video_capture.File_Source(Empty(), source_path, timing=None)
+            try:
+                src = video_capture.File_Source(Empty(), source_path, timing=None)
+            except AssertionError:
+                continue
             self._source_path_dict[camera_name] = source_path
             self._intrinsics_dict[camera_name] = src.intrinsics
             self._all_timestamps_dict[camera_name] = src.timestamps

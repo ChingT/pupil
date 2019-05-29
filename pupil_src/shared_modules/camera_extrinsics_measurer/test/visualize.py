@@ -16,14 +16,12 @@ colors = cm.get_cmap("tab10").colors
 
 
 def routine(base):
-    fig, axs = plt.subplots(7, 3, figsize=(20, 10))
-    fig_avg, axs_avg = plt.subplots(7, 3, figsize=(20, 10))
-    fig.suptitle("comparison between headsets", fontsize=16)
-    fig_avg.suptitle("comparison between headsets", fontsize=16)
+    fig_lineplot, axs_lineplot = plt.subplots(7, 3, figsize=(20, 10))
+    fig_boxplot, axs_boxplot = plt.subplots(7, 3, figsize=(20, 10))
+    fig_lineplot.suptitle("comparison between headsets over time", fontsize=16)
+    fig_boxplot.suptitle("comparison between headsets", fontsize=16)
 
-    folders = list(
-        filter(lambda x: "Baker-cable" in x or "Baker-cable-3" in x, os.listdir(base))
-    )
+    folders = list(filter(lambda x: "Baker-build-model-" in x, os.listdir(base)))
     folders.sort()
 
     extrinsics_list = {name: {n: [] for n in camera_names} for name in camera_names}
@@ -33,25 +31,45 @@ def routine(base):
                 os.path.join(base, folder, "camera_pose_converted")
             )
         except FileNotFoundError:
-            pass
-        else:
-            timestamps, extrinsics = get_arrays(poses_dict)
+            continue
 
-            for camera_name_coor in camera_names:
-                for camera_name in camera_names:
-                    extrinsics_list[camera_name_coor][camera_name].append(
-                        extrinsics[camera_name_coor][camera_name]
-                    )
+        timestamps, extrinsics = get_arrays(poses_dict)
+        draw_scatter(axs_lineplot, timestamps, extrinsics, label=folder, color=color)
 
-            draw_scatter(axs, timestamps, extrinsics, label=folder, color=color)
+        for camera_name_coor in camera_names:
+            for camera_name in camera_names:
+                extrinsics_list[camera_name_coor][camera_name].append(
+                    extrinsics[camera_name_coor][camera_name]
+                )
 
-    # draw_error_bar(axs_avg, extrinsics_list, folders)
+    draw_error_bar(axs_boxplot, extrinsics_list, folders)
 
+    adjust_plot(axs_lineplot, axs_boxplot)
     plt.show()
+
+
+def adjust_plot(axs_lineplot, axs_boxplot, data_std=4):
+    for i in range(axs_lineplot.shape[0]):
+        for j in range(axs_lineplot.shape[1]):
+            data_median = np.median(
+                [np.median(line.get_ydata()) for line in axs_lineplot[i][j].lines]
+            )
+            data_median = np.around(data_median)
+            yticks = np.arange(
+                data_median - data_std + data_std / 2,
+                data_median + data_std,
+                data_std / 2,
+            )
+
+            for axis in [axs_lineplot, axs_boxplot]:
+                axis[i][j].set_ylim(data_median - data_std, data_median + data_std)
+                axis[i][j].set_yticks(yticks)
+                axis[i][j].grid(b=True, axis="y", linestyle="--", alpha=0.5)
 
 
 def get_arrays(poses_dict):
     start_idx = 0
+    end_idx = None
 
     timestamps = {name: {n: {} for n in camera_names} for name in camera_names}
     extrinsics = {name: {n: {} for n in camera_names} for name in camera_names}
@@ -59,12 +77,14 @@ def get_arrays(poses_dict):
         for camera_name in camera_names:
             poses_array = np.array(poses_dict[camera_name_coor][camera_name])
             try:
-                timestamps[camera_name_coor][camera_name] = poses_array[start_idx:, 0]
-                extrinsics[camera_name_coor][camera_name] = poses_array[start_idx:, 1:]
+                timestamps[camera_name_coor][camera_name] = poses_array[
+                    start_idx:end_idx, 0
+                ]
+                extrinsics[camera_name_coor][camera_name] = poses_array[
+                    start_idx:end_idx, 1:
+                ]
             except IndexError:
                 pass
-
-    # extrinsics["world"][:, 2] %= 360
 
     return timestamps, extrinsics
 
@@ -95,15 +115,15 @@ def draw_scatter(axs, timestamps, extrinsics, label, color):
             for i in range(7):
                 if i != 6:
                     show_data = np.array(data[:, i])
-                    show_data -= np.array(
-                        camera_params_gt[camera_name_coor][camera_name][i]
-                    )
+                    # show_data -= np.array(
+                    #     camera_params_gt[camera_name_coor][camera_name][i]
+                    # )
                     axs[i][camera_idx].get_xaxis().set_visible(False)
                 else:
                     show_data = np.array(np.linalg.norm(data[:, 3:6], axis=1))
-                    show_data -= np.linalg.norm(
-                        camera_params_gt[camera_name_coor][camera_name][3:6]
-                    )
+                    # show_data -= np.linalg.norm(
+                    #     camera_params_gt[camera_name_coor][camera_name][3:6]
+                    # )
 
                 axs[i][camera_idx].plot(
                     timestamps_shifted,
@@ -114,8 +134,7 @@ def draw_scatter(axs, timestamps, extrinsics, label, color):
                     color=color,
                 )
 
-                axs[i][camera_idx].set_xlim(0, 11)
-                # axs[i][camera_idx].set_ylim(-2, 2)
+                axs[i][camera_idx].set_xlim(0)
                 axs[i][camera_idx].set_xlabel("time (second)")
                 axs[i][camera_idx].set_ylabel(ylabels[i])
 
@@ -141,47 +160,42 @@ def draw_error_bar(axs_avg, extrinsics_list, folders):
             datum = extrinsics_list[camera_name_coor][camera_name]
             for i in range(7):
                 if i != 6:
-                    show_data = np.array([data[:, i] for data in datum if len(data)])
-                    show_data -= np.array(
-                        camera_params_gt[camera_name_coor][camera_name][i]
-                    )
+                    show_data = [
+                        data[:, i]
+                        # - np.array(camera_params_gt[camera_name_coor][camera_name][i])
+                        for data in datum
+                        if len(data)
+                    ]
                     axs_avg[i][camera_idx].get_xaxis().set_visible(False)
                 else:
-                    distance_gt = np.linalg.norm(
-                        camera_params_gt[camera_name_coor][camera_name][3:6]
-                    )
-                    print(camera_name_coor, camera_name, distance_gt)
-                    show_data = (
-                        np.array(
-                            [
-                                np.linalg.norm(data[:, 3:6], axis=1)
-                                for data in datum
-                                if len(data)
-                            ]
-                        )
-                        - distance_gt
-                    )
-                    axs_avg[-1][camera_idx].set_xticklabels(folders)
+                    # distance_gt = np.linalg.norm(
+                    #     camera_params_gt[camera_name_coor][camera_name][3:6]
+                    # )
+                    # print(camera_name_coor, camera_name, distance_gt)
+                    show_data = [
+                        np.linalg.norm(data[:, 3:6], axis=1)  # - distance_gt
+                        for data in datum
+                        if len(data)
+                    ]
 
-                bp = axs_avg[i][camera_idx].boxplot(show_data)
+                bp = axs_avg[i][camera_idx].boxplot(show_data, 0, "")
                 for box, color in zip(bp["boxes"], colors):
                     box.set(color=color)
 
                 axs_avg[i][camera_idx].set_ylabel(ylabels[i])
                 # axs_avg[i][camera_idx].set_ylim(-5, 5)
 
+            axs_avg[-1][camera_idx].set_xticklabels(folders)
+
 
 if __name__ == "__main__":
     camera_params_gt = fm.load_object(
         "/cluster/users/Ching/codebase/pi_extrinsics_measurer/camera_params_gt"
     )
-    routine("/home/ch/recordings/prototype")
+    routine("/home/ch/recordings/five-boards/prototype/")
 
 
 """
 [[761.1847931010223, 0.0, 539.6932355593376], [0.0, 760.9251648226576, 500.12682388255763], [0.0, 0.0, 1.0]]
 [[-0.3140379774966514, 0.10994921245934719, 0.0, 0.0, -0.01900697233560925]]
-
-
-
 """

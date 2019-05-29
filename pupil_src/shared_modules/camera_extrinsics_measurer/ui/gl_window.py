@@ -23,16 +23,17 @@ os.environ["GL_FSAA_MODE"] = "11"
 
 
 class GLWindow(Observable, abc.ABC):
-    def __init__(self, general_settings, plugin):
+    def __init__(self, general_settings, plugin=None):
         self._general_settings = general_settings
 
         self._input = {"down": False, "mouse": (0, 0)}
         self._window = None
         self._trackball = self._init_trackball()
 
-        plugin.add_observer("init_ui", self._on_init_ui)
-        plugin.add_observer("deinit_ui", self._on_deinit_ui)
-        plugin.add_observer("gl_display", self._on_gl_display)
+        if plugin is not None:
+            plugin.add_observer("init_ui", self.on_init_ui)
+            plugin.add_observer("deinit_ui", self._on_deinit_ui)
+            plugin.add_observer("gl_display", self.on_gl_display)
 
     def switch_visualization_window(self, new_value):
         self._general_settings.open_visualization_window = new_value
@@ -41,9 +42,8 @@ class GLWindow(Observable, abc.ABC):
         else:
             self._close()
 
-    def _on_init_ui(self):
-        if self._general_settings.open_visualization_window:
-            self._open()
+    def on_init_ui(self):
+        self._open()
 
     def _open(self):
         if self._window:
@@ -57,13 +57,13 @@ class GLWindow(Observable, abc.ABC):
     @staticmethod
     def _init_trackball():
         trackball = gl_utils.Trackball()
-        trackball.zoom_to(-50)
+        trackball.zoom_to(-15)
         return trackball
 
     def _glfw_init(self):
         glfw.glfwInit()
         window = glfw.glfwCreateWindow(
-            title="Head Pose Tracker Visualizer", share=glfw.glfwGetCurrentContext()
+            title="Camera Extrinsics Visualizer", share=glfw.glfwGetCurrentContext()
         )
         return window
 
@@ -134,7 +134,7 @@ class GLWindow(Observable, abc.ABC):
         glfw.glfwDestroyWindow(window)
         self._window = None
 
-    def _on_gl_display(self):
+    def on_gl_display(self):
         if not self._window:
             return
 

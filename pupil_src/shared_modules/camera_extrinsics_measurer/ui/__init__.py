@@ -14,6 +14,9 @@ from camera_extrinsics_measurer.ui.gl_window import GLWindow
 from camera_extrinsics_measurer.ui.head_pose_tracker_3d_renderer import (
     HeadPoseTracker3DRenderer,
 )
+from camera_extrinsics_measurer.ui.live_camera_extrinsics_measurer_3d_renderer import (
+    LiveCameraExtrinsicsMeasurer3dRenderer,
+)
 from camera_extrinsics_measurer.ui.detection_renderer import DetectionRenderer
 from camera_extrinsics_measurer.ui.visualization_menu import VisualizationMenu
 

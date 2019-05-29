@@ -11,11 +11,19 @@ See COPYING and COPYING.LESSER for license details.
 
 import numpy as np
 
-from camera_extrinsics_measurer import ui as plugin_ui, function, camera_names
+import file_methods as fm
+from camera_extrinsics_measurer import (
+    ui as plugin_ui,
+    function,
+    camera_names,
+    PI_device,
+)
 from camera_extrinsics_measurer.ui import gl_renderer_utils as utils
 
+convert_to = "eye1"
 
-class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
+
+class LiveCameraExtrinsicsMeasurer3dRenderer(plugin_ui.GLWindow):
     def __init__(
         self,
         general_settings,
@@ -23,15 +31,16 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
         optimization_storage,
         localization_storage,
         intrinsics_dict,
-        plugin,
     ):
-        super().__init__(general_settings, plugin)
+        super().__init__(general_settings)
 
         self._general_settings = general_settings
         self._detection_storage = detection_storage
         self._optimization_storage = optimization_storage
         self._localization_storage = localization_storage
         self._intrinsics_dict = intrinsics_dict
+
+        self.on_init_ui()
 
     def _render(self):
         if not self._optimization_storage.calculated:
@@ -40,6 +49,7 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
         self._render_origin()
         self._render_markers()
         self._render_camera()
+        self._render_camera_reference(PI_device)
 
     def _render_origin(self):
         utils.render_centroid(color=(0.2, 0.2, 0.2, 0.1))
@@ -57,7 +67,7 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
             return
 
         if self._general_settings.convert_to_cam_coordinate:
-            current_pose_world = self._localization_storage.current_pose["world"]
+            current_pose_world = self._localization_storage.current_pose[convert_to]
             camera_extrinsics = current_pose_world["camera_extrinsics"]
             if camera_extrinsics is None:
                 return
@@ -76,11 +86,13 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
 
     def _render_camera(self):
         if self._general_settings.convert_to_cam_coordinate:
-            current_poses = self._localization_storage.current_pose_converted
+            current_poses = self._localization_storage.current_pose_converted[
+                convert_to
+            ]
         else:
             current_poses = self._localization_storage.current_pose
 
-        color = (0.2, 0.2, 0.2, 0.1)
+        color = (0.3, 0.0, 0.0, 0.1)
 
         for camera_name in camera_names:
             try:
@@ -93,4 +105,28 @@ class HeadPoseTracker3DRenderer(plugin_ui.GLWindow):
 
                 utils.render_camera_frustum(
                     camera_pose_matrix, self._intrinsics_dict[camera_name], color
+                )
+
+    def _render_camera_reference(self, device):
+        file_path = "/home/ch/recordings/five-boards/intrinscis/{}/one_pose_converted".format(
+            device
+        )
+        # fm.save_object(self._localization_storage.current_pose_converted, file_path)
+        current_poses = fm.load_object(file_path)[convert_to]
+
+        color = (0.2, 0.2, 0.2, 0.1)
+
+        for camera_name in camera_names:
+            try:
+                camera_pose_matrix = current_poses[camera_name]["camera_pose_matrix"]
+            except KeyError:
+                continue
+
+            if camera_pose_matrix is not None:
+                self._set_rotate_center_matrix()
+                utils.render_camera_frustum(
+                    camera_pose_matrix,
+                    self._intrinsics_dict[camera_name],
+                    color,
+                    alpha=0.5,
                 )

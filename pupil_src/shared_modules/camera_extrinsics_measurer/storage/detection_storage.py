@@ -119,3 +119,8 @@ class OfflineDetectionStorage(Observable, OfflineMarkerLocation):
 
     def _offline_data_folder_path(self, camera_name):
         return os.path.join(self._rec_dir, "offline_data", camera_name)
+
+
+class OnlineDetectionStorage:
+    def __init__(self):
+        self.current_markers = {name: [] for name in camera_names}

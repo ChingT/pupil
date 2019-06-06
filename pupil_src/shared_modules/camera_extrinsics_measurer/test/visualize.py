@@ -14,6 +14,8 @@ ylabels = ROTATION_HEADER + TRANSLATION_HEADER + ("distance (mm)",)
 
 colors = cm.get_cmap("tab10").colors
 
+end_time = 17
+
 
 def routine(base):
     fig_lineplot, axs_lineplot = plt.subplots(7, 3, figsize=(20, 10))
@@ -21,7 +23,7 @@ def routine(base):
     fig_lineplot.suptitle("comparison between headsets over time", fontsize=16)
     fig_boxplot.suptitle("comparison between headsets", fontsize=16)
 
-    folders = list(filter(lambda x: "Baker-build-model-" in x, os.listdir(base)))
+    folders = list(filter(lambda x: "DRVB2-holding-s" in x, os.listdir(base)))
     folders.sort()
 
     extrinsics_list = {name: {n: [] for n in camera_names} for name in camera_names}
@@ -69,22 +71,26 @@ def adjust_plot(axs_lineplot, axs_boxplot, data_std=4):
 
 def get_arrays(poses_dict):
     start_idx = 0
-    end_idx = None
 
     timestamps = {name: {n: {} for n in camera_names} for name in camera_names}
     extrinsics = {name: {n: {} for n in camera_names} for name in camera_names}
     for camera_name_coor in camera_names:
         for camera_name in camera_names:
             poses_array = np.array(poses_dict[camera_name_coor][camera_name])
+            if len(poses_array) == 0:
+                continue
             try:
-                timestamps[camera_name_coor][camera_name] = poses_array[
-                    start_idx:end_idx, 0
-                ]
-                extrinsics[camera_name_coor][camera_name] = poses_array[
-                    start_idx:end_idx, 1:
-                ]
+                end_index = np.where(poses_array[:, 0] - poses_array[0, 0] > end_time)[
+                    0
+                ][0]
             except IndexError:
-                pass
+                end_index = None
+            timestamps[camera_name_coor][camera_name] = poses_array[
+                start_idx:end_index, 0
+            ]
+            extrinsics[camera_name_coor][camera_name] = poses_array[
+                start_idx:end_index, 1:
+            ]
 
     return timestamps, extrinsics
 
@@ -134,7 +140,7 @@ def draw_scatter(axs, timestamps, extrinsics, label, color):
                     color=color,
                 )
 
-                axs[i][camera_idx].set_xlim(0)
+                axs[i][camera_idx].set_xlim(0, end_time)
                 axs[i][camera_idx].set_xlabel("time (second)")
                 axs[i][camera_idx].set_ylabel(ylabels[i])
 
@@ -183,16 +189,16 @@ def draw_error_bar(axs_avg, extrinsics_list, folders):
                     box.set(color=color)
 
                 axs_avg[i][camera_idx].set_ylabel(ylabels[i])
-                # axs_avg[i][camera_idx].set_ylim(-5, 5)
 
             axs_avg[-1][camera_idx].set_xticklabels(folders)
 
 
 if __name__ == "__main__":
-    camera_params_gt = fm.load_object(
-        "/cluster/users/Ching/codebase/pi_extrinsics_measurer/camera_params_gt"
-    )
-    routine("/home/ch/recordings/five-boards/prototype/")
+    # camera_params_gt = fm.load_object(
+    #     "/cluster/users/Ching/codebase/pi_extrinsics_measurer/camera_params_gt"
+    # )
+    # routine("/home/ch/recordings/five-boards/prototype/")
+    routine("/home/ch/recordings/five-boards/Wood2")
 
 
 """

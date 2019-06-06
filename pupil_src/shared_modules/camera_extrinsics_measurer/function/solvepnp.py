@@ -9,6 +9,8 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
+import random
+
 import numpy as np
 
 from camera_extrinsics_measurer.function import utils
@@ -20,12 +22,17 @@ def calculate(
     marker_id_to_extrinsics,
     camera_extrinsics_prv=None,
     min_n_markers_per_frame=1,
+    does_check_reprojection_errors=False,
 ):
     data_for_solvepnp = _prepare_data_for_solvepnp(
         markers_in_frame, marker_id_to_extrinsics, min_n_markers_per_frame
     )
     camera_extrinsics = _calculate(
-        camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv
+        camera_intrinsics,
+        data_for_solvepnp,
+        camera_extrinsics_prv,
+        min_n_markers_per_frame,
+        does_check_reprojection_errors,
     )
     return camera_extrinsics
 
@@ -58,7 +65,13 @@ def _prepare_data_for_solvepnp(
     return data_for_solvepnp
 
 
-def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
+def _calculate(
+    camera_intrinsics,
+    data_for_solvepnp,
+    camera_extrinsics_prv,
+    min_n_markers_per_frame,
+    does_check_reprojection_errors,
+):
     if not data_for_solvepnp:
         return None
 
@@ -67,34 +80,42 @@ def _calculate(camera_intrinsics, data_for_solvepnp, camera_extrinsics_prv):
     retval, rotation, translation = _run_solvepnp(
         camera_intrinsics, markers_points_3d, markers_points_2d, camera_extrinsics_prv
     )
-    if _check_result_reasonable(
-        retval,
-        rotation,
-        translation,
-        markers_points_3d,
-        markers_points_2d,
-        camera_intrinsics,
-    ):
+    if not _check_result_reasonable(retval, rotation, translation, markers_points_3d):
+        return None
+
+    if not does_check_reprojection_errors:
         camera_extrinsics = utils.merge_extrinsics(rotation, translation)
         return camera_extrinsics
 
-    # if _run_solvepnp with camera_extrinsics_prv could not output reasonable result,
-    # then do it again without camera_extrinsics_prv
-    retval, rotation, translation = _run_solvepnp(
-        camera_intrinsics, markers_points_3d, markers_points_2d
-    )
-    if _check_result_reasonable(
-        retval,
-        rotation,
-        translation,
-        markers_points_3d,
-        markers_points_2d,
-        camera_intrinsics,
-    ):
-        camera_extrinsics = utils.merge_extrinsics(rotation, translation)
-        return camera_extrinsics
-    else:
-        return None
+    for _ in range(10):
+        valid_indices, reprojection_errors = _check_reprojection_errors(
+            rotation,
+            translation,
+            markers_points_3d,
+            markers_points_2d,
+            camera_intrinsics,
+        )
+        if len(valid_indices) < min_n_markers_per_frame:
+            return None
+
+        if len(valid_indices) == len(markers_points_3d):
+            camera_extrinsics = utils.merge_extrinsics(rotation, translation)
+            return camera_extrinsics
+        else:
+            markers_points_3d = markers_points_3d[valid_indices]
+            markers_points_2d = markers_points_2d[valid_indices]
+            retval, rotation, translation = _run_solvepnp(
+                camera_intrinsics,
+                markers_points_3d,
+                markers_points_2d,
+                camera_extrinsics_prv,
+            )
+            if not _check_result_reasonable(
+                retval, rotation, translation, markers_points_3d
+            ):
+                return None
+
+    return None
 
 
 def _run_solvepnp(
@@ -129,14 +150,7 @@ def _run_solvepnp(
     return retval, rotation, translation
 
 
-def _check_result_reasonable(
-    retval,
-    rotation,
-    translation,
-    markers_points_3d,
-    markers_points_2d_detected,
-    camera_intrinsics,
-):
+def _check_result_reasonable(retval, rotation, translation, markers_points_3d):
     # solvePnP outputs wrong pose estimations sometimes, so it is necessary to check
     # if the rotation and translation from the output of solvePnP is reasonable.
     if not retval:
@@ -160,13 +174,24 @@ def _check_result_reasonable(
     if (pts_3d_camera[:, 2] < -1).any():
         return False
 
-    # markers_points_2d_projected = camera_intrinsics.projectPoints(
-    #     np.concatenate(markers_points_3d), rotation, translation
-    # ).reshape(-1, 4, 2)
-    # residuals = markers_points_2d_projected - markers_points_2d_detected
-    # errors = np.linalg.norm(residuals, axis=2).sum(axis=1)
-    # img_size = camera_intrinsics.resolution
-    # if np.min(errors) > img_size[0] / 100:
-    #     return False
-
     return True
+
+
+def _check_reprojection_errors(
+    rotation, translation, markers_points_3d, markers_points_2d, camera_intrinsics
+):
+    markers_points_2d_projected = camera_intrinsics.projectPoints(
+        np.concatenate(markers_points_3d), rotation, translation
+    ).reshape(-1, 4, 2)
+
+    thres = camera_intrinsics.resolution[0] / 135
+
+    residuals = markers_points_2d_projected - markers_points_2d
+    reprojection_errors = np.linalg.norm(residuals, axis=2).sum(axis=1)
+    valid_indices = np.where(reprojection_errors < thres)[0].tolist()
+
+    if len(valid_indices) == 0:
+        valid_indices = sorted(
+            random.sample(range(len(markers_points_3d)), k=len(markers_points_3d) - 1)
+        )
+    return valid_indices, reprojection_errors

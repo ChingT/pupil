@@ -10,6 +10,13 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import collections
+import logging
+import os
+import random
+import time
+
+import cv2
+import numpy as np
 
 import player_methods as pm
 from head_pose_tracker import storage
@@ -19,6 +26,8 @@ from head_pose_tracker.function import (
     get_initial_guess,
 )
 from head_pose_tracker.function import utils
+
+logger = logging.getLogger(__name__)
 
 IntrinsicsTuple = collections.namedtuple(
     "IntrinsicsTuple", ["camera_matrix", "dist_coefs"]
@@ -63,25 +72,27 @@ def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment):
 
 
 def offline_optimization(
+    camera_name,
     timestamps,
-    frame_index_range,
     user_defined_origin_marker_id,
+    marker_id_to_extrinsics_opt,
     optimize_camera_intrinsics,
     markers_bisector,
     frame_index_to_num_markers,
     camera_intrinsics,
-    marker_id_to_extrinsics_opt,
+    rec_dir,
+    debug,
     shared_memory,
 ):
     def find_markers_in_frame(index):
         window = pm.enclosing_window(timestamps, index)
         return markers_bisector.by_ts_window(window)
 
-    frame_start, frame_end = frame_index_range
+    frame_start, frame_end = 0, len(timestamps) - 1
     frame_indices_with_marker = [
         frame_index
         for frame_index, num_markers in frame_index_to_num_markers.items()
-        if num_markers >= 2
+        if num_markers >= 12
     ]
     frame_indices = list(
         set(range(frame_start, frame_end + 1)) & set(frame_indices_with_marker)
@@ -95,16 +106,22 @@ def offline_optimization(
 
     bundle_adjustment = BundleAdjustment(camera_intrinsics, optimize_camera_intrinsics)
 
-    for idx, frame_index in enumerate(frame_indices):
-        markers_in_frame = find_markers_in_frame(frame_index)
-        bg_storage.all_key_markers += pick_key_markers.run(
-            markers_in_frame, bg_storage.all_key_markers, select_key_markers_interval=1
-        )
+    random.seed(0)
+    for i in range(100):
+        if i < 80:
+            frame_indices_used = random.sample(frame_indices, k=50)
+            for idx, frame_index in enumerate(frame_indices_used):
+                markers_in_frame = find_markers_in_frame(frame_index)
 
-        if not (idx % 20 == 19 or idx == frame_count - 1):
-            continue
+                bg_storage.all_key_markers += pick_key_markers.run(
+                    random.sample(markers_in_frame, k=min(len(markers_in_frame), 40)),
+                    bg_storage.all_key_markers,
+                    select_key_markers_interval=1,
+                )
+                shared_memory.progress = (idx + 1) / len(frame_indices_used)
+                yield None
 
-        shared_memory.progress = (idx + 1) / frame_count
+        start = time.time()
         try:
             (
                 model_tuple,
@@ -117,8 +134,45 @@ def offline_optimization(
         else:
             bg_storage.frame_id_to_extrinsics = frame_id_to_extrinsics
             bg_storage.discard_failed_key_markers(frame_ids_failed)
-
+            end = time.time()
             yield model_tuple, intrinsics_tuple
+            logger.info("{} optimization_routine {:.1f} s".format(i, end - start))
+
+            # logger.info(
+            #     "{}\n{}".format(
+            #         np.around(camera_intrinsics.K, 4).tolist(),
+            #         np.around(camera_intrinsics.D, 4).tolist(),
+            #     )
+            # )
+
+    if debug:
+        key_markers_folder = os.path.join(rec_dir, camera_name, "key_markers")
+        os.makedirs(key_markers_folder, exist_ok=True)
+
+        frame_ids = set(
+            key_marker.frame_id for key_marker in bg_storage.all_key_markers
+        )
+        imgs = {
+            frame_id: cv2.imread(
+                os.path.join(rec_dir, camera_name, "{}.jpg".format(frame_id))
+            )
+            for frame_id in frame_ids
+        }
+
+        for key_marker in bg_storage.all_key_markers:
+            verts = [np.around(key_marker.verts).astype(np.int32)]
+            color = (0, 0, 255)
+            try:
+                cv2.polylines(
+                    imgs[key_marker.frame_id], verts, True, color, thickness=1
+                )
+            except KeyError:
+                pass
+
+        for frame_id, img in imgs.items():
+            cv2.imwrite(
+                os.path.join(key_markers_folder, "{}.jpg".format(frame_id)), img
+            )
 
 
 def online_optimization(

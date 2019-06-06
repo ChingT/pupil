@@ -31,7 +31,7 @@ class GLWindow(Observable, abc.ABC):
         self._trackball = self._init_trackball()
 
         if plugin is not None:
-            plugin.add_observer("init_ui", self.on_init_ui)
+            # plugin.add_observer("init_ui", self.on_init_ui)
             plugin.add_observer("deinit_ui", self._on_deinit_ui)
             plugin.add_observer("gl_display", self.on_gl_display)
 

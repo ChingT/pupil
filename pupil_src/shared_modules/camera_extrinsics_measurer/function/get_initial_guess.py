@@ -20,7 +20,12 @@ InitialGuess = collections.namedtuple(
 )
 
 
-def calculate(marker_id_to_extrinsics_opt, key_markers, camera_intrinsics):
+def calculate(
+    marker_id_to_extrinsics_opt,
+    frame_id_to_extrinsics_opt,
+    key_markers,
+    camera_intrinsics,
+):
     """ get marker and camera initial guess for bundle adjustment """
 
     marker_id_to_extrinsics_init = {
@@ -28,8 +33,8 @@ def calculate(marker_id_to_extrinsics_opt, key_markers, camera_intrinsics):
         for marker_id, extrinsics in marker_id_to_extrinsics_opt.items()
     }
     frame_id_to_extrinsics_init = {
-        # frame_id: np.array(extrinsics)
-        # for frame_id, extrinsics in frame_id_to_extrinsics_opt.items()
+        frame_id: np.array(extrinsics)
+        for frame_id, extrinsics in frame_id_to_extrinsics_opt.items()
     }
     frame_ids = list(set(marker.frame_id for marker in key_markers if marker.valid))
     marker_ids = list(set(marker.marker_id for marker in key_markers if marker.valid))

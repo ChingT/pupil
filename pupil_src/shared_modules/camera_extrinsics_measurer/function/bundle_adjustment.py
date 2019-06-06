@@ -259,10 +259,12 @@ class BundleAdjustment:
             for marker_index, extrinsics in enumerate(marker_extrinsics_array)
         }
         valid_key_marker_ids = self._key_marker_ids[valid_key_marker_indices]
+        rms = np.sqrt(least_sq_result.cost * 2 / least_sq_result.fun.size)
         print(
             "valid_key_marker",
             len(valid_key_marker_ids),
             len(self._markers_points_2d_detected) - len(valid_key_marker_ids),
+            "{:.4f}".format(rms),
         )
 
         bundle_adjustment_result = BundleAdjustmentResult(

@@ -10,6 +10,7 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 import collections
+import logging
 
 import cv2
 import numpy as np
@@ -17,6 +18,8 @@ from scipy import optimize as scipy_optimize
 from scipy import sparse as scipy_sparse
 
 from head_pose_tracker.function import utils
+
+logger = logging.getLogger(__name__)
 
 standard_board = np.load(
     "/cluster/users/Ching/codebase/apriltag_board/standard_board.npy"
@@ -42,72 +45,38 @@ class BundleAdjustment:
         self.board_initial_array[1:] = np.array(
             [
                 [
-                    -1.19411375e00,
-                    1.19846196e00,
-                    1.21687943e00,
-                    8.38448878e00,
-                    -6.95568546e-01,
-                    8.90548216e00,
+                    -1.2082806288046188,
+                    1.2106131506459028,
+                    1.2071594032772075,
+                    8.372508111223116,
+                    -0.5283525700692558,
+                    8.910891921722214,
                 ],
                 [
-                    4.86201542e00,
-                    -4.84028391e00,
-                    -4.81928679e00,
-                    8.79631470e00,
-                    8.46618085e00,
-                    5.53247446e-01,
+                    4.839309611548447,
+                    -4.831193779580925,
+                    -4.83674272686486,
+                    8.78140092001513,
+                    8.498043796249855,
+                    0.537469290287553,
                 ],
                 [
-                    8.73088589e-03,
-                    1.57463963e00,
-                    6.19300424e-03,
-                    -5.28454164e-01,
-                    -9.06893177e-02,
-                    8.80393913e00,
+                    -0.001296063656380079,
+                    1.5719120457300197,
+                    -0.0006934592725218148,
+                    -0.5260548812341558,
+                    0.010994148367638332,
+                    8.89584086312942,
                 ],
                 [
-                    -1.33872064e01,
-                    -1.33404887e01,
-                    1.31647312e01,
-                    -1.42641409e-01,
-                    8.89807394e00,
-                    8.90176172e00,
+                    -13.35444864523698,
+                    -13.270546992380034,
+                    13.27933814395521,
+                    -0.14371326411119056,
+                    9.012071514717633,
+                    8.878669341213879,
                 ],
             ]
-            # [
-            #     [
-            #         -1.21306337e00,
-            #         1.21199758e00,
-            #         1.20662246e00,
-            #         8.36219511e00,
-            #         -4.91359714e-01,
-            #         8.91875846e00,
-            #     ],
-            #     [
-            #         4.83364275e00,
-            #         -4.85099770e00,
-            #         -4.82710130e00,
-            #         8.80952986e00,
-            #         8.51210536e00,
-            #         5.18379471e-01,
-            #     ],
-            #     [
-            #         1.20594709e-03,
-            #         1.56910697e00,
-            #         -1.14033579e-03,
-            #         -5.57736128e-01,
-            #         2.14235898e-03,
-            #         8.89517012e00,
-            #     ],
-            #     [
-            #         -1.33148485e01,
-            #         -1.33080743e01,
-            #         1.32831870e01,
-            #         -1.20365383e-01,
-            #         9.01042614e00,
-            #         8.89624191e00,
-            #     ],
-            # ]
         )
 
         self._tol = 1e-8
@@ -160,7 +129,7 @@ class BundleAdjustment:
         camera_extrinsics_array = np.array(
             [frame_id_to_extrinsics[frame_id] for frame_id in self._frame_ids]
         )
-        print("self.board_initial_array\n", self.board_initial_array)
+        logger.debug("board_initial_array {}".format(self.board_initial_array.tolist()))
         return camera_extrinsics_array, self.board_initial_array
 
     def _prepare_basic_data(self, key_markers):
@@ -207,12 +176,6 @@ class BundleAdjustment:
         marker_extrinsics_origin = utils.get_marker_extrinsics_origin()
         marker_extrinsics_lower_bound[0] = marker_extrinsics_origin - eps
         marker_extrinsics_upper_bound[0] = marker_extrinsics_origin + eps
-        # marker_extrinsics_lower_bound[1] = self.board_initial_array[1] - 1
-        # marker_extrinsics_upper_bound[1] = self.board_initial_array[1] + 1
-        # marker_extrinsics_lower_bound[3] = self.board_initial_array[3] - 1
-        # marker_extrinsics_upper_bound[3] = self.board_initial_array[3] + 1
-        # marker_extrinsics_lower_bound[4] = self.board_initial_array[4] - 1
-        # marker_extrinsics_upper_bound[4] = self.board_initial_array[4] + 1
 
         lower_bound = np.vstack(
             (camera_extrinsics_lower_bound, marker_extrinsics_lower_bound)
@@ -301,8 +264,8 @@ class BundleAdjustment:
             loss="soft_l1",
             diff_step=self._diff_step,
             jac_sparsity=sparsity_matrix,
-            # max_nfev=50,
-            verbose=2,
+            # max_nfev=100,
+            verbose=1,
         )
         return result
 
@@ -322,13 +285,20 @@ class BundleAdjustment:
         marker_id_to_extrinsics_opt = {
             self._marker_ids[marker_index]: extrinsics
             for marker_index, extrinsics in enumerate(marker_extrinsics_array)
-            # if marker_index not in marker_indices_failed
         }
         frame_ids_failed = [self._frame_ids[i] for i in frame_indices_failed]
 
         bundle_adjustment_result = BundleAdjustmentResult(
             frame_id_to_extrinsics_opt, marker_id_to_extrinsics_opt, frame_ids_failed
         )
+
+        rms = np.sqrt(least_sq_result.cost * 2 / least_sq_result.fun.size)
+        logger.info(
+            "n_residules={}, rms={:.4f}".format(
+                len(self._markers_points_2d_detected), rms
+            )
+        )
+
         return bundle_adjustment_result
 
     def _function_compute_residuals(self, variables):
@@ -451,5 +421,11 @@ class BundleAdjustment:
         dist_coefs[0, 1] = camera_intrinsics_params[5]
         dist_coefs[0, 4] = camera_intrinsics_params[6]
 
+        # camera_matrix = np.load(
+        #     "/cluster/datasets/wood/camera_calibrations/r6wqd/400/3/camera_matrix.npy"
+        # )
+        # dist_coefs = np.load(
+        #     "/cluster/datasets/wood/camera_calibrations/r6wqd/400/3/dist_coefs.npy"
+        # )
         self._camera_intrinsics.update_camera_matrix(camera_matrix)
         self._camera_intrinsics.update_dist_coefs(dist_coefs)

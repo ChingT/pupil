@@ -120,9 +120,15 @@ def load_markers_bisector(rec_dir, camera_name):
 
 
 def load_timestamps(rec_dir, camera_name):
-    return video_capture.File_Source(
-        Empty(), os.path.join(rec_dir, "{}.mp4".format(camera_name)), timing=None
-    ).timestamps
+    source_path = os.path.join(rec_dir, "{}.mp4".format(camera_name))
+    src = video_capture.File_Source(
+        Empty(),
+        timing="external",
+        source_path=source_path,
+        buffered_decoding=True,
+        fill_gaps=True,
+    )
+    return src.timestamps
 
 
 def load_plmodel_from_disk():
@@ -211,7 +217,14 @@ def convert_to_cam_coordinate(timestamps_world, pose_bisector):
 
 def get_intrinsics_from_source(rec_dir, camera_name):
     source_path = os.path.join(rec_dir, "{}.mp4".format(camera_name))
-    return video_capture.File_Source(Empty(), source_path, timing=None).intrinsics
+    src = video_capture.File_Source(
+        Empty(),
+        timing="external",
+        source_path=source_path,
+        buffered_decoding=True,
+        fill_gaps=True,
+    )
+    return src.intrinsics
 
 
 if __name__ == "__main__":

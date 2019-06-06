@@ -107,14 +107,16 @@ class OfflineOptimizationController(Observable):
 
     def _create_task(self):
         args = (
+            "world",
             self._all_timestamps,
-            self._general_settings.optimization_frame_index_range,
             self._general_settings.user_defined_origin_marker_id,
+            self._optimization_storage.marker_id_to_extrinsics,
             self._general_settings.optimize_camera_intrinsics,
             self._detection_storage.markers_bisector,
             self._detection_storage.frame_index_to_num_markers,
             self._camera_intrinsics,
-            self._optimization_storage.marker_id_to_extrinsics,
+            self._rec_dir,
+            self._general_settings.debug,
         )
         return self._task_manager.create_background_task(
             name="markers 3d model optimization",
@@ -124,10 +126,14 @@ class OfflineOptimizationController(Observable):
         )
 
     def _update_result(self, result):
+        if not result:
+            return
         model_tuple, intrinsics_tuple = result
         self._optimization_storage.update_model(*model_tuple)
         self._camera_intrinsics.update_camera_matrix(intrinsics_tuple.camera_matrix)
         self._camera_intrinsics.update_dist_coefs(intrinsics_tuple.dist_coefs)
+        self._camera_intrinsics.save(self._rec_dir)
+        self._optimization_storage.save_plmodel_to_disk()
 
     def cancel_task(self):
         if self.is_running_task:

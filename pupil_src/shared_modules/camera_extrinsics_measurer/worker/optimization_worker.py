@@ -39,6 +39,7 @@ def optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment):
 
     initial_guess = get_initial_guess.calculate(
         bg_storage.marker_id_to_extrinsics,
+        bg_storage.frame_id_to_extrinsics,
         bg_storage.all_key_markers,
         camera_intrinsics,
     )
@@ -108,17 +109,13 @@ def offline_optimization(
     bg_storage.all_key_markers = []
 
     random.seed(0)
-    for i in range(10):
-        if i < 5:
-            frame_indices_used = random.sample(
-                frame_indices, k=min(frame_count, 100 * (i + 1))
-            )
-            # random.shuffle(frame_indices_used)
+    for i in range(15):
+        if i < 10:
+            frame_indices_used = random.sample(frame_indices, k=min(frame_count, 100))
             for idx, frame_index in enumerate(frame_indices_used):
                 markers_in_frame = find_markers_in_frame(frame_index)
-                random.shuffle(markers_in_frame)
                 bg_storage.all_key_markers += pick_key_markers.run(
-                    random.sample(markers_in_frame, k=min(len(markers_in_frame), 10)),
+                    random.sample(markers_in_frame, k=min(len(markers_in_frame), 100)),
                     bg_storage.all_key_markers,
                     select_key_markers_interval=1,
                 )
@@ -140,7 +137,7 @@ def offline_optimization(
             bg_storage, camera_intrinsics, bundle_adjustment
         )
         end = time.time()
-        print("optimization_routine {:.1f} s".format(end - start))
+        # print("optimization_routine {:.1f} s".format(end - start))
 
         bg_storage.filter_valid_key_marker_ids(valid_key_marker_ids)
         print(
@@ -170,7 +167,7 @@ def offline_optimization(
             color = (0, 0, 255) if key_marker.valid else (255, 255, 0)
             try:
                 cv2.polylines(
-                    imgs[key_marker.frame_id], verts, True, color, thickness=2
+                    imgs[key_marker.frame_id], verts, True, color, thickness=1
                 )
             except KeyError:
                 pass

@@ -16,7 +16,6 @@ from camera_extrinsics_measurer.worker.detection_worker import (
 from camera_extrinsics_measurer.worker.localization_worker import (
     offline_localization,
     online_localization,
-    convert_to_gt_coordinate,
     offline_convert_to_cam_coordinate,
     online_convert_to_cam_coordinate,
 )

@@ -54,7 +54,13 @@ class Camera_Extrinsics_Measurer(Plugin, Observable):
         for camera_name in camera_names:
             source_path = os.path.join(self._rec_dir, "{}.mp4".format(camera_name))
             try:
-                src = video_capture.File_Source(Empty(), source_path, timing=None)
+                src = video_capture.File_Source(
+                    Empty(),
+                    timing="external",
+                    source_path=source_path,
+                    buffered_decoding=True,
+                    fill_gaps=True,
+                )
             except AssertionError:
                 continue
             self._source_path_dict[camera_name] = source_path

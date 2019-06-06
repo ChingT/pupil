@@ -18,12 +18,13 @@ KeyMarker = collections.namedtuple(
 )
 
 min_n_markers_per_frame = 2
+max_n_markers_per_frame = 100
 max_n_same_markers_per_bin = 1
 assert min_n_markers_per_frame >= 2
 assert max_n_same_markers_per_bin >= 1
 
-n_bins_x = 2
-n_bins_y = 2
+n_bins_x = 4
+n_bins_y = 4
 _bins_x = np.linspace(0, 1, n_bins_x + 1)[1:-1]
 _bins_y = np.linspace(0, 1, n_bins_y + 1)[1:-1]
 
@@ -49,7 +50,7 @@ def _decide_key_markers(markers_in_frame, all_key_markers, select_key_markers_in
     if _n_frames_passed >= select_key_markers_interval:
         _n_frames_passed = 0
 
-        if len(markers_in_frame) >= min_n_markers_per_frame:
+        if min_n_markers_per_frame <= len(markers_in_frame) <= max_n_markers_per_frame:
             if _check_bins_availability(markers_in_frame, all_key_markers):
                 return True
     return False
@@ -75,7 +76,9 @@ def _check_bins_availability(markers_in_frame, all_key_markers):
 
 def _get_key_markers(markers_in_frame):
     return [
-        KeyMarker(marker["timestamp"], marker["id"], marker["verts"], _get_bin(marker))
+        KeyMarker(
+            marker["frame_index"], marker["id"], marker["verts"], _get_bin(marker)
+        )
         for marker in markers_in_frame
     ]
 

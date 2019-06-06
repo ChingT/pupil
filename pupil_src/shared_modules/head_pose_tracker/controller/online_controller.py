@@ -108,7 +108,7 @@ class OnlineController:
         model_tuple, frame_id_to_extrinsics, frame_ids_failed, intrinsics_tuple = result
         self._optimization_storage.update_model(*model_tuple)
         self._optimization_storage.frame_id_to_extrinsics = frame_id_to_extrinsics
-        self._optimization_storage.discard_failed_key_markers(frame_ids_failed)
+        self._optimization_storage.filter_valid_key_marker_ids(frame_ids_failed)
         self._optimization_storage.save_plmodel_to_disk()
 
         self._camera_intrinsics.update_camera_matrix(intrinsics_tuple.camera_matrix)

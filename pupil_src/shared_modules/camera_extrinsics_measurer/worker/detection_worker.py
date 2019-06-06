@@ -18,6 +18,7 @@ import apriltag
 import file_methods as fm
 import video_capture
 from methods import normalize
+from video_capture import EndofVideoError
 
 apriltag_detector = apriltag.Detector()
 
@@ -43,7 +44,7 @@ def _detect(frame):
     return [
         get_markers_data(detection, img_size, frame.timestamp, frame.index)
         for detection in apriltag_detections
-        if detection.hamming == 0 and detection.decision_margin >= 40
+        if detection.hamming == 0  # and detection.decision_margin >= 40
     ]
 
 
@@ -63,7 +64,14 @@ def offline_detection(
     shared_memory.progress = (frame_indices[0] - frame_start + 1) / frame_count
     yield None
 
-    src = video_capture.File_Source(Empty(), source_path, timing=None)
+    # src = video_capture.File_Source(Empty(), source_path, timing=None)
+    src = video_capture.File_Source(
+        Empty(),
+        timing="external",
+        source_path=source_path,
+        buffered_decoding=True,
+        fill_gaps=True,
+    )
 
     if debug:
         debug_img_folder = os.path.splitext(source_path)[0]
@@ -73,7 +81,10 @@ def offline_detection(
     for frame_index in frame_indices:
         shared_memory.progress = (frame_index - frame_start + 1) / frame_count
         timestamp = timestamps[frame_index]
-        src.seek_to_frame(frame_index)
+        try:
+            src.seek_to_frame(frame_index)
+        except EndofVideoError:
+            continue
         frame = src.get_frame()
         detections = _detect(frame)
 
@@ -83,11 +94,8 @@ def offline_detection(
                 np.around(detection["verts"]).astype(np.int32)
                 for detection in detections
             ]
-            cv2.polylines(img, verts, True, (0, 255, 255), thickness=2)
+            cv2.polylines(img, verts, True, (0, 255, 255), thickness=1)
             cv2.imwrite("{}/{}.jpg".format(debug_img_folder, frame_index), img)
-
-        # plt.imshow(img, cmap='gray')
-        # plt.show()
 
         if detections:
             serialized_dicts = [

@@ -15,7 +15,7 @@ import numpy as np
 from camera_extrinsics_measurer.storage.optimization_storage import KeyMarker
 
 min_n_markers_per_frame = 5
-max_n_markers_per_frame = 30
+max_n_markers_per_frame = 100
 max_n_same_markers_per_bin = 1
 assert min_n_markers_per_frame >= 2
 assert max_n_same_markers_per_bin >= 1

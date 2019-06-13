@@ -26,24 +26,29 @@ class Empty(object):
     pass
 
 
-def get_markers_data(detection, img_size, timestamp, frame_index):
+def get_markers_data(detection, img_size, timestamp, frame_index, blurry_score):
     return {
         "id": detection.tag_id,
         "verts": detection.corners[::-1].tolist(),
         "centroid": normalize(detection.center, img_size, flip_y=True),
         "timestamp": timestamp,
         "frame_index": frame_index,
+        "decision_margin": detection.decision_margin,
+        "blurry_score": blurry_score,
     }
 
 
-def _detect(frame):
+def _detect(frame, blurry_score):
     image = frame.gray
     apriltag_detections = apriltag_detector.detect(image)
     img_size = image.shape[::-1]
+
     return [
-        get_markers_data(detection, img_size, frame.timestamp, frame.index)
+        get_markers_data(
+            detection, img_size, frame.timestamp, frame.index, blurry_score
+        )
         for detection in apriltag_detections
-        if detection.hamming == 0  # and detection.decision_margin >= 40
+        if detection.hamming == 0
     ]
 
 
@@ -85,22 +90,53 @@ def offline_detection(
             continue
 
         frame = src.get_frame()
-        detections = _detect(frame)
+        blurry_score = detect_blurry(frame.gray)
+        detections = _detect(frame, blurry_score)
 
         if debug:
             img = frame.bgr.copy()
-            verts = [
-                np.around(detection["verts"]).astype(np.int32)
-                for detection in detections
-            ]
-            cv2.polylines(img, verts, True, (0, 255, 255), thickness=1)
-            cv2.imwrite("{}/{}.jpg".format(debug_img_folder, frame_index), img)
+
+            cv2.putText(
+                img,
+                text="{:.0f}".format(blurry_score),
+                org=(500, 500),
+                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                fontScale=2,
+                thickness=2,
+                color=(0, 0, 255),
+            )
+
+            if detections:
+                verts = [
+                    np.around(detection["verts"]).astype(np.int32)
+                    for detection in detections
+                ]
+                cv2.polylines(img, verts, True, (0, 0, 255), thickness=1)
+
+                for detection in detections:
+                    cv2.putText(
+                        img,
+                        text="{:.0f}".format(detection["decision_margin"]),
+                        org=tuple(np.array(detection["verts"][0], dtype=np.int)),
+                        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale=0.4,
+                        color=(0, 255, 255),
+                    )
+
+            cv2.imwrite(
+                "{}/{:04.0f}-{}.jpg".format(
+                    debug_img_folder, blurry_score, frame_index
+                ),
+                img,
+            )
 
         if detections:
             serialized_dicts = [
                 fm.Serialized_Dict(detection) for detection in detections
             ]
-            queue.append((timestamp, serialized_dicts, frame_index, len(detections)))
+            # num_markers = len(detections)
+            num_markers = int(blurry_score)
+            queue.append((timestamp, serialized_dicts, frame_index, num_markers))
         else:
             queue.append((timestamp, [fm.Serialized_Dict({})], frame_index, 0))
 
@@ -113,4 +149,9 @@ def offline_detection(
 
 
 def online_detection(frame):
-    return _detect(frame)
+    blurry_score = detect_blurry(frame.gray)
+    return _detect(frame, blurry_score)
+
+
+def detect_blurry(image):
+    return cv2.Laplacian(image, cv2.CV_64F).var()

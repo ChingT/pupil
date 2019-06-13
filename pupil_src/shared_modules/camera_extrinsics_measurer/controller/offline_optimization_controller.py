@@ -138,7 +138,7 @@ class OfflineOptimizationController(Observable):
         self._camera_intrinsics_dict[camera_name].update_dist_coefs(
             intrinsics_tuple.dist_coefs
         )
-        # self._camera_intrinsics_dict[camera_name].save(self._rec_dir)
+        self._camera_intrinsics_dict[camera_name].save(self._rec_dir)
 
     def cancel_task(self):
         if self.is_running_task:

@@ -14,7 +14,7 @@ ylabels = ROTATION_HEADER + TRANSLATION_HEADER + ("distance (mm)",)
 
 colors = cm.get_cmap("tab10").colors
 
-end_time = 17
+end_time = 30
 
 
 def routine(base):
@@ -23,9 +23,10 @@ def routine(base):
     fig_lineplot.suptitle("comparison between headsets over time", fontsize=16)
     fig_boxplot.suptitle("comparison between headsets", fontsize=16)
 
-    folders = list(filter(lambda x: "DRVB2-holding-s" in x, os.listdir(base)))
+    folders = list(filter(lambda x: "moving" in x, os.listdir(base)))
     folders.sort()
 
+    labels = []
     extrinsics_list = {name: {n: [] for n in camera_names} for name in camera_names}
     for folder_idx, (folder, color) in enumerate(zip(folders, colors)):
         try:
@@ -43,8 +44,9 @@ def routine(base):
                 extrinsics_list[camera_name_coor][camera_name].append(
                     extrinsics[camera_name_coor][camera_name]
                 )
+        labels.append(folder[:5])
 
-    draw_error_bar(axs_boxplot, extrinsics_list, folders)
+    draw_error_bar(axs_boxplot, extrinsics_list, labels)
 
     adjust_plot(axs_lineplot, axs_boxplot)
     plt.show()
@@ -56,16 +58,17 @@ def adjust_plot(axs_lineplot, axs_boxplot, data_std=4):
             data_median = np.median(
                 [np.median(line.get_ydata()) for line in axs_lineplot[i][j].lines]
             )
-            data_median = np.around(data_median)
+            # data_median = np.around(data_median)
             yticks = np.arange(
-                data_median - data_std + data_std / 2,
-                data_median + data_std,
-                data_std / 2,
+                data_median - data_std, data_median + data_std * 2, data_std
             )
 
             for axis in [axs_lineplot, axs_boxplot]:
-                axis[i][j].set_ylim(data_median - data_std, data_median + data_std)
+                axis[i][j].set_ylim(
+                    data_median - data_std * 2, data_median + data_std * 2
+                )
                 axis[i][j].set_yticks(yticks)
+                axis[i][j].set_yticklabels(np.around(yticks, 2))
                 axis[i][j].grid(b=True, axis="y", linestyle="--", alpha=0.5)
 
 
@@ -185,8 +188,9 @@ def draw_error_bar(axs_avg, extrinsics_list, folders):
                     ]
 
                 bp = axs_avg[i][camera_idx].boxplot(show_data, 0, "")
-                for box, color in zip(bp["boxes"], colors):
+                for box, med, color in zip(bp["boxes"], bp["medians"], colors):
                     box.set(color=color)
+                    med.set(color="black")
 
                 axs_avg[i][camera_idx].set_ylabel(ylabels[i])
 
@@ -194,14 +198,16 @@ def draw_error_bar(axs_avg, extrinsics_list, folders):
 
 
 if __name__ == "__main__":
-    # camera_params_gt = fm.load_object(
-    #     "/cluster/users/Ching/codebase/pi_extrinsics_measurer/camera_params_gt"
-    # )
     # routine("/home/ch/recordings/five-boards/prototype/")
-    routine("/home/ch/recordings/five-boards/Wood2")
+    # routine("/home/ch/recordings/five-boards/Wood2")
+    routine("/home/ch/recordings/five-boards/Jarkarta-8-headsets")
+    # routine("/home/ch/recordings/five-boards/test")
 
 
 """
+camera_params_gt = fm.load_object(
+    "/cluster/users/Ching/codebase/pi_extrinsics_measurer/camera_params_gt"
+)
 [[761.1847931010223, 0.0, 539.6932355593376], [0.0, 760.9251648226576, 500.12682388255763], [0.0, 0.0, 1.0]]
 [[-0.3140379774966514, 0.10994921245934719, 0.0, 0.0, -0.01900697233560925]]
 """

@@ -39,42 +39,43 @@ class BundleAdjustment:
         self._camera_intrinsics = camera_intrinsics
         self._optimize_camera_intrinsics = optimize_camera_intrinsics
         self._enough_samples = False
-        self._camera_intrinsics_params_size = 7
+        self._camera_intrinsics_params_size = 12
 
         self.board_initial_array = np.zeros((5, 6))  # 300
-        self.board_initial_array[1:] = np.array(
+        self.board_initial_array = np.array(
             [
                 [
-                    -1.2082806288046188,
-                    1.2106131506459028,
-                    1.2071594032772075,
-                    8.372508111223116,
-                    -0.5283525700692558,
-                    8.910891921722214,
+                    -1.213351987643278,
+                    1.2069108288998645,
+                    1.2066971402953472,
+                    8.33686431131904,
+                    -0.5061821326946745,
+                    8.929331827568191,
                 ],
                 [
-                    4.839309611548447,
-                    -4.831193779580925,
-                    -4.83674272686486,
-                    8.78140092001513,
-                    8.498043796249855,
-                    0.537469290287553,
+                    4.846498602829769,
+                    -4.845733104059885,
+                    -4.81995731297012,
+                    8.790690874383156,
+                    8.494528313946898,
+                    0.5351203141768408,
                 ],
                 [
-                    -0.001296063656380079,
-                    1.5719120457300197,
-                    -0.0006934592725218148,
-                    -0.5260548812341558,
-                    0.010994148367638332,
-                    8.89584086312942,
+                    3.5873734711704765e-05,
+                    1.5671152886222477,
+                    -0.000733844379137982,
+                    -0.5686272286641371,
+                    -0.0023275536466856655,
+                    8.897970099588257,
                 ],
+                [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
                 [
-                    -13.35444864523698,
-                    -13.270546992380034,
-                    13.27933814395521,
-                    -0.14371326411119056,
-                    9.012071514717633,
-                    8.878669341213879,
+                    1.2123657488968016,
+                    1.2066811908671524,
+                    -1.205843826734986,
+                    -0.15002153744284125,
+                    9.007183309468257,
+                    8.890694628500698,
                 ],
             ]
         )
@@ -114,12 +115,11 @@ class BundleAdjustment:
 
     @staticmethod
     def _set_ids(frame_id_to_extrinsics, marker_id_to_extrinsics):
-        # origin_marker_id = utils.find_origin_marker_id(marker_id_to_extrinsics)
         marker_ids = (
-            list(range(300, 336))
-            + list(range(0, 36))
+            list(range(0, 36))
             + list(range(100, 136))
             + list(range(200, 236))
+            + list(range(300, 336))
             + list(range(400, 436))
         )
         frame_ids = list(frame_id_to_extrinsics.keys())
@@ -129,7 +129,7 @@ class BundleAdjustment:
         camera_extrinsics_array = np.array(
             [frame_id_to_extrinsics[frame_id] for frame_id in self._frame_ids]
         )
-        logger.debug("board_initial_array {}".format(self.board_initial_array.tolist()))
+        logger.info("board_initial_array {}".format(self.board_initial_array.tolist()))
         return camera_extrinsics_array, self.board_initial_array
 
     def _prepare_basic_data(self, key_markers):
@@ -174,8 +174,8 @@ class BundleAdjustment:
         marker_extrinsics_lower_bound = np.full(self._marker_extrinsics_shape, -scale)
         marker_extrinsics_upper_bound = np.full(self._marker_extrinsics_shape, scale)
         marker_extrinsics_origin = utils.get_marker_extrinsics_origin()
-        marker_extrinsics_lower_bound[0] = marker_extrinsics_origin - eps
-        marker_extrinsics_upper_bound[0] = marker_extrinsics_origin + eps
+        marker_extrinsics_lower_bound[3] = marker_extrinsics_origin - eps
+        marker_extrinsics_upper_bound[3] = marker_extrinsics_origin + eps
 
         lower_bound = np.vstack(
             (camera_extrinsics_lower_bound, marker_extrinsics_lower_bound)
@@ -187,8 +187,12 @@ class BundleAdjustment:
         if self._optimize_camera_intrinsics and self._enough_samples:
             camera_matrix_lower_bound = np.full((4,), 0)
             camera_matrix_upper_bound = np.full((4,), 2000)
-            dist_coefs_lower_bound = np.full((3,), -1)
-            dist_coefs_upper_bound = np.full((3,), 1)
+            dist_coefs_lower_bound = np.full(
+                (self._camera_intrinsics_params_size - 4,), -1
+            )
+            dist_coefs_upper_bound = np.full(
+                (self._camera_intrinsics_params_size - 4,), 1
+            )
             lower_bound = np.hstack(
                 (lower_bound, camera_matrix_lower_bound, dist_coefs_lower_bound)
             )
@@ -225,9 +229,11 @@ class BundleAdjustment:
             interpolation=cv2.INTER_NEAREST,
         )
 
-        mat_marker = np.ones(
+        mat_marker = np.zeros(
             (n_samples, self._marker_extrinsics_shape[0]), dtype=np.uint8
         )
+        board_indices = np.array(self._marker_ids)[self._marker_indices] // 100
+        mat_marker[np.arange(n_samples), board_indices] = 1
         mat_marker = cv2.resize(
             mat_marker,
             (
@@ -273,9 +279,7 @@ class BundleAdjustment:
         camera_extrinsics_array, marker_extrinsics_array = self._get_extrinsics_arrays(
             least_sq_result.x
         )
-        frame_indices_failed, marker_indices_failed = self._find_failed_indices(
-            least_sq_result.fun
-        )
+        frame_indices_failed = self._find_failed_indices(least_sq_result.fun)
 
         frame_id_to_extrinsics_opt = {
             self._frame_ids[frame_index]: extrinsics
@@ -370,7 +374,7 @@ class BundleAdjustment:
         )
         return markers_points_2d_projected
 
-    def _find_failed_indices(self, residuals, thres_frame=8, thres_marker=8):
+    def _find_failed_indices(self, residuals, thres_frame=8):
         """ find out those frame_indices and marker_indices which cause large
         reprojection errors
         """
@@ -384,16 +388,15 @@ class BundleAdjustment:
             if np.min(reprojection_errors[self._frame_indices == frame_indice])
             > thres_frame
         ]
-        marker_indices_failed = [
-            marker_indice
-            for marker_indice in set(self._marker_indices)
-            if np.min(reprojection_errors[self._marker_indices == marker_indice])
-            > thres_marker
-        ]
-        return frame_indices_failed, marker_indices_failed
+        return frame_indices_failed
 
     def _load_camera_intrinsics_params(self, camera_matrix, dist_coefs):
-        assert camera_matrix.shape == (3, 3) and dist_coefs.shape == (1, 5)
+        assert camera_matrix.shape == (3, 3)
+        if self._camera_intrinsics_params_size != 12:
+            assert dist_coefs.shape == (1, 5), dist_coefs.shape
+        else:
+            assert dist_coefs.shape == (1, 8)
+
         camera_intrinsics_params = np.zeros((self._camera_intrinsics_params_size,))
 
         camera_intrinsics_params[0] = camera_matrix[0, 0]  # fx
@@ -401,9 +404,13 @@ class BundleAdjustment:
         camera_intrinsics_params[2] = camera_matrix[0, 2]  # cx
         camera_intrinsics_params[3] = camera_matrix[1, 2]  # cy
 
-        camera_intrinsics_params[4] = dist_coefs[0, 0]
-        camera_intrinsics_params[5] = dist_coefs[0, 1]
-        camera_intrinsics_params[6] = dist_coefs[0, 4]
+        if self._camera_intrinsics_params_size != 12:
+            camera_intrinsics_params[4] = dist_coefs[0, 0]
+            camera_intrinsics_params[5] = dist_coefs[0, 1]
+            camera_intrinsics_params[6] = dist_coefs[0, 4]
+        else:
+            for i in range(8):
+                camera_intrinsics_params[i + 4] = dist_coefs[0, i]
 
         return camera_intrinsics_params
 
@@ -416,16 +423,15 @@ class BundleAdjustment:
         camera_matrix[0, 2] = camera_intrinsics_params[2]  # cx
         camera_matrix[1, 2] = camera_intrinsics_params[3]  # cy
 
-        dist_coefs = np.zeros((1, 5))
-        dist_coefs[0, 0] = camera_intrinsics_params[4]
-        dist_coefs[0, 1] = camera_intrinsics_params[5]
-        dist_coefs[0, 4] = camera_intrinsics_params[6]
+        if self._camera_intrinsics_params_size != 12:
+            dist_coefs = np.zeros((1, 5))
+            dist_coefs[0, 0] = camera_intrinsics_params[4]
+            dist_coefs[0, 1] = camera_intrinsics_params[5]
+            dist_coefs[0, 4] = camera_intrinsics_params[6]
+        else:
+            dist_coefs = np.zeros((1, 8))
+            for i in range(8):
+                dist_coefs[0, i] = camera_intrinsics_params[i + 4]
 
-        # camera_matrix = np.load(
-        #     "/cluster/datasets/wood/camera_calibrations/r6wqd/400/3/camera_matrix.npy"
-        # )
-        # dist_coefs = np.load(
-        #     "/cluster/datasets/wood/camera_calibrations/r6wqd/400/3/dist_coefs.npy"
-        # )
         self._camera_intrinsics.update_camera_matrix(camera_matrix)
         self._camera_intrinsics.update_dist_coefs(dist_coefs)

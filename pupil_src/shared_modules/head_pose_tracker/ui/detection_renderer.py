@@ -16,6 +16,8 @@ from pyglui.cygl import utils as cygl_utils
 from pyglui.pyfontstash import fontstash
 from pyglui.ui import get_opensans_font_path
 
+min_blurry_score = 1000
+
 
 class DetectionRenderer:
     """
@@ -66,7 +68,7 @@ class DetectionRenderer:
         for marker in current_markers:
             marker_points = np.array(marker["verts"], dtype=np.float32)
             hat_points = self._calculate_hat_points(marker_points)
-            if marker["id"] in marker_id_optimized:
+            if marker["blurry_score"] >= min_blurry_score:
                 color = (1.0, 0.0, 0.0, 0.2)
             else:
                 color = (0.0, 1.0, 1.0, 0.2)
@@ -74,7 +76,7 @@ class DetectionRenderer:
             self._draw_hat(hat_points, color)
 
             if self._general_settings.show_marker_id_in_main_window:
-                self._draw_marker_id(marker_points, marker["id"])
+                self._draw_marker_id(marker_points, marker["blurry_score"])
 
     def _calculate_hat_points(self, marker_points):
         perspective_matrix = cv2.getPerspectiveTransform(
@@ -90,4 +92,4 @@ class DetectionRenderer:
 
     def _draw_marker_id(self, marker_points, marker_id):
         point = np.max(marker_points, axis=0)
-        self.glfont.draw_text(point[0], point[1], str(marker_id))
+        self.glfont.draw_text(point[0], point[1], str(int(marker_id)))

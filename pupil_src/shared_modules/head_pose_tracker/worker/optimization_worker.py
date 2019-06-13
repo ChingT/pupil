@@ -92,12 +92,11 @@ def offline_optimization(
     frame_indices_with_marker = [
         frame_index
         for frame_index, num_markers in frame_index_to_num_markers.items()
-        if num_markers >= 12
+        if num_markers >= 1000
     ]
     frame_indices = list(
         set(range(frame_start, frame_end + 1)) & set(frame_indices_with_marker)
     )
-    frame_count = len(frame_indices)
 
     bg_storage = storage.Markers3DModel(user_defined_origin_marker_id)
     origin_marker_id = utils.find_origin_marker_id(marker_id_to_extrinsics_opt)
@@ -106,17 +105,16 @@ def offline_optimization(
 
     bundle_adjustment = BundleAdjustment(camera_intrinsics, optimize_camera_intrinsics)
 
-    random.seed(0)
-    for i in range(100):
-        if i < 80:
-            frame_indices_used = random.sample(frame_indices, k=50)
+    random.seed(100)
+    k = len(frame_indices) // 25
+    for i in range(101):
+        if i < 100:
+            frame_indices_used = random.sample(frame_indices, k)
             for idx, frame_index in enumerate(frame_indices_used):
                 markers_in_frame = find_markers_in_frame(frame_index)
 
                 bg_storage.all_key_markers += pick_key_markers.run(
-                    random.sample(markers_in_frame, k=min(len(markers_in_frame), 40)),
-                    bg_storage.all_key_markers,
-                    select_key_markers_interval=1,
+                    markers_in_frame, bg_storage.all_key_markers
                 )
                 shared_memory.progress = (idx + 1) / len(frame_indices_used)
                 yield None
@@ -138,13 +136,6 @@ def offline_optimization(
             yield model_tuple, intrinsics_tuple
             logger.info("{} optimization_routine {:.1f} s".format(i, end - start))
 
-            # logger.info(
-            #     "{}\n{}".format(
-            #         np.around(camera_intrinsics.K, 4).tolist(),
-            #         np.around(camera_intrinsics.D, 4).tolist(),
-            #     )
-            # )
-
     if debug:
         key_markers_folder = os.path.join(rec_dir, camera_name, "key_markers")
         os.makedirs(key_markers_folder, exist_ok=True)
@@ -154,7 +145,13 @@ def offline_optimization(
         )
         imgs = {
             frame_id: cv2.imread(
-                os.path.join(rec_dir, camera_name, "{}.jpg".format(frame_id))
+                os.path.join(
+                    rec_dir,
+                    camera_name,
+                    "{:04.0f}-{}.jpg".format(
+                        frame_index_to_num_markers[frame_id], frame_id
+                    ),
+                )
             )
             for frame_id in frame_ids
         }
@@ -190,5 +187,4 @@ def online_optimization(
     bg_storage.all_key_markers = all_key_markers
 
     bundle_adjustment = BundleAdjustment(camera_intrinsics, optimize_camera_intrinsics)
-
     return optimization_routine(bg_storage, camera_intrinsics, bundle_adjustment)

@@ -17,8 +17,8 @@ KeyMarker = collections.namedtuple(
     "KeyMarker", ["frame_id", "marker_id", "verts", "bin"]
 )
 
-min_n_markers_per_frame = 2
-max_n_markers_per_frame = 100
+min_n_markers_per_frame = 4
+max_n_markers_per_frame = 180
 max_n_same_markers_per_bin = 1
 assert min_n_markers_per_frame >= 2
 assert max_n_same_markers_per_bin >= 1
@@ -32,7 +32,7 @@ _bins_y = np.linspace(0, 1, n_bins_y + 1)[1:-1]
 _n_frames_passed = 0
 
 
-def run(markers_in_frame, all_key_markers, select_key_markers_interval=2):
+def run(markers_in_frame, all_key_markers, select_key_markers_interval=1):
     assert select_key_markers_interval >= 1
 
     if _decide_key_markers(

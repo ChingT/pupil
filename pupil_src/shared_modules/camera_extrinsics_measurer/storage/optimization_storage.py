@@ -121,6 +121,13 @@ class Markers3DModel:
             for marker in self.all_key_markers
         ]
 
+    def discard_failed_key_markers(self, frame_ids_failed):
+        self.all_key_markers = [
+            marker
+            for marker in self.all_key_markers
+            if marker.frame_id not in frame_ids_failed
+        ]
+
     @property
     def calculated(self):
         return bool(self.marker_id_to_extrinsics)

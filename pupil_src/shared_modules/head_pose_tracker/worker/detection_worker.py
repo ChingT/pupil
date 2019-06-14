@@ -89,7 +89,11 @@ def offline_detection(
         except IndexError:
             continue
 
-        frame = src.get_frame()
+        try:
+            frame = src.get_frame()
+        except video_capture.EndofVideoError:
+            continue
+
         blurry_score = detect_blurry(frame.gray)
         detections = _detect(frame, blurry_score)
 
@@ -123,12 +127,7 @@ def offline_detection(
                         color=(0, 255, 255),
                     )
 
-            cv2.imwrite(
-                "{}/{:04.0f}-{}.jpg".format(
-                    debug_img_folder, blurry_score, frame_index
-                ),
-                img,
-            )
+            cv2.imwrite("{}/{}.jpg".format(debug_img_folder, frame_index), img)
 
         if detections:
             serialized_dicts = [

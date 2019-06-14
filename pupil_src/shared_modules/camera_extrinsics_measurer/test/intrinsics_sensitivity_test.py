@@ -15,10 +15,6 @@ scale = 40
 min_n_markers_per_frame = 4
 
 
-class Empty(object):
-    pass
-
-
 def localization(
     marker_id_to_extrinsics, timestamps_list, markers_bisector_list, intrinsics_lists
 ):

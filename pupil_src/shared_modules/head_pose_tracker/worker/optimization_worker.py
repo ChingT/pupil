@@ -145,13 +145,7 @@ def offline_optimization(
         )
         imgs = {
             frame_id: cv2.imread(
-                os.path.join(
-                    rec_dir,
-                    camera_name,
-                    "{:04.0f}-{}.jpg".format(
-                        frame_index_to_num_markers[frame_id], frame_id
-                    ),
-                )
+                os.path.join(rec_dir, camera_name, "{}.jpg".format(frame_id))
             )
             for frame_id in frame_ids
         }

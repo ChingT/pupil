@@ -20,8 +20,8 @@ max_n_same_markers_per_bin = 1
 assert min_n_markers_per_frame >= 2
 assert max_n_same_markers_per_bin >= 1
 
-n_bins_x = 4
-n_bins_y = 4
+n_bins_x = 8
+n_bins_y = 8
 _bins_x = np.linspace(0, 1, n_bins_x + 1)[1:-1]
 _bins_y = np.linspace(0, 1, n_bins_y + 1)[1:-1]
 

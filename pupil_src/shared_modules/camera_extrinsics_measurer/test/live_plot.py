@@ -17,10 +17,6 @@ from camera_models import load_intrinsics
 # camera_names_PI = ["world", "right", "left"]
 
 
-class Empty(object):
-    pass
-
-
 # send notification:
 def notify(notification):
     """Sends ``notification`` to Pupil Remote"""

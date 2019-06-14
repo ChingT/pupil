@@ -1,75 +1,82 @@
+import collections
+import functools
+import operator
 import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import cm
 
 import file_methods as fm
+from camera_extrinsics_measurer.test.utils import (
+    camera_names,
+    colors,
+    adjust_plot,
+    extrinsics_labels,
+)
 
-camera_names = ["world", "eye1", "eye0"]
-
-ROTATION_HEADER = tuple("rot-" + dim + " (deg)" for dim in "xyz")
-TRANSLATION_HEADER = tuple("trans-" + dim + " (mm)" for dim in "xyz")
-ylabels = ROTATION_HEADER + TRANSLATION_HEADER + ("distance (mm)",)
-
-colors = cm.get_cmap("tab10").colors
-
-end_time = 30
+end_time = 15
 
 
-def routine(base):
+Folder = collections.namedtuple("Folder", ["name", "device", "color"])
+
+
+def routine(root):
     fig_lineplot, axs_lineplot = plt.subplots(7, 3, figsize=(20, 10))
     fig_boxplot, axs_boxplot = plt.subplots(7, 3, figsize=(20, 10))
     fig_lineplot.suptitle("comparison between headsets over time", fontsize=16)
     fig_boxplot.suptitle("comparison between headsets", fontsize=16)
 
-    folders = list(filter(lambda x: "moving" in x, os.listdir(base)))
-    folders.sort()
+    all_folders = list(
+        filter(
+            lambda x: os.path.isfile(os.path.join(root, x, "camera_pose_converted"))
+            and "-3" in x,
+            os.listdir(root),
+        )
+    )
+    all_folders.sort()
+    devices = list(sorted(set(f[:5] for f in all_folders)))
+    folders = [Folder(f, f[:5], colors[devices.index(f[:5])]) for f in all_folders]
 
-    labels = []
     extrinsics_list = {name: {n: [] for n in camera_names} for name in camera_names}
-    for folder_idx, (folder, color) in enumerate(zip(folders, colors)):
-        try:
-            poses_dict = fm.load_object(
-                os.path.join(base, folder, "camera_pose_converted")
-            )
-        except FileNotFoundError:
-            continue
+    for folder in folders:
+        poses_dict = fm.load_object(
+            os.path.join(root, folder.name, "camera_pose_converted")
+        )
 
         timestamps, extrinsics = get_arrays(poses_dict)
-        draw_scatter(axs_lineplot, timestamps, extrinsics, label=folder, color=color)
+        draw_scatter(
+            axs_lineplot,
+            timestamps,
+            extrinsics,
+            label=folder.device,
+            color=folder.color,
+        )
 
         for camera_name_coor in camera_names:
             for camera_name in camera_names:
                 extrinsics_list[camera_name_coor][camera_name].append(
                     extrinsics[camera_name_coor][camera_name]
                 )
-        labels.append(folder[:5])
 
-    draw_error_bar(axs_boxplot, extrinsics_list, labels)
+    draw_error_bar(axs_boxplot, extrinsics_list, folders)
 
-    adjust_plot(axs_lineplot, axs_boxplot)
+    plot(axs_lineplot, axs_boxplot)
     plt.show()
 
 
-def adjust_plot(axs_lineplot, axs_boxplot, data_std=4):
-    for i in range(axs_lineplot.shape[0]):
-        for j in range(axs_lineplot.shape[1]):
-            data_median = np.median(
-                [np.median(line.get_ydata()) for line in axs_lineplot[i][j].lines]
-            )
-            # data_median = np.around(data_median)
-            yticks = np.arange(
-                data_median - data_std, data_median + data_std * 2, data_std
-            )
-
-            for axis in [axs_lineplot, axs_boxplot]:
-                axis[i][j].set_ylim(
-                    data_median - data_std * 2, data_median + data_std * 2
-                )
-                axis[i][j].set_yticks(yticks)
-                axis[i][j].set_yticklabels(np.around(yticks, 2))
-                axis[i][j].grid(b=True, axis="y", linestyle="--", alpha=0.5)
+def plot(axs_lineplot, axs_boxplot, data_std=3):
+    for ax_l, ax_b in zip(axs_lineplot.ravel(), axs_boxplot.ravel()):
+        # data_median = np.median(
+        #     functools.reduce(
+        #         operator.iconcat, [line.get_ydata().tolist() for line in ax_l.lines]
+        #     )
+        # )
+        all_data = functools.reduce(
+            operator.iconcat, [line.get_ydata().tolist() for line in ax_l.lines]
+        )
+        data_median = (np.max(all_data) + np.min(all_data)) / 2
+        adjust_plot(ax_l, data_median, data_std)
+        adjust_plot(ax_b, data_median, data_std)
 
 
 def get_arrays(poses_dict):
@@ -124,30 +131,24 @@ def draw_scatter(axs, timestamps, extrinsics, label, color):
             for i in range(7):
                 if i != 6:
                     show_data = np.array(data[:, i])
-                    # show_data -= np.array(
-                    #     camera_params_gt[camera_name_coor][camera_name][i]
-                    # )
                     axs[i][camera_idx].get_xaxis().set_visible(False)
                 else:
                     show_data = np.array(np.linalg.norm(data[:, 3:6], axis=1))
-                    # show_data -= np.linalg.norm(
-                    #     camera_params_gt[camera_name_coor][camera_name][3:6]
-                    # )
+                    axs[i][camera_idx].set_xlabel("time (second)")
 
                 axs[i][camera_idx].plot(
                     timestamps_shifted,
                     show_data,
                     ".",
-                    alpha=0.4,
+                    alpha=0.25,
                     label=label,
                     color=color,
                 )
 
                 axs[i][camera_idx].set_xlim(0, end_time)
-                axs[i][camera_idx].set_xlabel("time (second)")
-                axs[i][camera_idx].set_ylabel(ylabels[i])
+                axs[i][camera_idx].set_ylabel(extrinsics_labels[i])
 
-    axs[0][-1].legend()
+    axs[-1][-1].legend()
 
 
 def draw_error_bar(axs_avg, extrinsics_list, folders):
@@ -169,45 +170,27 @@ def draw_error_bar(axs_avg, extrinsics_list, folders):
             datum = extrinsics_list[camera_name_coor][camera_name]
             for i in range(7):
                 if i != 6:
-                    show_data = [
-                        data[:, i]
-                        # - np.array(camera_params_gt[camera_name_coor][camera_name][i])
-                        for data in datum
-                        if len(data)
-                    ]
+                    show_data = [data[:, i] for data in datum if len(data)]
                     axs_avg[i][camera_idx].get_xaxis().set_visible(False)
                 else:
-                    # distance_gt = np.linalg.norm(
-                    #     camera_params_gt[camera_name_coor][camera_name][3:6]
-                    # )
-                    # print(camera_name_coor, camera_name, distance_gt)
                     show_data = [
-                        np.linalg.norm(data[:, 3:6], axis=1)  # - distance_gt
+                        np.linalg.norm(data[:, 3:6], axis=1)
                         for data in datum
                         if len(data)
                     ]
 
                 bp = axs_avg[i][camera_idx].boxplot(show_data, 0, "")
-                for box, med, color in zip(bp["boxes"], bp["medians"], colors):
-                    box.set(color=color)
+                for box, med, folder in zip(bp["boxes"], bp["medians"], folders):
+                    box.set(color=folder.color)
                     med.set(color="black")
 
-                axs_avg[i][camera_idx].set_ylabel(ylabels[i])
+                axs_avg[i][camera_idx].set_ylabel(extrinsics_labels[i])
 
-            axs_avg[-1][camera_idx].set_xticklabels(folders)
+            axs_avg[-1][camera_idx].set_xticklabels([f.device for f in folders])
 
 
 if __name__ == "__main__":
-    # routine("/home/ch/recordings/five-boards/prototype/")
-    # routine("/home/ch/recordings/five-boards/Wood2")
-    routine("/home/ch/recordings/five-boards/Jarkarta-8-headsets")
-    # routine("/home/ch/recordings/five-boards/test")
-
-
-"""
-camera_params_gt = fm.load_object(
-    "/cluster/users/Ching/codebase/pi_extrinsics_measurer/camera_params_gt"
-)
-[[761.1847931010223, 0.0, 539.6932355593376], [0.0, 760.9251648226576, 500.12682388255763], [0.0, 0.0, 1.0]]
-[[-0.3140379774966514, 0.10994921245934719, 0.0, 0.0, -0.01900697233560925]]
-"""
+    routine("/home/ch/recordings/moving")
+    # routine(
+    #     "/cluster/users/Ching/datasets/camera_extrinsics_measurement/Jarkarta-8-headsets"
+    # )

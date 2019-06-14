@@ -1,82 +1,34 @@
 import itertools
 import os
-import random
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import cm
 
-import camera_models
-import file_methods as fm
-import player_methods as pm
-import video_capture
 from camera_extrinsics_measurer.function import solvepnp
-
-ROTATION_HEADER = tuple("rot-" + dim + " (deg)" for dim in "xyz")
-TRANSLATION_HEADER = tuple("trans-" + dim + " (mm)" for dim in "xyz")
-ylabels = ROTATION_HEADER + TRANSLATION_HEADER + ("distance (mm)",)
-colors = cm.get_cmap("tab10").colors
-scale = 40
-
-show_or_savefig = "savefig"  # savefig, show
-
-
-class Empty(object):
-    pass
-
-
-def load_model(folder_path):
-    plmodel_files = [
-        os.path.join(folder_path, file_name)
-        for file_name in os.listdir(folder_path)
-        if file_name.endswith("plmodel")
-    ]
-    data = fm.load_object(plmodel_files[0])["data"]
-    return {marker_id: np.array(extrinsics) for marker_id, extrinsics in data.items()}
-
-
-def load_markers_bisector(rec_dir):
-    file_name = "marker_detection"
-    directory = os.path.join(rec_dir, "offline_data")
-    pldata = fm.load_pldata_file(directory, file_name)
-    if not pldata.data:
-        directory = os.path.join(rec_dir, "offline_data", "world")
-        pldata = fm.load_pldata_file(directory, file_name)
-
-    return pm.Mutable_Bisector(pldata.data, pldata.timestamps)
-
-
-def load_timestamps(rec_dir):
-    source_path = os.path.join(rec_dir, "world.mp4")
-    src = video_capture.File_Source(
-        Empty(),
-        timing="external",
-        source_path=source_path,
-        buffered_decoding=True,
-        fill_gaps=True,
-    )
-    return src.timestamps
-
-
-def load_intrinsics(intrinsics_path):
-    return camera_models.load_intrinsics(intrinsics_path, "world", (1088, 1080))
-
-
-def find_markers_in_frame(markers_bisector, timestamps, frame_index):
-    return markers_bisector.by_ts_window(pm.enclosing_window(timestamps, frame_index))
+from camera_extrinsics_measurer.test.utils import (
+    scale,
+    colors,
+    adjust_plot,
+    show_or_savefig,
+    extrinsics_labels,
+    load_markers_bisector,
+    load_model,
+    load_intrinsics,
+    load_timestamps,
+    find_markers_in_frame,
+)
 
 
 def routine(rec_dir, folder_paths):
     markers_bisector = load_markers_bisector(rec_dir)
     timestamps = load_timestamps(rec_dir)
-    camera_intrinsics = load_intrinsics(rec_dir)
 
     all_camera_extrinsics_list = []
     labels = []
 
     for folder_path in folder_paths:
         marker_id_to_extrinsics = load_model(folder_path)
-        # camera_intrinsics = load_intrinsics(folder_path)
+        camera_intrinsics = load_intrinsics(folder_path, "world", (1088, 1080))
 
         all_camera_extrinsics = get_all_camera_extrinsics(
             marker_id_to_extrinsics, markers_bisector, timestamps, camera_intrinsics
@@ -85,7 +37,7 @@ def routine(rec_dir, folder_paths):
         labels.append(os.path.basename(folder_path)[-3:])
 
     fig, axs = plt.subplots(2, 3, figsize=(25, 12))
-    title = "camera poses over time"
+    title = "Camera poses over time"
     fig.suptitle(title, fontsize=16)
 
     plot(axs, all_camera_extrinsics_list, labels)
@@ -106,11 +58,11 @@ def get_all_camera_extrinsics(
             markers_bisector, timestamps, frame_index
         )
         n_markers = len(all_markers_in_frame)
-        if n_markers < 14:
+        if n_markers < 10:
             continue
 
-        for k in [n_markers - 1, n_markers - 2]:
-            # for k in [n_markers - 1]:
+        # for k in [n_markers - 1, n_markers - 2]:
+        for k in [n_markers - 1]:
             for markers_in_frame in itertools.combinations(all_markers_in_frame, k):
                 camera_extrinsics = solvepnp.calculate(
                     camera_intrinsics, markers_in_frame, marker_id_to_extrinsics
@@ -132,7 +84,9 @@ def plot(axs, all_camera_extrinsics_list, labels):
             for all_camera_extrinsics in all_camera_extrinsics_list
         ]
         data_median = np.median(show_data)
-        plot_boxplot(ax, show_data, data_median, labels, ylabel=ylabels[i], data_std=1)
+        plot_boxplot(
+            ax, show_data, data_median, labels, ylabel=extrinsics_labels[i], data_std=1
+        )
 
 
 def plot_boxplot(ax, show_data, data_median, labels, ylabel, data_std=1.0):
@@ -158,38 +112,25 @@ def plot_boxplot(ax, show_data, data_median, labels, ylabel, data_std=1.0):
     ax.set_ylabel(ylabel)
     ax.set_xticklabels(labels)
 
-    yticks = np.arange(data_median - data_std, data_median + data_std * 2, data_std)
-    ax.set_ylim(data_median - data_std * 2, data_median + data_std * 2)
-    ax.set_yticks(yticks)
-    ax.set_yticklabels(np.around(yticks, 2))
-    ax.grid(b=True, axis="both", linestyle="--", alpha=0.5)
+    adjust_plot(ax, data_median, data_std)
 
 
 if __name__ == "__main__":
-    random.seed(0)
-
-    # _rec_dir = "/home/ch/recordings/five-boards/test/Charly-brightness-1"
-    _rec_dir = "/home/ch/recordings/five-boards/test/KRXDW-still-1"
+    _rec_dir = (
+        "/cluster/users/Ching/datasets/camera_extrinsics_measurement/test/KRXDW-still-1"
+    )
 
     _folder_paths = [
-        # "/home/ch/recordings/five-boards/build_5-boards_model/Charly-for_build_5-boards_model-1-0",
-        # "/home/ch/recordings/five-boards/build_5-boards_model/Charly-for_build_5-boards_model-1-1",
-        "/home/ch/recordings/five-boards/build_5-boards_model/Charly-for_build_5-boards_model-1-2",
-        "/home/ch/recordings/five-boards/build_5-boards_model/Charly-for_build_5-boards_model-1-3",
-        # "/home/ch/recordings/five-boards/build_5-boards_model/Charly-for_build_5-boards_model-2-0",
-        # "/home/ch/recordings/five-boards/build_5-boards_model/r6wqd-for_build_5-boards_model-1",
-        # "/home/ch/recordings/five-boards/build_5-boards_model/r6wqd-for_build_5-boards_model-2",
-        # "/home/ch/recordings/five-boards/build_5-boards_model/r6wqd-for_build_5-boards_model-3-0",
-        # "/home/ch/recordings/five-boards/build_5-boards_model/r6wqd-for_build_5-boards_model-3-1",
-        # "/home/ch/recordings/five-boards/build_5-boards_model/r6wqd-for_build_5-boards_model-3-2",
-        "/home/ch/recordings/five-boards/build_5-boards_model/KRXDW-for_build_5-boards_model-1-0",
-        "/home/ch/recordings/five-boards/build_5-boards_model/KRXDW-for_build_5-boards_model-2-0",
-        "/home/ch/recordings/five-boards/build_5-boards_model/KRXDW-for_build_5-boards_model-3-0",
-        "/home/ch/recordings/five-boards/build_5-boards_model/KRXDW-for_build_5-boards_model-4-0",
-        "/home/ch/recordings/five-boards/build_5-boards_model/KRXDW-for_build_5-boards_model-5-0",
-        "/home/ch/recordings/five-boards/build_5-boards_model/KRXDW-for_build_5-boards_model-5-1",
+        "/cluster/users/Ching/datasets/camera_extrinsics_measurement/build_5-boards_model/KRXDW-for_build_5-boards_model-5-0",
+        "/cluster/users/Ching/datasets/camera_extrinsics_measurement/build_5-boards_model/KRXDW-for_build_5-boards_model-5-1",
+        "/cluster/users/Ching/datasets/camera_extrinsics_measurement/build_5-boards_model/KRXDW-for_build_5-boards_model-5-2",
+        "/home/ch/recordings/moving/KRXDW-30s-1",
+        "/home/ch/recordings/moving/KRXDW-30s-2",
+        "/home/ch/recordings/moving/KRXDW-30s-3",
+        "/home/ch/recordings/moving/KRXDW-1",
+        "/home/ch/recordings/moving/KRXDW-2",
+        "/home/ch/recordings/moving/KRXDW-3",
     ]
-
     if show_or_savefig == "savefig":
         plot_save_folder = os.path.join(
             "/cluster/users/Ching/experiments/measure_camera_extrinsics/varify_model_and_intrinsics_overtime",

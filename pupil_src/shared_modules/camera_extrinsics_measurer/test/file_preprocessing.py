@@ -2,7 +2,7 @@ import os
 import shutil
 
 
-def remove_plmodel_file():
+def remove_plmodel_file(recording_path):
     plmodel_files = [
         os.path.join(recording_path, file_name)
         for file_name in os.listdir(recording_path)
@@ -10,27 +10,37 @@ def remove_plmodel_file():
     ]
     for plmodel_file in plmodel_files:
         os.remove(plmodel_file)
+        print("remove", plmodel_file)
 
 
-if __name__ == "__main__":
+def routine():
     camera_names = ["world", "eye0", "eye1"]
-    # model_path = "/home/ch/recordings/five-boards/build_5-boards_model/KRXDW-for_build_5-boards_model-5-0/five_boards_init.plmodel"
+    model_path = "/cluster/users/Ching/datasets/camera_extrinsics_measurement/five_boards_best.plmodel"
+    intrinsics_dir = (
+        "/cluster/users/Ching/datasets/camera_extrinsics_measurement/intrinscis/param12"
+    )
 
-    root = "/home/ch/recordings/five-boards/Jarkarta-8-headsets"
+    root = "/home/ch/recordings/moving"
+    # root = "/cluster/users/Ching/datasets/camera_extrinsics_measurement/Jarkarta-8-headsets"
 
     recording_paths = [
         os.path.join(root, d)
         for d in os.listdir(root)
-        if os.path.isdir(os.path.join(root, d)) and d[12:] == "moving"
+        if os.path.isdir(os.path.join(root, d)) and "guess-3" in d
     ]
 
     for recording_path in recording_paths:
-        device = os.path.basename(recording_path)[:12]
+        remove_plmodel_file(recording_path)
+        shutil.copy2(model_path, recording_path)
+        print("copy", model_path, "to", recording_path)
 
         for camera_name in camera_names:
             intrinsics_path = os.path.join(
-                recording_path, "{}.intrinsics".format(camera_name)
+                intrinsics_dir, "{}.intrinsics".format(camera_name)
             )
-            copy_to_folder = os.path.join(root, device + "still")
-            shutil.copy2(intrinsics_path, copy_to_folder)
-            print("copy", intrinsics_path, "to", copy_to_folder)
+            shutil.copy2(intrinsics_path, recording_path)
+            print("copy", intrinsics_path, "to", recording_path)
+
+
+if __name__ == "__main__":
+    routine()

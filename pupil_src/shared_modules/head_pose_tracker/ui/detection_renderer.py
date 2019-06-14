@@ -16,7 +16,7 @@ from pyglui.cygl import utils as cygl_utils
 from pyglui.pyfontstash import fontstash
 from pyglui.ui import get_opensans_font_path
 
-min_blurry_score = 1000
+min_blurry_score = 500
 
 
 class DetectionRenderer:

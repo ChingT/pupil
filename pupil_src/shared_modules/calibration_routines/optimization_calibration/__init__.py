@@ -9,10 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-try:
-    from .calibration_methods import bundle_adjust_calibration
-except ModuleNotFoundError:
-    # when running from source compile cpp extension if necessary.
-    from .build import build_cpp_extension
-    build_cpp_extension()
-    from .calibration_methods import bundle_adjust_calibration
+from calibration_routines.optimization_calibration.bundle_adjustment import (
+    Observer,
+    BundleAdjustment,
+)

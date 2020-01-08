@@ -69,11 +69,9 @@ class BundleAdjustment:
         initial_guess = self._get_initial_guess(
             initial_rotation, initial_translation, initial_points
         )
-        sparsity_matrix = self._construct_sparsity_matrix()
+        self._construct_sparsity_matrix()
 
-        least_sq_result = self._least_squares(
-            initial_guess, observed_normals, sparsity_matrix
-        )
+        least_sq_result = self._least_squares(initial_guess, observed_normals)
         return self._get_final_observers(initial_observers, least_sq_result)
 
     def _get_ind_opt(self):
@@ -122,14 +120,6 @@ class BundleAdjustment:
             self._ind_row = np.append(self._ind_row, ind_row)
             self._ind_col = np.append(self._ind_col, ind_col + self._n_poses_parameters)
 
-        data = np.ones(len(self._ind_row), dtype=bool)
-        n_residuals = self._n_points_parameters * self._n_observers
-        n_variables = len(self._ind_opt)
-        sparsity_matrix = scipy_sparse.csc_matrix(
-            (data, (self._ind_row, self._ind_col)), shape=(n_residuals, n_variables)
-        )
-        return sparsity_matrix
-
     def _calculate_jacobian_matrix(self, variables, observed_normals):
         def get_jac_rot_rod(normals, rotation):
             jacobian = cv2.Rodrigues(rotation)[1].reshape(3, 3, 3)
@@ -176,9 +166,7 @@ class BundleAdjustment:
         )
         return jacobian_matrix
 
-    def _least_squares(
-        self, initial_guess, observed_normals, sparsity_matrix, tol=1e-8, max_nfev=100
-    ):
+    def _least_squares(self, initial_guess, observed_normals, tol=1e-8, max_nfev=100):
         x_scale = np.ones(self._n_poses_parameters)
         if not self._fix_points:
             x_scale = np.append(x_scale, np.ones(self._n_points_parameters) * 500) / 20
@@ -192,11 +180,9 @@ class BundleAdjustment:
             xtol=tol,
             gtol=tol,
             x_scale=x_scale,
-            jac_sparsity=sparsity_matrix,
             max_nfev=max_nfev,
             verbose=1,
         )
-        print("final cost: ", result.cost)
         return result
 
     def _compute_residuals(self, variables, observed_normals):

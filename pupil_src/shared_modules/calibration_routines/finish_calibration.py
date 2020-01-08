@@ -129,10 +129,10 @@ def calibrate_3d_binocular(
             "args": {
                 "eye_camera_to_world_matrix0": eye0_camera_to_world.tolist(),
                 "eye_camera_to_world_matrix1": eye1_camera_to_world.tolist(),
-                "cal_points_3d": points_in_world,
-                "cal_ref_points_3d": nearest_points_world,
-                "cal_gaze_points0_3d": nearest_points_eye0,
-                "cal_gaze_points1_3d": nearest_points_eye1,
+                "cal_points_3d": points_in_world.tolist(),
+                "cal_ref_points_3d": nearest_points_world.tolist(),
+                "cal_gaze_points0_3d": nearest_points_eye0.tolist(),
+                "cal_gaze_points1_3d": nearest_points_eye1.tolist(),
             },
         },
     )
@@ -225,9 +225,9 @@ def calibrate_3d_monocular(g_pool, matched_monocular_data, initial_depth=500):
             "name": "Vector_Gaze_Mapper",
             "args": {
                 "eye_camera_to_world_matrix": eye_camera_to_world_matrix.tolist(),
-                "cal_points_3d": points_in_world,
-                "cal_ref_points_3d": nearest_points_world,
-                "cal_gaze_points_3d": nearest_points_eye,
+                "cal_points_3d": points_in_world.tolist(),
+                "cal_ref_points_3d": nearest_points_world.tolist(),
+                "cal_gaze_points_3d": nearest_points_eye.tolist(),
                 "gaze_distance": initial_depth,
             },
         },

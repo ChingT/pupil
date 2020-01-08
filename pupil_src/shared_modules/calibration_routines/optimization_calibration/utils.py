@@ -138,7 +138,7 @@ def calculate_eye_camera_to_world(rotation, translation, sphere_pos):
     return eye_camera_to_world_matrix
 
 
-def nearest_linepoints_to_points(ref_points, lines):
+def calculate_nearest_linepoints_to_points(ref_points, lines):
     p1, p2 = lines
     direction = p2 - p1
     denom = np.linalg.norm(direction, axis=1)
@@ -147,14 +147,14 @@ def nearest_linepoints_to_points(ref_points, lines):
     return nearest_linepoints
 
 
-def calculate_nearest_points_to_lines(
+def calculate_nearest_points_to_targets(
     observed_normals, poses_in_world, points_in_world
 ):
     all_nearest_points = []
     for observations, pose in zip(observed_normals, poses_in_world):
         lines_start = transform_points_by_extrinsic(np.zeros(3), pose)
         lines_end = transform_points_by_extrinsic(observations, pose)
-        nearest_points = nearest_linepoints_to_points(
+        nearest_points = calculate_nearest_linepoints_to_points(
             points_in_world, (lines_start, lines_end)
         )
         all_nearest_points.append(nearest_points)

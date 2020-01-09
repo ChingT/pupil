@@ -10,6 +10,5 @@ See COPYING and COPYING.LESSER for license details.
 """
 
 from calibration_routines.optimization_calibration.bundle_adjustment import (
-    SphericalCamera,
     BundleAdjustment,
 )

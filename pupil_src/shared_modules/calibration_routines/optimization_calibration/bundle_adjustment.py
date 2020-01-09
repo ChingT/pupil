@@ -16,24 +16,6 @@ from scipy import optimize as scipy_optimize, sparse as scipy_sparse
 from calibration_routines.optimization_calibration import utils
 
 
-class SphericalCamera:
-    def __init__(
-        self,
-        observations=None,
-        rotation=None,
-        translation=None,
-        pose=None,
-        fix_rotation=False,
-        fix_translation=False,
-    ):
-        self.observations = observations
-        self.rotation = rotation
-        self.translation = translation
-        self.pose = pose
-        self.fix_rotation = fix_rotation
-        self.fix_translation = fix_translation
-
-
 class BundleAdjustment:
     def __init__(self, fix_gaze_targets):
         self._fix_gaze_targets = bool(fix_gaze_targets)
@@ -75,7 +57,7 @@ class BundleAdjustment:
         self._construct_sparsity_matrix()
 
         result = self._least_squares(initial_guess, observed_normals)
-        return self._get_final_spherical_cameras(result)
+        return self._get_final_output(result)
 
     def _get_indices(self):
         """ get the indices of the parameters for the optimization
@@ -215,14 +197,14 @@ class BundleAdjustment:
     def _transform_observed_normals_to_world(self, rotations, observed_normals):
         rotation_matrices = [cv2.Rodrigues(r)[0] for r in rotations]
         observed_normals_world = [
-            np.einsum("ij,kj->ki", matrix, observations)
+            np.dot(matrix, observations.T).T
             for matrix, observations in zip(rotation_matrices, observed_normals)
         ]
         return self._toarray(observed_normals_world)
 
     @staticmethod
     def _project_gaze_targets(translations, gaze_targets):
-        """ projecting gaze targets onto the spherical cameras
+        """ project gaze targets onto the spherical cameras
         (where projection simply means normalization)
         """
 
@@ -240,18 +222,14 @@ class BundleAdjustment:
         gaze_targets = self._current_values[-self._gaze_targets_size :].reshape(-1, 3)
         return rotations, translations, gaze_targets
 
-    def _get_final_spherical_cameras(self, result, residual_threshold=10):
+    def _get_final_output(self, result, residual_threshold=10):
         residual = result.cost
         success = residual < residual_threshold
         rotations, translations, final_gaze_targets = self._decompose_variables(
             result.x
         )
-        final_spherical_cameras = [
-            SphericalCamera(
-                rotation=rotation,
-                translation=translation,
-                pose=utils.merge_extrinsic(rotation, translation),
-            )
+        final_poses = [
+            utils.merge_extrinsic(rotation, translation)
             for rotation, translation in zip(rotations, translations)
         ]
-        return success, residual, final_spherical_cameras, final_gaze_targets
+        return success, residual, final_poses, final_gaze_targets

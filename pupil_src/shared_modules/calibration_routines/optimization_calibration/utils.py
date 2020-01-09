@@ -128,14 +128,26 @@ def find_rigid_transform(A, B):
     return rotation_matrix, translation_vector
 
 
-def calculate_eye_camera_to_world(rotation, translation, sphere_pos):
-    # eye_camera_to_world_matrix is the camera pose of eye in world coordinate
-    eye_camera_to_world_matrix = np.eye(4)
-    eye_camera_to_world_matrix[0:3, 0:3] = cv2.Rodrigues(rotation)[0]
-    eye_camera_to_world_matrix[0:3, 3] = transform_points_by_extrinsic(
-        -np.asarray(sphere_pos), merge_extrinsic(rotation, translation)
+def get_eye_cam_pose_in_world(eye_pose, sphere_pos):
+    """
+    :param eye_pose: eye pose in world coordinates
+    :param sphere_pos: eye ball center in eye cam coordinates
+    :return: the eye cam pose in world coordinates
+    """
+
+    eye_cam_position_in_eye = -np.asarray(sphere_pos)
+    world_extrinsic = eye_pose
+    eye_cam_position_in_world = transform_points_by_extrinsic(
+        eye_cam_position_in_eye, world_extrinsic
     )
-    return eye_camera_to_world_matrix
+
+    rotation, translation = split_extrinsic(eye_pose)
+    eye_cam_rotation_in_world = cv2.Rodrigues(rotation)[0]
+
+    eye_cam_pose_in_world = np.eye(4)
+    eye_cam_pose_in_world[0:3, 0:3] = eye_cam_rotation_in_world
+    eye_cam_pose_in_world[0:3, 3] = eye_cam_position_in_world
+    return eye_cam_pose_in_world
 
 
 def calculate_nearest_linepoints_to_points(ref_points, lines):
@@ -148,14 +160,14 @@ def calculate_nearest_linepoints_to_points(ref_points, lines):
 
 
 def calculate_nearest_points_to_targets(
-    observed_normals, poses_in_world, points_in_world
+    observed_normals, poses_in_world, gaze_targets_in_world
 ):
     all_nearest_points = []
     for observations, pose in zip(observed_normals, poses_in_world):
         lines_start = transform_points_by_extrinsic(np.zeros(3), pose)
         lines_end = transform_points_by_extrinsic(observations, pose)
         nearest_points = calculate_nearest_linepoints_to_points(
-            points_in_world, (lines_start, lines_end)
+            gaze_targets_in_world, (lines_start, lines_end)
         )
         all_nearest_points.append(nearest_points)
 

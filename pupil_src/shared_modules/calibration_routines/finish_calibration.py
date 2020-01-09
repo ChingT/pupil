@@ -23,11 +23,7 @@ from calibration_routines.calibrate import (
     closest_matches_binocular,
     closest_matches_monocular,
 )
-from calibration_routines.optimization_calibration import (
-    utils,
-    BundleAdjustment,
-    SphericalCamera,
-)
+from calibration_routines.optimization_calibration import utils, BundleAdjustment
 from file_methods import save_object
 
 logger = logging.getLogger(__name__)
@@ -39,6 +35,17 @@ solver_failed_to_converge_error_msg = "Parameters could not be estimated from da
 
 eye0_hardcoded_translation = np.array([20, 15, -20])
 eye1_hardcoded_translation = np.array([-40, 15, -20])
+
+
+class SphericalCamera:
+    def __init__(
+        self, observations, rotation, translation, fix_rotation, fix_translation
+    ):
+        self.observations = observations
+        self.rotation = rotation
+        self.translation = translation
+        self.fix_rotation = bool(fix_rotation)
+        self.fix_translation = bool(fix_translation)
 
 
 def calibrate_3d_binocular(
@@ -68,12 +75,23 @@ def calibrate_3d_binocular(
     unprojected_gaze_points = np.asarray(unprojected_gaze_points)
     pupil0_normals = np.asarray(pupil0_normals)
     pupil1_normals = np.asarray(pupil1_normals)
-    initial_rotation0 = _get_initial_eye_camera_rotation(
+
+    def get_initial_eye_camera_rotation(pupil_normals, gaze_targets):
+        initial_rotation_matrix, _ = utils.find_rigid_transform(
+            pupil_normals, gaze_targets
+        )
+        initial_rotation = cv2.Rodrigues(initial_rotation_matrix)[0].ravel()
+        return initial_rotation
+
+    # initial_rotation and initial_translation are eye pose in world coordinates
+    initial_rotation0 = get_initial_eye_camera_rotation(
         pupil0_normals, unprojected_gaze_points
     )
-    initial_rotation1 = _get_initial_eye_camera_rotation(
+    initial_rotation1 = get_initial_eye_camera_rotation(
         pupil1_normals, unprojected_gaze_points
     )
+    initial_translation0 = eye0_hardcoded_translation
+    initial_translation1 = eye1_hardcoded_translation
 
     world = SphericalCamera(
         observations=unprojected_gaze_points,
@@ -85,22 +103,23 @@ def calibrate_3d_binocular(
     eye0 = SphericalCamera(
         observations=pupil0_normals,
         rotation=initial_rotation0,
-        translation=eye0_hardcoded_translation,
+        translation=initial_translation0,
         fix_rotation=False,
         fix_translation=True,
     )
     eye1 = SphericalCamera(
         observations=pupil1_normals,
         rotation=initial_rotation1,
-        translation=eye1_hardcoded_translation,
+        translation=initial_translation1,
         fix_rotation=False,
         fix_translation=True,
     )
+
     initial_spherical_cameras = world, eye0, eye1
     initial_gaze_targets = unprojected_gaze_points * initial_depth
 
     ba = BundleAdjustment(fix_gaze_targets=False)
-    success, residual, final_spherical_cameras, final_gaze_targets = ba.calculate(
+    success, residual, poses_in_world, gaze_targets_in_world = ba.calculate(
         initial_spherical_cameras, initial_gaze_targets
     )
 
@@ -116,20 +135,16 @@ def calibrate_3d_binocular(
             },
         )
 
-    world, eye0, eye1 = final_spherical_cameras
+    world_pose, eye0_pose, eye1_pose = poses_in_world
+
     sphere_pos0 = pupil0[-1]["sphere"]["center"]
     sphere_pos1 = pupil1[-1]["sphere"]["center"]
+    eye0_cam_pose_in_world = utils.get_eye_cam_pose_in_world(eye0_pose, sphere_pos0)
+    eye1_cam_pose_in_world = utils.get_eye_cam_pose_in_world(eye1_pose, sphere_pos1)
 
-    eye0_camera_to_world = utils.calculate_eye_camera_to_world(
-        eye0.rotation, eye0.translation, sphere_pos0
-    )
-    eye1_camera_to_world = utils.calculate_eye_camera_to_world(
-        eye1.rotation, eye1.translation, sphere_pos1
-    )
     observed_normals = [o.observations for o in initial_spherical_cameras]
-    poses_in_world = [o.pose for o in final_spherical_cameras]
     nearest_points = utils.calculate_nearest_points_to_targets(
-        observed_normals, poses_in_world, final_gaze_targets
+        observed_normals, poses_in_world, gaze_targets_in_world
     )
     nearest_points_world, nearest_points_eye0, nearest_points_eye1 = nearest_points
 
@@ -139,9 +154,9 @@ def calibrate_3d_binocular(
             "subject": "start_plugin",
             "name": "Binocular_Vector_Gaze_Mapper",
             "args": {
-                "eye_camera_to_world_matrix0": eye0_camera_to_world.tolist(),
-                "eye_camera_to_world_matrix1": eye1_camera_to_world.tolist(),
-                "cal_points_3d": final_gaze_targets.tolist(),
+                "eye_camera_to_world_matrix0": eye0_cam_pose_in_world.tolist(),
+                "eye_camera_to_world_matrix1": eye1_cam_pose_in_world.tolist(),
+                "cal_points_3d": gaze_targets_in_world.tolist(),
                 "cal_ref_points_3d": nearest_points_world.tolist(),
                 "cal_gaze_points0_3d": nearest_points_eye0.tolist(),
                 "cal_gaze_points1_3d": nearest_points_eye1.tolist(),
@@ -151,6 +166,10 @@ def calibrate_3d_binocular(
 
 
 def calibrate_3d_monocular(g_pool, matched_monocular_data, initial_depth=500):
+    # monocular calibration strategy:
+    # fix eye and express all points / directions in eye coordinate system
+    # minimize the reprojection error by moving the world camera.
+
     method = "monocular 3d model"
 
     unprojected_gaze_points, pupil_normals, _ = preprocess_3d_data(
@@ -171,16 +190,17 @@ def calibrate_3d_monocular(g_pool, matched_monocular_data, initial_depth=500):
 
     unprojected_gaze_points = np.asarray(unprojected_gaze_points)
     pupil_normals = np.asarray(pupil_normals)
+
     initial_rotation_matrix, _ = utils.find_rigid_transform(
         unprojected_gaze_points, pupil_normals
     )
-    initial_rotation = cv2.Rodrigues(initial_rotation_matrix)[0].ravel()
-
     if matched_monocular_data[0]["pupil"]["id"] == 0:
         hardcoded_translation = eye0_hardcoded_translation
     else:
         hardcoded_translation = eye1_hardcoded_translation
-    initial_translation = np.dot(initial_rotation_matrix, -hardcoded_translation)
+    # initial_rotation and initial_translation are world cam pose in eye coordinates
+    initial_rotation = cv2.Rodrigues(initial_rotation_matrix)[0].ravel()
+    initial_translation = -np.dot(initial_rotation_matrix, hardcoded_translation)
 
     world = SphericalCamera(
         observations=unprojected_gaze_points,
@@ -200,7 +220,7 @@ def calibrate_3d_monocular(g_pool, matched_monocular_data, initial_depth=500):
     initial_gaze_targets = pupil_normals * initial_depth
 
     ba = BundleAdjustment(fix_gaze_targets=True)
-    success, residual, final_spherical_cameras, gaze_targets_in_eye = ba.calculate(
+    success, residual, poses_in_eye, gaze_targets_in_eye = ba.calculate(
         initial_spherical_cameras, initial_gaze_targets
     )
 
@@ -216,23 +236,24 @@ def calibrate_3d_monocular(g_pool, matched_monocular_data, initial_depth=500):
             },
         )
 
-    world, eye = final_spherical_cameras
-    final_gaze_targets = utils.transform_points_by_pose(gaze_targets_in_eye, world.pose)
-    sphere_pos = np.asarray(matched_monocular_data[-1]["pupil"]["sphere"]["center"])
+    world_pose_in_eye, eye_pose_in_eye = poses_in_eye
 
-    eye_pose_in_world_cam = utils.inverse_extrinsic(world.pose)
-    eye_camera_to_world_matrix = utils.calculate_eye_camera_to_world(
-        *utils.split_extrinsic(eye_pose_in_world_cam), sphere_pos
+    # transform everything from eye coordinates to world coordinates
+    # for the usage in Vector_Gaze_Mapper
+    eye_pose_in_world = utils.inverse_extrinsic(world_pose_in_eye)
+    poses_in_world = [np.zeros(6), eye_pose_in_world]
+    gaze_targets_in_world = utils.transform_points_by_pose(
+        gaze_targets_in_eye, world_pose_in_eye
     )
+
+    sphere_pos = np.asarray(matched_monocular_data[-1]["pupil"]["sphere"]["center"])
+    eye_cam_pose_in_world = utils.get_eye_cam_pose_in_world(
+        eye_pose_in_world, sphere_pos
+    )
+
     observed_normals = [o.observations for o in initial_spherical_cameras]
-    poses_in_world = np.array(
-        [
-            utils.extrinsic_mul(eye_pose_in_world_cam, o.pose)
-            for o in final_spherical_cameras
-        ]
-    )
     nearest_points = utils.calculate_nearest_points_to_targets(
-        observed_normals, poses_in_world, final_gaze_targets
+        observed_normals, poses_in_world, gaze_targets_in_world
     )
     nearest_points_world, nearest_points_eye = nearest_points
 
@@ -242,8 +263,8 @@ def calibrate_3d_monocular(g_pool, matched_monocular_data, initial_depth=500):
             "subject": "start_plugin",
             "name": "Vector_Gaze_Mapper",
             "args": {
-                "eye_camera_to_world_matrix": eye_camera_to_world_matrix.tolist(),
-                "cal_points_3d": final_gaze_targets.tolist(),
+                "eye_camera_to_world_matrix": eye_cam_pose_in_world.tolist(),
+                "cal_points_3d": gaze_targets_in_world.tolist(),
                 "cal_ref_points_3d": nearest_points_world.tolist(),
                 "cal_gaze_points_3d": nearest_points_eye.tolist(),
                 "gaze_distance": initial_depth,
@@ -486,9 +507,3 @@ def finish_calibration(g_pool, pupil_list, ref_list):
                 **user_calibration_data,
             }
         )
-
-
-def _get_initial_eye_camera_rotation(pupil_normals, gaze_targets):
-    initial_rotation_matrix, _ = utils.find_rigid_transform(pupil_normals, gaze_targets)
-    initial_rotation = cv2.Rodrigues(initial_rotation_matrix)[0].ravel()
-    return initial_rotation

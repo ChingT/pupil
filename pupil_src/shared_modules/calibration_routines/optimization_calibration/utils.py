@@ -128,6 +128,12 @@ def find_rigid_transform(A, B):
     return rotation_matrix, translation_vector
 
 
+def get_initial_eye_camera_rotation(pupil_normals, gaze_targets):
+    initial_rotation_matrix, _ = find_rigid_transform(pupil_normals, gaze_targets)
+    initial_rotation = cv2.Rodrigues(initial_rotation_matrix)[0].ravel()
+    return initial_rotation
+
+
 def get_eye_cam_pose_in_world(eye_pose, sphere_pos):
     """
     :param eye_pose: eye pose in world coordinates

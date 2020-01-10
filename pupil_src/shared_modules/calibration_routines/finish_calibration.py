@@ -15,14 +15,7 @@ import os
 import cv2
 import numpy as np
 
-from calibration_routines.calibrate import (
-    preprocess_3d_data,
-    preprocess_2d_data_binocular,
-    preprocess_2d_data_monocular,
-    calibrate_2d_polynomial,
-    closest_matches_binocular,
-    closest_matches_monocular,
-)
+from calibration_routines import calibrate
 from calibration_routines.optimization_calibration import utils, BundleAdjustment
 from file_methods import save_object
 
@@ -53,11 +46,11 @@ def calibrate_3d_binocular(
 ):
     method = "binocular 3d model"
 
-    unprojected_gaze_points, pupil0_normals, pupil1_normals = preprocess_3d_data(
+    unprojected_ref_points, pupil0_normals, pupil1_normals = calibrate.preprocess_3d_data(
         matched_binocular_data, g_pool
     )
     if (
-        len(unprojected_gaze_points) < 1
+        len(unprojected_ref_points) < 1
         or len(pupil0_normals) < 1
         or len(pupil1_normals) < 1
     ):
@@ -72,29 +65,22 @@ def calibrate_3d_binocular(
             },
         )
 
-    unprojected_gaze_points = np.asarray(unprojected_gaze_points)
+    unprojected_ref_points = np.asarray(unprojected_ref_points)
     pupil0_normals = np.asarray(pupil0_normals)
     pupil1_normals = np.asarray(pupil1_normals)
 
-    def get_initial_eye_camera_rotation(pupil_normals, gaze_targets):
-        initial_rotation_matrix, _ = utils.find_rigid_transform(
-            pupil_normals, gaze_targets
-        )
-        initial_rotation = cv2.Rodrigues(initial_rotation_matrix)[0].ravel()
-        return initial_rotation
-
     # initial_rotation and initial_translation are eye pose in world coordinates
-    initial_rotation0 = get_initial_eye_camera_rotation(
-        pupil0_normals, unprojected_gaze_points
+    initial_rotation0 = utils.get_initial_eye_camera_rotation(
+        pupil0_normals, unprojected_ref_points
     )
-    initial_rotation1 = get_initial_eye_camera_rotation(
-        pupil1_normals, unprojected_gaze_points
+    initial_rotation1 = utils.get_initial_eye_camera_rotation(
+        pupil1_normals, unprojected_ref_points
     )
     initial_translation0 = eye0_hardcoded_translation
     initial_translation1 = eye1_hardcoded_translation
 
     world = SphericalCamera(
-        observations=unprojected_gaze_points,
+        observations=unprojected_ref_points,
         rotation=np.zeros(3),
         translation=np.zeros(3),
         fix_rotation=True,
@@ -116,7 +102,7 @@ def calibrate_3d_binocular(
     )
 
     initial_spherical_cameras = world, eye0, eye1
-    initial_gaze_targets = unprojected_gaze_points * initial_depth
+    initial_gaze_targets = unprojected_ref_points * initial_depth
 
     ba = BundleAdjustment(fix_gaze_targets=False)
     success, residual, poses_in_world, gaze_targets_in_world = ba.calculate(
@@ -172,11 +158,11 @@ def calibrate_3d_monocular(g_pool, matched_monocular_data, initial_depth=500):
 
     method = "monocular 3d model"
 
-    unprojected_gaze_points, pupil_normals, _ = preprocess_3d_data(
+    unprojected_ref_points, pupil_normals, _ = calibrate.preprocess_3d_data(
         matched_monocular_data, g_pool
     )
 
-    if len(unprojected_gaze_points) < 1 or len(pupil_normals) < 1:
+    if len(unprojected_ref_points) < 1 or len(pupil_normals) < 1:
         logger.error(not_enough_data_error_msg + " Using:" + method)
         return (
             method,
@@ -188,11 +174,11 @@ def calibrate_3d_monocular(g_pool, matched_monocular_data, initial_depth=500):
             },
         )
 
-    unprojected_gaze_points = np.asarray(unprojected_gaze_points)
+    unprojected_ref_points = np.asarray(unprojected_ref_points)
     pupil_normals = np.asarray(pupil_normals)
 
     initial_rotation_matrix, _ = utils.find_rigid_transform(
-        unprojected_gaze_points, pupil_normals
+        unprojected_ref_points, pupil_normals
     )
     if matched_monocular_data[0]["pupil"]["id"] == 0:
         hardcoded_translation = eye0_hardcoded_translation
@@ -203,7 +189,7 @@ def calibrate_3d_monocular(g_pool, matched_monocular_data, initial_depth=500):
     initial_translation = -np.dot(initial_rotation_matrix, hardcoded_translation)
 
     world = SphericalCamera(
-        observations=unprojected_gaze_points,
+        observations=unprojected_ref_points,
         rotation=initial_rotation,
         translation=initial_translation,
         fix_rotation=False,
@@ -277,11 +263,13 @@ def calibrate_2d_binocular(
     g_pool, matched_binocular_data, matched_pupil0_data, matched_pupil1_data
 ):
     method = "binocular polynomial regression"
-    cal_pt_cloud_binocular = preprocess_2d_data_binocular(matched_binocular_data)
-    cal_pt_cloud0 = preprocess_2d_data_monocular(matched_pupil0_data)
-    cal_pt_cloud1 = preprocess_2d_data_monocular(matched_pupil1_data)
+    cal_pt_cloud_binocular = calibrate.preprocess_2d_data_binocular(
+        matched_binocular_data
+    )
+    cal_pt_cloud0 = calibrate.preprocess_2d_data_monocular(matched_pupil0_data)
+    cal_pt_cloud1 = calibrate.preprocess_2d_data_monocular(matched_pupil1_data)
 
-    map_fn, inliers, params = calibrate_2d_polynomial(
+    map_fn, inliers, params = calibrate.calibrate_2d_polynomial(
         cal_pt_cloud_binocular, g_pool.capture.frame_size, binocular=True
     )
 
@@ -296,13 +284,13 @@ def calibrate_2d_binocular(
     if not inliers.any():
         return method, create_converge_error_msg()
 
-    map_fn, inliers, params_eye0 = calibrate_2d_polynomial(
+    map_fn, inliers, params_eye0 = calibrate.calibrate_2d_polynomial(
         cal_pt_cloud0, g_pool.capture.frame_size, binocular=False
     )
     if not inliers.any():
         return method, create_converge_error_msg()
 
-    map_fn, inliers, params_eye1 = calibrate_2d_polynomial(
+    map_fn, inliers, params_eye1 = calibrate.calibrate_2d_polynomial(
         cal_pt_cloud1, g_pool.capture.frame_size, binocular=False
     )
     if not inliers.any():
@@ -324,8 +312,8 @@ def calibrate_2d_binocular(
 
 def calibrate_2d_monocular(g_pool, matched_monocular_data):
     method = "monocular polynomial regression"
-    cal_pt_cloud = preprocess_2d_data_monocular(matched_monocular_data)
-    map_fn, inliers, params = calibrate_2d_polynomial(
+    cal_pt_cloud = calibrate.preprocess_2d_data_monocular(matched_monocular_data)
+    map_fn, inliers, params = calibrate.calibrate_2d_polynomial(
         cal_pt_cloud, g_pool.capture.frame_size, binocular=False
     )
     if not inliers.any():
@@ -366,9 +354,9 @@ def match_data(g_pool, pupil_list, ref_list):
     pupil1 = [p for p in pupil_list if p["id"] == 1]
 
     # TODO unify this and don't do both
-    matched_binocular_data = closest_matches_binocular(ref_list, pupil_list)
-    matched_pupil0_data = closest_matches_monocular(ref_list, pupil0)
-    matched_pupil1_data = closest_matches_monocular(ref_list, pupil1)
+    matched_binocular_data = calibrate.closest_matches_binocular(ref_list, pupil_list)
+    matched_pupil0_data = calibrate.closest_matches_monocular(ref_list, pupil0)
+    matched_pupil1_data = calibrate.closest_matches_monocular(ref_list, pupil1)
 
     if len(matched_pupil0_data) > len(matched_pupil1_data):
         matched_monocular_data = matched_pupil0_data

@@ -22,7 +22,7 @@ from file_methods import save_object
 logger = logging.getLogger(__name__)
 
 not_enough_data_error_msg = (
-    "Not enough ref point or pupil data available for calibration."
+    "Not enough ref points or pupil data available for calibration."
 )
 solver_failed_to_converge_error_msg = "Parameters could not be estimated from data."
 

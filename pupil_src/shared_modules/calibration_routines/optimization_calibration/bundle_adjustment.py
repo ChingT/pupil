@@ -27,6 +27,9 @@ class BundleAdjustment:
         self._current_values = None
         self._rotation_size = None
 
+        self._row_ind = None
+        self._col_ind = None
+
     @staticmethod
     def _toarray(arr):
         return np.asarray(arr, dtype=np.float64)
@@ -54,7 +57,7 @@ class BundleAdjustment:
         initial_guess = self._get_initial_guess(
             initial_rotation, initial_translation, initial_gaze_targets
         )
-        self._construct_sparsity_matrix()
+        self._row_ind, self._col_ind = self._get_ind_for_jacobian_matrix()
 
         result = self._least_squares(initial_guess, observed_normals)
         return self._get_final_output(result)
@@ -81,7 +84,7 @@ class BundleAdjustment:
         )
         return self._current_values[self._indices]
 
-    def _construct_sparsity_matrix(self):
+    def _get_ind_for_jacobian_matrix(self):
         def get_mat_pose(i):
             mat_pose = np.ones((self._gaze_targets_size, 3), dtype=bool)
             row, col = np.where(mat_pose)
@@ -90,7 +93,7 @@ class BundleAdjustment:
             return row, col
 
         try:
-            self._row_ind, self._col_ind = np.concatenate(
+            row_ind, col_ind = np.concatenate(
                 [
                     get_mat_pose(i)
                     for i in range(len(self._opt_items))
@@ -99,7 +102,7 @@ class BundleAdjustment:
                 axis=1,
             )
         except ValueError:
-            self._row_ind, self._col_ind = np.where([[]])
+            row_ind, col_ind = np.where([[]])
 
         if not self._fix_gaze_targets:
             _row = np.repeat(
@@ -114,8 +117,10 @@ class BundleAdjustment:
                 np.repeat(np.arange(self._gaze_targets_size), 3),
                 self._n_spherical_cameras,
             )
-            self._row_ind = np.append(self._row_ind, ind_row)
-            self._col_ind = np.append(self._col_ind, ind_col + self._n_poses_variables)
+            row_ind = np.append(row_ind, ind_row)
+            col_ind = np.append(col_ind, ind_col + self._n_poses_variables)
+
+        return row_ind, col_ind
 
     def _calculate_jacobian_matrix(self, variables, observed_normals):
         def get_jac_rot(normals, rotation):

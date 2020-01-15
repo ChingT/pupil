@@ -311,6 +311,7 @@ class HMD_Calibration_3D(HMD_Calibration, Calibration_Plugin):
         ref_points_3d_unscaled = np.asarray(ref_points_3d_unscaled)
         pupil0_normals = np.asarray(pupil0_normals)
         pupil1_normals = np.asarray(pupil1_normals)
+        initial_translation0, initial_translation1 = np.asarray(self.eye_translations)
 
         smallest_residual = 1000
         scales = list(np.linspace(0.7, 10, 50))
@@ -324,7 +325,6 @@ class HMD_Calibration_3D(HMD_Calibration, Calibration_Plugin):
             initial_rotation1 = utils.get_initial_eye_camera_rotation(
                 pupil1_normals, ref_points_3d
             )
-            initial_translation0, initial_translation1 = np.array(self.eye_translations)
 
             eye0 = SphericalCamera(
                 observations=pupil0_normals,

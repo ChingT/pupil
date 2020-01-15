@@ -16,6 +16,8 @@ from scipy import optimize as scipy_optimize, sparse as scipy_sparse
 from calibration_routines.optimization_calibration import utils
 
 
+# BundleAdjustment is a class instead of functions, since passing all the parameters
+# would be inefficient. # (especially true for _compute_residuals as a callback)
 class BundleAdjustment:
     def __init__(self, fix_gaze_targets):
         self._fix_gaze_targets = bool(fix_gaze_targets)
@@ -227,7 +229,7 @@ class BundleAdjustment:
         gaze_targets = self._current_values[-self._gaze_targets_size :].reshape(-1, 3)
         return rotations, translations, gaze_targets
 
-    def _get_final_output(self, result, residual_threshold=10):
+    def _get_final_output(self, result, residual_threshold=1e3):
         residual = result.cost
         success = residual < residual_threshold
         rotations, translations, final_gaze_targets = self._decompose_variables(

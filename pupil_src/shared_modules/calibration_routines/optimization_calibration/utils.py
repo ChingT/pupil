@@ -9,8 +9,6 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 """
 
-import functools
-
 import cv2
 import numpy as np
 
@@ -63,21 +61,6 @@ def inverse_extrinsic(extrinsic):
     return merge_extrinsic(rotation_inv, translation_inv)
 
 
-def convert_extrinsic_to_matrix(extrinsic):
-    rotation, translation = split_extrinsic(extrinsic)
-    extrinsic_matrix = np.eye(4, dtype=np.float64)
-    extrinsic_matrix[0:3, 0:3] = cv2.Rodrigues(rotation)[0]
-    extrinsic_matrix[0:3, 3] = translation
-    return extrinsic_matrix
-
-
-def convert_matrix_to_extrinsic(extrinsic_matrix):
-    extrinsic_matrix = np.asarray(extrinsic_matrix, dtype=np.float64)
-    rotation = cv2.Rodrigues(extrinsic_matrix[0:3, 0:3])[0]
-    translation = extrinsic_matrix[0:3, 3]
-    return merge_extrinsic(rotation, translation)
-
-
 def split_extrinsic(extrinsic):
     extrinsic = np.asarray(extrinsic, dtype=np.float64)
     assert extrinsic.size == 6
@@ -90,17 +73,6 @@ def merge_extrinsic(rotation, translation):
     assert rotation.size == 3 and translation.size == 3
     extrinsic = np.concatenate((rotation.ravel(), translation.ravel()))
     return extrinsic
-
-
-def extrinsic_mul(*args):
-    return convert_matrix_to_extrinsic(
-        multiple_matmul(*[convert_extrinsic_to_matrix(extrinsic) for extrinsic in args])
-    )
-
-
-def multiple_matmul(*args):
-    assert args[0].shape in [(3, 3), (4, 4)]
-    return functools.reduce(lambda x, y: np.dot(x, y), args)
 
 
 def find_rigid_transform(A, B):
